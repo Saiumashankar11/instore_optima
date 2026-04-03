@@ -1,24 +1,24 @@
 # API Design
 
 ## User APIs
-POST /register
+POST /register \
 POST /login
 
 ---
 
 ## Product APIs
-GET /products
-GET /products/{id}
-POST /products
-PUT /products/{id}
+GET /products \
+GET /products/{id} \
+POST /products \
+PUT /products/{id} \
 DELETE /products/{id}
 
 ---
 
 ## Order APIs
-POST /orders
-GET /orders
-GET /orders/{id}
+POST /orders \
+GET /orders \
+GET /orders/{id} \
 
 ---
 
@@ -28,17 +28,17 @@ POST /order-items
 ---
 
 ## Payment APIs
-POST /payment
+POST /payment \
 GET /payment/{order_id}
 
 ---
 
 ## Supplier APIs
-GET /suppliers
+GET /suppliers \
 POST /suppliers
 
 ---
 
 ## Stock APIs
-GET /stock
+GET /stock \
 PUT /stock/{product_id}
