@@ -1,89 +1,128 @@
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using instore_optima.Infrastructure.Data;
+using Application.Interfaces;
+using Application.DTOs.UserDTOs;
 using instore_optima.Domain.Entities;
+using Microsoft.AspNetCore.Mvc;
 
 namespace instore_optima.Api.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    public class UserController : ControllerBase
+    public class UsersController : ControllerBase
     {
-        private readonly AppDbContext _context;
+        private readonly IGenericRepository<User> _repository;
 
-        public UserController(AppDbContext context)
+        public UsersController(IGenericRepository<User> repository)
         {
-            _context = context;
+            _repository = repository;
         }
 
-        // ?? GET ALL
+        // ✅ GET ALL
         [HttpGet]
-        public async Task<IActionResult> GetUsers()
+        public async Task<IActionResult> GetAll()
         {
-            var users = await _context.Users.ToListAsync();
-            return Ok(users);
+            var users = await _repository.GetAllAsync();
+
+            var result = users.Select(u => new UserResponseDto
+            {
+                UserId = u.UserId,
+                Name = u.Name,
+                Email = u.Email,
+                Role = u.Role
+            }).ToList();
+
+            return Ok(result);
         }
 
-        // ?? GET BY ID
+        // ✅ GET BY ID
         [HttpGet("{id}")]
-        public async Task<IActionResult> GetUser(int id)
+        public async Task<IActionResult> Get(int id)
         {
-            var user = await _context.Users.FindAsync(id);
-            if (user == null) return NotFound();
-            return Ok(user);
+            var user = await _repository.GetByIdAsync(id);
+            if (user == null)
+                return NotFound(new { message = "User not found" });
+
+            var dto = new UserResponseDto
+            {
+                UserId = user.UserId,
+                Name = user.Name,
+                Email = user.Email,
+                Role = user.Role
+            };
+
+            return Ok(dto);
         }
 
-        // ?? POST
+        // ✅ POST
         [HttpPost]
-        public async Task<IActionResult> CreateUser(User user)
+        public async Task<IActionResult> Create([FromBody] UserCreateDto dto)
         {
-            if (string.IsNullOrWhiteSpace(user.Name) || string.IsNullOrWhiteSpace(user.Email))
-            {
-                return BadRequest("Name and Email are required");
-            }
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
 
-            user.CreatedAt = DateTime.Now;
-            _context.Users.Add(user);
-            await _context.SaveChangesAsync();
-            return CreatedAtAction(nameof(GetUser), new { id = user.UserId }, user);
+            var user = new User
+            {
+                Name = dto.Name,
+                Email = dto.Email,
+                Password = dto.Password,
+                Role = dto.Role,
+                CreatedAt = DateTime.Now
+            };
+
+            await _repository.AddAsync(user);
+            await _repository.SaveAsync();
+
+            var responseDto = new UserResponseDto
+            {
+                UserId = user.UserId,
+                Name = user.Name,
+                Email = user.Email,
+                Role = user.Role
+            };
+
+            return CreatedAtAction(nameof(Get), new { id = user.UserId }, responseDto);
         }
 
-        // ?? PUT
+        // ✅ PUT
         [HttpPut("{id}")]
-        public async Task<IActionResult> UpdateUser(int id, User user)
+        public async Task<IActionResult> Update(int id, [FromBody] UserUpdateDto dto)
         {
-            if (id != user.UserId)
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            var user = await _repository.GetByIdAsync(id);
+            if (user == null)
+                return NotFound(new { message = "User not found" });
+
+            user.Name = dto.Name;
+            user.Email = dto.Email;
+            user.Role = dto.Role;
+
+            _repository.Update(user);
+            await _repository.SaveAsync();
+
+            var responseDto = new UserResponseDto
             {
-                return BadRequest("ID mismatch");
-            }
+                UserId = user.UserId,
+                Name = user.Name,
+                Email = user.Email,
+                Role = user.Role
+            };
 
-            var existing = await _context.Users.FindAsync(id);
-            if (existing == null) return NotFound();
-
-            if (string.IsNullOrWhiteSpace(user.Name) || string.IsNullOrWhiteSpace(user.Email))
-            {
-                return BadRequest("Name and Email are required");
-            }
-
-            existing.Name = user.Name;
-            existing.Email = user.Email;
-            existing.Password = user.Password;
-            existing.Role = user.Role;
-
-            await _context.SaveChangesAsync();
-            return Ok(existing);
+            return Ok(responseDto);
         }
 
-        // ?? DELETE
+        // ✅ DELETE
         [HttpDelete("{id}")]
-        public async Task<IActionResult> DeleteUser(int id)
+        public async Task<IActionResult> Delete(int id)
         {
-            var user = await _context.Users.FindAsync(id);
-            if (user == null) return NotFound();
+            var user = await _repository.GetByIdAsync(id);
+            if (user == null)
+                return NotFound(new { message = "User not found" });
 
-            _context.Users.Remove(user);
-            await _context.SaveChangesAsync();
-            return Ok();
+            _repository.Delete(user);
+            await _repository.SaveAsync();
+
+            return Ok(new { message = "User deleted successfully" });
         }
     }
 }

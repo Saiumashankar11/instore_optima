@@ -1,0 +1,14 @@
+using System;   
+namespace Application.DTOs.PaymentDTOs
+{
+    public class PaymentCreateDto
+    {
+        public int OrderId { get; set; }
+
+        public decimal Price { get; set; }
+
+        public string PaymentMethod { get; set; } = string.Empty;
+
+        public string PaymentStatus { get; set; } = string.Empty;
+    }
+}

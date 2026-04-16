@@ -1,0 +1,110 @@
+﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using instore_optima.Infrastructure.Data;
+using instore_optima.Domain.Entities;
+using Application.DTOs.PaymentDTOs;
+
+namespace instore_optima.Api.Controllers
+{
+    [ApiController]
+    [Route("api/[controller]")]
+    public class PaymentController : ControllerBase
+    {
+        private readonly AppDbContext _context;
+
+        public PaymentController(AppDbContext context)
+        {
+            _context = context;
+        }
+
+        // ✅ GET ALL
+        [HttpGet]
+        public async Task<IActionResult> GetPayments()
+        {
+            var payments = await _context.Payments
+                .Select(p => new PaymentResponseDto
+                {
+                    PaymentId = p.PaymentId,
+                    OrderId = p.OrderId,
+                    PaymentMethod = p.PaymentMethod,
+                    PaymentStatus = p.PaymentStatus,
+                    PaymentDate = p.PaymentDate
+                })
+                .ToListAsync();
+
+            return Ok(payments);
+        }
+
+        // ✅ GET BY ID
+        [HttpGet("{id}")]
+        public async Task<IActionResult> GetPayment(int id)
+        {
+            var payment = await _context.Payments
+                .Where(p => p.PaymentId == id)
+                .Select(p => new PaymentResponseDto
+                {
+                    PaymentId = p.PaymentId,
+                    OrderId = p.OrderId,
+                    PaymentMethod = p.PaymentMethod,
+                    PaymentStatus = p.PaymentStatus,
+                    PaymentDate = p.PaymentDate
+                })
+                .FirstOrDefaultAsync();
+
+            if (payment == null)
+                return NotFound();
+
+            return Ok(payment);
+        }
+
+        // ✅ POST
+        [HttpPost]
+        public async Task<IActionResult> CreatePayment(PaymentCreateDto dto)
+        {
+            var payment = new Payment
+            {
+                OrderId = dto.OrderId,
+                PaymentMethod = dto.PaymentMethod,
+                PaymentStatus = dto.PaymentStatus,
+                PaymentDate = DateTime.Now
+            };
+
+            _context.Payments.Add(payment);
+            await _context.SaveChangesAsync();
+
+            return CreatedAtAction(nameof(GetPayment), new { id = payment.PaymentId }, payment);
+        }
+
+        // ✅ PUT
+        [HttpPut("{id}")]
+        public async Task<IActionResult> UpdatePayment(int id, PaymentUpdateDto dto)
+        {
+            var existing = await _context.Payments.FindAsync(id);
+
+            if (existing == null)
+                return NotFound();
+
+            existing.PaymentMethod = dto.PaymentMethod;
+            existing.PaymentStatus = dto.PaymentStatus;
+
+            await _context.SaveChangesAsync();
+
+            return Ok(existing);
+        }
+
+        // ✅ DELETE
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> DeletePayment(int id)
+        {
+            var payment = await _context.Payments.FindAsync(id);
+
+            if (payment == null)
+                return NotFound();
+
+            _context.Payments.Remove(payment);
+            await _context.SaveChangesAsync();
+
+            return Ok();
+        }
+    }
+}

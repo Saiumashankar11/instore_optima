@@ -1,23 +1,23 @@
 {
   "format": 1,
   "restore": {
-    "C:\\Users\\2487392\\instore_optima\\src\\instore_optima.Api\\instore_optima.Api.csproj": {}
+    "C:\\Users\\2487380\\instore_optima\\src\\instore_optima.Api\\instore_optima.Api.csproj": {}
   },
   "projects": {
-    "C:\\Users\\2487392\\instore_optima\\src\\instore_optima.Api\\instore_optima.Api.csproj": {
+    "C:\\Users\\2487380\\instore_optima\\src\\instore_optima.Api\\instore_optima.Api.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Users\\2487392\\instore_optima\\src\\instore_optima.Api\\instore_optima.Api.csproj",
+        "projectUniqueName": "C:\\Users\\2487380\\instore_optima\\src\\instore_optima.Api\\instore_optima.Api.csproj",
         "projectName": "instore_optima.Api",
-        "projectPath": "C:\\Users\\2487392\\instore_optima\\src\\instore_optima.Api\\instore_optima.Api.csproj",
-        "packagesPath": "C:\\Users\\2487392\\.nuget\\packages\\",
-        "outputPath": "C:\\Users\\2487392\\instore_optima\\src\\instore_optima.Api\\obj\\",
+        "projectPath": "C:\\Users\\2487380\\instore_optima\\src\\instore_optima.Api\\instore_optima.Api.csproj",
+        "packagesPath": "C:\\Users\\2487380\\.nuget\\packages\\",
+        "outputPath": "C:\\Users\\2487380\\instore_optima\\src\\instore_optima.Api\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
         ],
         "configFilePaths": [
-          "C:\\Users\\2487392\\AppData\\Roaming\\NuGet\\NuGet.Config",
+          "C:\\Users\\2487380\\AppData\\Roaming\\NuGet\\NuGet.Config",
           "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
           "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
         ],
@@ -33,11 +33,11 @@
           "net8.0": {
             "targetAlias": "net8.0",
             "projectReferences": {
-              "C:\\Users\\2487392\\instore_optima\\src\\instore_optima.Application\\instore_optima.Application.csproj": {
-                "projectPath": "C:\\Users\\2487392\\instore_optima\\src\\instore_optima.Application\\instore_optima.Application.csproj"
+              "C:\\Users\\2487380\\instore_optima\\src\\instore_optima.Application\\instore_optima.Application.csproj": {
+                "projectPath": "C:\\Users\\2487380\\instore_optima\\src\\instore_optima.Application\\instore_optima.Application.csproj"
               },
-              "C:\\Users\\2487392\\instore_optima\\src\\instore_optima.Infrastructure\\instore_optima.Infrastructure.csproj": {
-                "projectPath": "C:\\Users\\2487392\\instore_optima\\src\\instore_optima.Infrastructure\\instore_optima.Infrastructure.csproj"
+              "C:\\Users\\2487380\\instore_optima\\src\\instore_optima.Infrastructure\\instore_optima.Infrastructure.csproj": {
+                "projectPath": "C:\\Users\\2487380\\instore_optima\\src\\instore_optima.Infrastructure\\instore_optima.Infrastructure.csproj"
               }
             }
           }
@@ -104,20 +104,20 @@
         }
       }
     },
-    "C:\\Users\\2487392\\instore_optima\\src\\instore_optima.Application\\instore_optima.Application.csproj": {
+    "C:\\Users\\2487380\\instore_optima\\src\\instore_optima.Application\\instore_optima.Application.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Users\\2487392\\instore_optima\\src\\instore_optima.Application\\instore_optima.Application.csproj",
+        "projectUniqueName": "C:\\Users\\2487380\\instore_optima\\src\\instore_optima.Application\\instore_optima.Application.csproj",
         "projectName": "instore_optima.Application",
-        "projectPath": "C:\\Users\\2487392\\instore_optima\\src\\instore_optima.Application\\instore_optima.Application.csproj",
-        "packagesPath": "C:\\Users\\2487392\\.nuget\\packages\\",
-        "outputPath": "C:\\Users\\2487392\\instore_optima\\src\\instore_optima.Application\\obj\\",
+        "projectPath": "C:\\Users\\2487380\\instore_optima\\src\\instore_optima.Application\\instore_optima.Application.csproj",
+        "packagesPath": "C:\\Users\\2487380\\.nuget\\packages\\",
+        "outputPath": "C:\\Users\\2487380\\instore_optima\\src\\instore_optima.Application\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
         ],
         "configFilePaths": [
-          "C:\\Users\\2487392\\AppData\\Roaming\\NuGet\\NuGet.Config",
+          "C:\\Users\\2487380\\AppData\\Roaming\\NuGet\\NuGet.Config",
           "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
           "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
         ],
@@ -133,8 +133,8 @@
           "net8.0": {
             "targetAlias": "net8.0",
             "projectReferences": {
-              "C:\\Users\\2487392\\instore_optima\\src\\instore_optima.Domain\\instore_optima.Domain.csproj": {
-                "projectPath": "C:\\Users\\2487392\\instore_optima\\src\\instore_optima.Domain\\instore_optima.Domain.csproj"
+              "C:\\Users\\2487380\\instore_optima\\src\\instore_optima.Domain\\instore_optima.Domain.csproj": {
+                "projectPath": "C:\\Users\\2487380\\instore_optima\\src\\instore_optima.Domain\\instore_optima.Domain.csproj"
               }
             }
           }
@@ -190,20 +190,20 @@
         }
       }
     },
-    "C:\\Users\\2487392\\instore_optima\\src\\instore_optima.Domain\\instore_optima.Domain.csproj": {
+    "C:\\Users\\2487380\\instore_optima\\src\\instore_optima.Domain\\instore_optima.Domain.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Users\\2487392\\instore_optima\\src\\instore_optima.Domain\\instore_optima.Domain.csproj",
+        "projectUniqueName": "C:\\Users\\2487380\\instore_optima\\src\\instore_optima.Domain\\instore_optima.Domain.csproj",
         "projectName": "instore_optima.Domain",
-        "projectPath": "C:\\Users\\2487392\\instore_optima\\src\\instore_optima.Domain\\instore_optima.Domain.csproj",
-        "packagesPath": "C:\\Users\\2487392\\.nuget\\packages\\",
-        "outputPath": "C:\\Users\\2487392\\instore_optima\\src\\instore_optima.Domain\\obj\\",
+        "projectPath": "C:\\Users\\2487380\\instore_optima\\src\\instore_optima.Domain\\instore_optima.Domain.csproj",
+        "packagesPath": "C:\\Users\\2487380\\.nuget\\packages\\",
+        "outputPath": "C:\\Users\\2487380\\instore_optima\\src\\instore_optima.Domain\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
         ],
         "configFilePaths": [
-          "C:\\Users\\2487392\\AppData\\Roaming\\NuGet\\NuGet.Config",
+          "C:\\Users\\2487380\\AppData\\Roaming\\NuGet\\NuGet.Config",
           "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
           "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
         ],
@@ -272,20 +272,20 @@
         }
       }
     },
-    "C:\\Users\\2487392\\instore_optima\\src\\instore_optima.Infrastructure\\instore_optima.Infrastructure.csproj": {
+    "C:\\Users\\2487380\\instore_optima\\src\\instore_optima.Infrastructure\\instore_optima.Infrastructure.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Users\\2487392\\instore_optima\\src\\instore_optima.Infrastructure\\instore_optima.Infrastructure.csproj",
+        "projectUniqueName": "C:\\Users\\2487380\\instore_optima\\src\\instore_optima.Infrastructure\\instore_optima.Infrastructure.csproj",
         "projectName": "instore_optima.Infrastructure",
-        "projectPath": "C:\\Users\\2487392\\instore_optima\\src\\instore_optima.Infrastructure\\instore_optima.Infrastructure.csproj",
-        "packagesPath": "C:\\Users\\2487392\\.nuget\\packages\\",
-        "outputPath": "C:\\Users\\2487392\\instore_optima\\src\\instore_optima.Infrastructure\\obj\\",
+        "projectPath": "C:\\Users\\2487380\\instore_optima\\src\\instore_optima.Infrastructure\\instore_optima.Infrastructure.csproj",
+        "packagesPath": "C:\\Users\\2487380\\.nuget\\packages\\",
+        "outputPath": "C:\\Users\\2487380\\instore_optima\\src\\instore_optima.Infrastructure\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
         ],
         "configFilePaths": [
-          "C:\\Users\\2487392\\AppData\\Roaming\\NuGet\\NuGet.Config",
+          "C:\\Users\\2487380\\AppData\\Roaming\\NuGet\\NuGet.Config",
           "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
           "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
         ],
@@ -301,8 +301,8 @@
           "net8.0": {
             "targetAlias": "net8.0",
             "projectReferences": {
-              "C:\\Users\\2487392\\instore_optima\\src\\instore_optima.Domain\\instore_optima.Domain.csproj": {
-                "projectPath": "C:\\Users\\2487392\\instore_optima\\src\\instore_optima.Domain\\instore_optima.Domain.csproj"
+              "C:\\Users\\2487380\\instore_optima\\src\\instore_optima.Domain\\instore_optima.Domain.csproj": {
+                "projectPath": "C:\\Users\\2487380\\instore_optima\\src\\instore_optima.Domain\\instore_optima.Domain.csproj"
               }
             }
           }

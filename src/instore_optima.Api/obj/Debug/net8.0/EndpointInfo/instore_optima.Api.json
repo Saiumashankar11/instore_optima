@@ -325,17 +325,17 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/Payment"
+                "$ref": "#/components/schemas/PaymentCreateDto"
               }
             },
             "text/json": {
               "schema": {
-                "$ref": "#/components/schemas/Payment"
+                "$ref": "#/components/schemas/PaymentCreateDto"
               }
             },
             "application/*+json": {
               "schema": {
-                "$ref": "#/components/schemas/Payment"
+                "$ref": "#/components/schemas/PaymentCreateDto"
               }
             }
           }
@@ -348,6 +348,27 @@
       }
     },
     "/api/Payment/{id}": {
+      "get": {
+        "tags": [
+          "Payment"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      },
       "put": {
         "tags": [
           "Payment"
@@ -367,17 +388,17 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/Payment"
+                "$ref": "#/components/schemas/PaymentUpdateDto"
               }
             },
             "text/json": {
               "schema": {
-                "$ref": "#/components/schemas/Payment"
+                "$ref": "#/components/schemas/PaymentUpdateDto"
               }
             },
             "application/*+json": {
               "schema": {
-                "$ref": "#/components/schemas/Payment"
+                "$ref": "#/components/schemas/PaymentUpdateDto"
               }
             }
           }
@@ -913,10 +934,10 @@
         }
       }
     },
-    "/api/User": {
+    "/api/Users": {
       "get": {
         "tags": [
-          "User"
+          "Users"
         ],
         "responses": {
           "200": {
@@ -926,23 +947,23 @@
       },
       "post": {
         "tags": [
-          "User"
+          "Users"
         ],
         "requestBody": {
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/User"
+                "$ref": "#/components/schemas/UserCreateDto"
               }
             },
             "text/json": {
               "schema": {
-                "$ref": "#/components/schemas/User"
+                "$ref": "#/components/schemas/UserCreateDto"
               }
             },
             "application/*+json": {
               "schema": {
-                "$ref": "#/components/schemas/User"
+                "$ref": "#/components/schemas/UserCreateDto"
               }
             }
           }
@@ -954,10 +975,10 @@
         }
       }
     },
-    "/api/User/{id}": {
+    "/api/Users/{id}": {
       "get": {
         "tags": [
-          "User"
+          "Users"
         ],
         "parameters": [
           {
@@ -978,7 +999,7 @@
       },
       "put": {
         "tags": [
-          "User"
+          "Users"
         ],
         "parameters": [
           {
@@ -995,17 +1016,17 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/User"
+                "$ref": "#/components/schemas/UserUpdateDto"
               }
             },
             "text/json": {
               "schema": {
-                "$ref": "#/components/schemas/User"
+                "$ref": "#/components/schemas/UserUpdateDto"
               }
             },
             "application/*+json": {
               "schema": {
-                "$ref": "#/components/schemas/User"
+                "$ref": "#/components/schemas/UserUpdateDto"
               }
             }
           }
@@ -1018,7 +1039,7 @@
       },
       "delete": {
         "tags": [
-          "User"
+          "Users"
         ],
         "parameters": [
           {
@@ -1132,16 +1153,16 @@
         },
         "additionalProperties": false
       },
-      "Payment": {
+      "PaymentCreateDto": {
         "type": "object",
         "properties": {
-          "paymentId": {
-            "type": "integer",
-            "format": "int32"
-          },
           "orderId": {
             "type": "integer",
             "format": "int32"
+          },
+          "price": {
+            "type": "number",
+            "format": "double"
           },
           "paymentMethod": {
             "type": "string",
@@ -1150,10 +1171,24 @@
           "paymentStatus": {
             "type": "string",
             "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "PaymentUpdateDto": {
+        "type": "object",
+        "properties": {
+          "price": {
+            "type": "number",
+            "format": "double"
           },
-          "paymentDate": {
+          "paymentMethod": {
             "type": "string",
-            "format": "date-time"
+            "nullable": true
+          },
+          "paymentStatus": {
+            "type": "string",
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -1334,13 +1369,9 @@
         },
         "additionalProperties": false
       },
-      "User": {
+      "UserCreateDto": {
         "type": "object",
         "properties": {
-          "userId": {
-            "type": "integer",
-            "format": "int32"
-          },
           "name": {
             "type": "string",
             "nullable": true
@@ -1356,10 +1387,24 @@
           "role": {
             "type": "string",
             "nullable": true
-          },
-          "createdAt": {
+          }
+        },
+        "additionalProperties": false
+      },
+      "UserUpdateDto": {
+        "type": "object",
+        "properties": {
+          "name": {
             "type": "string",
-            "format": "date-time"
+            "nullable": true
+          },
+          "email": {
+            "type": "string",
+            "nullable": true
+          },
+          "role": {
+            "type": "string",
+            "nullable": true
           }
         },
         "additionalProperties": false

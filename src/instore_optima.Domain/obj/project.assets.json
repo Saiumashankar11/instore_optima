@@ -4003,23 +4003,23 @@
     ]
   },
   "packageFolders": {
-    "C:\\Users\\2487392\\.nuget\\packages\\": {},
+    "C:\\Users\\2487380\\.nuget\\packages\\": {},
     "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages": {}
   },
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "C:\\Users\\2487392\\instore_optima\\src\\instore_optima.Domain\\instore_optima.Domain.csproj",
+      "projectUniqueName": "C:\\Users\\2487380\\instore_optima\\src\\instore_optima.Domain\\instore_optima.Domain.csproj",
       "projectName": "instore_optima.Domain",
-      "projectPath": "C:\\Users\\2487392\\instore_optima\\src\\instore_optima.Domain\\instore_optima.Domain.csproj",
-      "packagesPath": "C:\\Users\\2487392\\.nuget\\packages\\",
-      "outputPath": "C:\\Users\\2487392\\instore_optima\\src\\instore_optima.Domain\\obj\\",
+      "projectPath": "C:\\Users\\2487380\\instore_optima\\src\\instore_optima.Domain\\instore_optima.Domain.csproj",
+      "packagesPath": "C:\\Users\\2487380\\.nuget\\packages\\",
+      "outputPath": "C:\\Users\\2487380\\instore_optima\\src\\instore_optima.Domain\\obj\\",
       "projectStyle": "PackageReference",
       "fallbackFolders": [
         "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
       ],
       "configFilePaths": [
-        "C:\\Users\\2487392\\AppData\\Roaming\\NuGet\\NuGet.Config",
+        "C:\\Users\\2487380\\AppData\\Roaming\\NuGet\\NuGet.Config",
         "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
         "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
       ],

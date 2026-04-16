@@ -1,0 +1,128 @@
+﻿using Application.Interfaces;
+using Application.DTOs.UserDTOs;
+using instore_optima.Domain.Entities;
+using Microsoft.AspNetCore.Mvc;
+
+namespace instore_optima.Api.Controllers
+{
+    [ApiController]
+    [Route("api/[controller]")]
+    public class UsersController : ControllerBase
+    {
+        private readonly IGenericRepository<User> _repository;
+
+        public UsersController(IGenericRepository<User> repository)
+        {
+            _repository = repository;
+        }
+
+        // ✅ GET ALL
+        [HttpGet]
+        public async Task<IActionResult> GetAll()
+        {
+            var users = await _repository.GetAllAsync();
+
+            var result = users.Select(u => new UserResponseDto
+            {
+                UserId = u.UserId,
+                Name = u.Name,
+                Email = u.Email,
+                Role = u.Role
+            }).ToList();
+
+            return Ok(result);
+        }
+
+        // ✅ GET BY ID
+        [HttpGet("{id}")]
+        public async Task<IActionResult> Get(int id)
+        {
+            var user = await _repository.GetByIdAsync(id);
+            if (user == null)
+                return NotFound(new { message = "User not found" });
+
+            var dto = new UserResponseDto
+            {
+                UserId = user.UserId,
+                Name = user.Name,
+                Email = user.Email,
+                Role = user.Role
+            };
+
+            return Ok(dto);
+        }
+
+        // ✅ POST
+        [HttpPost]
+        public async Task<IActionResult> Create([FromBody] UserCreateDto dto)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            var user = new User
+            {
+                Name = dto.Name,
+                Email = dto.Email,
+                Password = dto.Password,
+                Role = dto.Role,
+                CreatedAt = DateTime.Now
+            };
+
+            await _repository.AddAsync(user);
+            await _repository.SaveAsync();
+
+            var responseDto = new UserResponseDto
+            {
+                UserId = user.UserId,
+                Name = user.Name,
+                Email = user.Email,
+                Role = user.Role
+            };
+
+            return CreatedAtAction(nameof(Get), new { id = user.UserId }, responseDto);
+        }
+
+        // ✅ PUT
+        [HttpPut("{id}")]
+        public async Task<IActionResult> Update(int id, [FromBody] UserUpdateDto dto)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            var user = await _repository.GetByIdAsync(id);
+            if (user == null)
+                return NotFound(new { message = "User not found" });
+
+            user.Name = dto.Name;
+            user.Email = dto.Email;
+            user.Role = dto.Role;
+
+            _repository.Update(user);
+            await _repository.SaveAsync();
+
+            var responseDto = new UserResponseDto
+            {
+                UserId = user.UserId,
+                Name = user.Name,
+                Email = user.Email,
+                Role = user.Role
+            };
+
+            return Ok(responseDto);
+        }
+
+        // ✅ DELETE
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> Delete(int id)
+        {
+            var user = await _repository.GetByIdAsync(id);
+            if (user == null)
+                return NotFound(new { message = "User not found" });
+
+            _repository.Delete(user);
+            await _repository.SaveAsync();
+
+            return Ok(new { message = "User deleted successfully" });
+        }
+    }
+}

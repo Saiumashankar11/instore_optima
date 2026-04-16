@@ -1,0 +1,97 @@
+﻿using Application.Interfaces;
+using Core.Entities;
+using Microsoft.AspNetCore.Mvc;
+
+[ApiController]
+[Route("api/[controller]")]
+public class UsersController : ControllerBase
+{
+    private readonly IGenericRepository<User> _repo;
+
+    public UsersController(IGenericRepository<User> repo)
+    {
+        _repo = repo;
+    }
+
+    
+    [HttpGet]
+    public async Task<IActionResult> GetAll()
+    {
+        var users = await _repo.GetAllAsync();
+
+        var result = users.Select(u => new UserDto
+        {
+            UserId = u.UserId,
+            Name = u.Name,
+            Email = u.Email,
+            Role = u.Role
+        });
+
+        return Ok(result);
+    }
+
+    [HttpGet("{id}")]
+    public async Task<IActionResult> Get(int id)
+    {
+        var user = await _repo.GetByIdAsync(id);
+        if (user == null) return NotFound();
+
+        var dto = new UserDto
+        {
+            UserId = user.UserId,
+            Name = user.Name,
+            Email = user.Email,
+            Role = user.Role
+        };
+
+        return Ok(dto);
+    }
+
+   
+    [HttpPost]
+    public async Task<IActionResult> Create(UserDto dto)
+    {
+        var entity = new User
+        {
+            Name = dto.Name,
+            Email = dto.Email,
+            Role = dto.Role,
+            Password = "default123", 
+            CreatedAt = DateTime.Now
+        };
+
+        await _repo.AddAsync(entity);
+        await _repo.SaveAsync();
+
+        return Ok(dto);
+    }
+
+  
+    [HttpPut("{id}")]
+    public async Task<IActionResult> Update(int id, UserDto dto)
+    {
+        var user = await _repo.GetByIdAsync(id);
+        if (user == null) return NotFound();
+
+        user.Name = dto.Name;
+        user.Email = dto.Email;
+        user.Role = dto.Role;
+
+        _repo.Update(user);
+        await _repo.SaveAsync();
+
+        return Ok(dto);
+    }
+
+    [HttpDelete("{id}")]
+    public async Task<IActionResult> Delete(int id)
+    {
+        var user = await _repo.GetByIdAsync(id);
+        if (user == null) return NotFound();
+
+        _repo.Delete(user);
+        await _repo.SaveAsync();
+
+        return Ok();
+    }
+}

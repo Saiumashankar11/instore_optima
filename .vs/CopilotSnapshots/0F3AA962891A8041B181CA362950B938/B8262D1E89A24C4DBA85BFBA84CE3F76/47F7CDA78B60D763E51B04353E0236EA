@@ -1,0 +1,100 @@
+﻿using Application.Interfaces;
+using Core.Entities;
+using Microsoft.AspNetCore.Mvc;
+
+[ApiController]
+[Route("api/[controller]")]
+public class PaymentController : ControllerBase
+{
+    private readonly IGenericRepository<Payment> _repo;
+
+    public PaymentController(IGenericRepository<Payment> repo)
+    {
+        _repo = repo;
+    }
+
+    // 🔹 GET ALL
+    [HttpGet]
+    public async Task<IActionResult> GetAll()
+    {
+        var payments = await _repo.GetAllAsync();
+
+        var result = payments.Select(p => new PaymentDto
+        {
+            PaymentId = p.PaymentId,
+            OrderId = p.OrderId,
+            Price = p.Price,
+            PaymentMethod = p.PaymentMethod,
+            PaymentStatus = p.PaymentStatus
+        });
+
+        return Ok(result);
+    }
+
+    // 🔹 GET BY ID
+    [HttpGet("{id}")]
+    public async Task<IActionResult> Get(int id)
+    {
+        var payment = await _repo.GetByIdAsync(id);
+        if (payment == null) return NotFound();
+
+        var dto = new PaymentDto
+        {
+            PaymentId = payment.PaymentId,
+            OrderId = payment.OrderId,
+            Price = payment.Price,
+            PaymentMethod = payment.PaymentMethod,
+            PaymentStatus = payment.PaymentStatus
+        };
+
+        return Ok(dto);
+    }
+
+    // 🔹 POST
+    [HttpPost]
+    public async Task<IActionResult> Create(PaymentDto dto)
+    {
+        var entity = new Payment
+        {
+            OrderId = dto.OrderId,
+            Price = dto.Price,
+            PaymentMethod = dto.PaymentMethod,
+            PaymentStatus = dto.PaymentStatus,
+            PaymentDate = DateTime.Now
+        };
+
+        await _repo.AddAsync(entity);
+        await _repo.SaveAsync();
+
+        return Ok(dto);
+    }
+
+    // 🔹 PUT
+    [HttpPut("{id}")]
+    public async Task<IActionResult> Update(int id, PaymentDto dto)
+    {
+        var payment = await _repo.GetByIdAsync(id);
+        if (payment == null) return NotFound();
+
+        payment.PaymentMethod = dto.PaymentMethod;
+        payment.PaymentStatus = dto.PaymentStatus;
+
+        _repo.Update(payment);
+        await _repo.SaveAsync();
+
+        return Ok(dto);
+    }
+
+    // 🔹 DELETE
+    [HttpDelete("{id}")]
+    public async Task<IActionResult> Delete(int id)
+    {
+        var payment = await _repo.GetByIdAsync(id);
+        if (payment == null) return NotFound();
+
+        _repo.Delete(payment);
+        await _repo.SaveAsync();
+
+        return Ok();
+    }
+}
