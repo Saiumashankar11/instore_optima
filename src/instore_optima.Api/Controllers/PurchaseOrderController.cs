@@ -4,44 +4,79 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
+using instore_optima.Application.DTOs;
+using instore_optima.Domain.Interfaces;
+using Microsoft.AspNetCore.Mvc;
+
 namespace instore_optima.Api.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
     public class PurchaseOrderController : ControllerBase
     {
-        private readonly AppDbContext _context;
+        private readonly IPurchaseOrderRepository _purchaseOrderRepository;
 
-        public PurchaseOrderController(AppDbContext context)
+        public PurchaseOrderController(IPurchaseOrderRepository purchaseOrderRepository)
         {
-            _context = context;
+            _purchaseOrderRepository = purchaseOrderRepository;
         }
 
+        // GET api/purchaseorder
         [HttpGet]
         public async Task<IActionResult> GetAll()
         {
-            return Ok(await _context.PurchaseOrders.ToListAsync());
+            var orders = await _purchaseOrderRepository.GetAllPurchaseOrdersAsync();
+            return Ok(orders);
         }
 
-        [HttpPost]
-        public async Task<IActionResult> Create(PurchaseOrder po)
+        // GET api/purchaseorder/{id}
+        [HttpGet("{id}")]
+        public async Task<IActionResult> GetById(int id)
         {
-            if (po.SupplierId <= 0)
+            var po = await _purchaseOrderRepository.GetPOByIdAsync(id);
+            if (po == null) return NotFound();
+            return Ok(po);
+        }
+
+        // POST api/purchaseorder
+        [HttpPost]
+        public async Task<IActionResult> Create(CreatePurchaseOrderDto dto)
+        {
+            if (dto.SupplierId <= 0)
                 return BadRequest("SupplierId is required");
 
-            if (!await _context.Suppliers.AnyAsync(s => s.SupplierId == po.SupplierId))
-                return BadRequest($"Supplier with ID {po.SupplierId} not found");
+            if (dto.ReplenishmentOrderId <= 0)
+                return BadRequest("ReplenishmentOrderId is required");
 
-            try
+            var po = new instore_optima.Domain.Entities.PurchaseOrder
             {
-                _context.PurchaseOrders.Add(po);
-                await _context.SaveChangesAsync();
-                return CreatedAtAction(nameof(GetAll), new { id = po.PurchaseOrderId }, po);
-            }
-            catch (DbUpdateException ex)
-            {
-                return BadRequest("Error: " + ex.InnerException?.Message);
-            }
+                SupplierId = dto.SupplierId,
+                ReplenishmentOrderId = dto.ReplenishmentOrderId,
+                IssuedAt = dto.IssuedAt,
+                ExpectedDeliveryDate = dto.ExpectedDeliveryDate,
+                Status = "Pending"
+            };
+
+            var created = await _purchaseOrderRepository.CreatePurchaseOrderAsync(po);
+            return CreatedAtAction(nameof(GetById), new { id = created.PurchaseOrderId }, created);
+        }
+
+        // PUT api/purchaseorder/{id}
+        [HttpPut("{id}")]
+        public async Task<IActionResult> UpdateStatus(int id, UpdatePurchaseOrderDto dto)
+        {
+            if (string.IsNullOrWhiteSpace(dto.Status))
+                return BadRequest("Status is required");
+
+            var validStatuses = new[] { "Pending", "Delivered", "Cancelled" };
+            if (!validStatuses.Contains(dto.Status))
+                return BadRequest("Status must be Pending, Delivered or Cancelled");
+
+            var po = await _purchaseOrderRepository.GetPOByIdAsync(id);
+            if (po == null) return NotFound();
+
+            var updated = await _purchaseOrderRepository.UpdatePOStatusAsync(id, dto.Status);
+            return Ok(updated);
         }
     }
 }
