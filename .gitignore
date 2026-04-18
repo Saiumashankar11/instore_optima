@@ -1,0 +1,29 @@
+# Visual Studio IDE
+.vs/
+.vscode/
+
+# Build results
+bin/
+obj/
+Debug/
+Release/
+
+# User-specific files
+*.rsuser
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# .NET
+*.dll
+*.pdb
+*.cache
+
+# NuGet
+*.nupkg
+*.snupkg
+
+# Local environment
+.env
+.env.local

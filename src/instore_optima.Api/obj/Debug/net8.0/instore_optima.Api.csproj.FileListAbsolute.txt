@@ -153,3 +153,5 @@ C:\Users\2487392\instore_optima\src\instore_optima.Api\obj\Debug\net8.0\instore_
 C:\Users\2487392\instore_optima\src\instore_optima.Api\obj\Debug\net8.0\instore_optima.Api.genruntimeconfig.cache
 C:\Users\2487392\instore_optima\src\instore_optima.Api\obj\Debug\net8.0\ref\instore_optima.Api.dll
 C:\Users\2487392\instore_optima\src\instore_optima.Api\obj\Debug\net8.0\staticwebassets.upToDateCheck.txt
+C:\Users\2487392\instore_optima\src\instore_optima.Api\bin\Debug\net8.0\BCrypt.Net-Next.dll
+C:\Users\2487392\instore_optima\src\instore_optima.Api\bin\Debug\net8.0\Microsoft.AspNetCore.Authentication.JwtBearer.dll

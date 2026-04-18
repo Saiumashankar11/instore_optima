@@ -1,5 +1,37 @@
 [
   {
+    "ContainingType": "instore_optima.Api.Controllers.AuthController",
+    "Method": "Login",
+    "RelativePath": "api/auth/login",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "dto",
+        "Type": "instore_optima.Application.DTOs.LoginDto",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "instore_optima.Api.Controllers.AuthController",
+    "Method": "Register",
+    "RelativePath": "api/auth/register",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "dto",
+        "Type": "instore_optima.Application.DTOs.RegisterDto",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
     "ContainingType": "instore_optima.Api.Controllers.InvoiceController",
     "Method": "GetAll",
     "RelativePath": "api/Invoice",
@@ -641,7 +673,7 @@
   },
   {
     "ContainingType": "Program\u002B\u003C\u003Ec__DisplayClass0_0",
-    "Method": "\u003C\u003CMain\u003E$\u003Eb__1",
+    "Method": "\u003C\u003CMain\u003E$\u003Eb__3",
     "RelativePath": "weatherforecast",
     "HttpMethod": "GET",
     "IsController": false,

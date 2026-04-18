@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("instore_optima.Application")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Release")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+317b2a3c0bdc6f4895e9ccb97337e679fe5a7042")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+b72b20181b94d2ac608a139e67a88292b3ad98c9")]
 [assembly: System.Reflection.AssemblyProductAttribute("instore_optima.Application")]
 [assembly: System.Reflection.AssemblyTitleAttribute("instore_optima.Application")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
