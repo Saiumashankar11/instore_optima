@@ -1,8 +1,8 @@
 <Solution>
   <Folder Name="/src/">
-    <Project Path="src/API/API.csproj" />
-    <Project Path="src/Application/Application.csproj" />
-    <Project Path="src/Core/Core.csproj" />
-    <Project Path="src/Infrastructure/Infrastructure.csproj" />
+    <Project Path="src/instore_optima.Api/instore_optima.Api.csproj" />
+    <Project Path="src/instore_optima.Application/instore_optima.Application.csproj" />
+    <Project Path="src/instore_optima.Domain/instore_optima.Domain.csproj" />
+    <Project Path="src/instore_optima.Infrastructure/instore_optima.Infrastructure.csproj" />
   </Folder>
 </Solution>

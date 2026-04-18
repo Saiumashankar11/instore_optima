@@ -1,0 +1,15 @@
+C:\Users\2487392\instore_optima\src\instore_optima.Domain\bin\Debug\net8.0\instore_optima.Domain.deps.json
+C:\Users\2487392\instore_optima\src\instore_optima.Domain\bin\Debug\net8.0\instore_optima.Domain.runtimeconfig.json
+C:\Users\2487392\instore_optima\src\instore_optima.Domain\bin\Debug\net8.0\instore_optima.Domain.dll
+C:\Users\2487392\instore_optima\src\instore_optima.Domain\bin\Debug\net8.0\instore_optima.Domain.pdb
+C:\Users\2487392\instore_optima\src\instore_optima.Domain\obj\Debug\net8.0\instore_optima.Domain.csproj.AssemblyReference.cache
+C:\Users\2487392\instore_optima\src\instore_optima.Domain\obj\Debug\net8.0\instore_optima.Domain.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\2487392\instore_optima\src\instore_optima.Domain\obj\Debug\net8.0\instore_optima.Domain.AssemblyInfoInputs.cache
+C:\Users\2487392\instore_optima\src\instore_optima.Domain\obj\Debug\net8.0\instore_optima.Domain.AssemblyInfo.cs
+C:\Users\2487392\instore_optima\src\instore_optima.Domain\obj\Debug\net8.0\instore_optima.Domain.csproj.CoreCompileInputs.cache
+C:\Users\2487392\instore_optima\src\instore_optima.Domain\obj\Debug\net8.0\instore_optima.Domain.sourcelink.json
+C:\Users\2487392\instore_optima\src\instore_optima.Domain\obj\Debug\net8.0\instore_optima.Domain.dll
+C:\Users\2487392\instore_optima\src\instore_optima.Domain\obj\Debug\net8.0\refint\instore_optima.Domain.dll
+C:\Users\2487392\instore_optima\src\instore_optima.Domain\obj\Debug\net8.0\instore_optima.Domain.pdb
+C:\Users\2487392\instore_optima\src\instore_optima.Domain\obj\Debug\net8.0\instore_optima.Domain.genruntimeconfig.cache
+C:\Users\2487392\instore_optima\src\instore_optima.Domain\obj\Debug\net8.0\ref\instore_optima.Domain.dll
