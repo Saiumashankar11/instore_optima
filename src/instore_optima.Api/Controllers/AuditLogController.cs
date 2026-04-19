@@ -24,7 +24,7 @@ namespace instore_optima.Api.Controllers
 
         // GET api/auditlog — Admin only
         [HttpGet]
-        [Authorize]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> GetAllLogs()
         {
             var logs = await _auditLogRepository.GetAllLogsAsync();
