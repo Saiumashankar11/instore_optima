@@ -1,5 +1,31 @@
 [
   {
+    "ContainingType": "instore_optima.Api.Controllers.AuditLogController",
+    "Method": "GetAllLogs",
+    "RelativePath": "api/auditlog",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "instore_optima.Api.Controllers.AuditLogController",
+    "Method": "GetLogsByUser",
+    "RelativePath": "api/auditlog/user/{userId}",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "userId",
+        "Type": "System.Int32",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
     "ContainingType": "instore_optima.Api.Controllers.AuthController",
     "Method": "Login",
     "RelativePath": "api/auth/login",
@@ -594,8 +620,8 @@
   },
   {
     "ContainingType": "instore_optima.Api.Controllers.UserController",
-    "Method": "GetUsers",
-    "RelativePath": "api/User",
+    "Method": "GetAllUsers",
+    "RelativePath": "api/user",
     "HttpMethod": "GET",
     "IsController": true,
     "Order": 0,
@@ -604,24 +630,8 @@
   },
   {
     "ContainingType": "instore_optima.Api.Controllers.UserController",
-    "Method": "CreateUser",
-    "RelativePath": "api/User",
-    "HttpMethod": "POST",
-    "IsController": true,
-    "Order": 0,
-    "Parameters": [
-      {
-        "Name": "user",
-        "Type": "instore_optima.Domain.Entities.User",
-        "IsRequired": true
-      }
-    ],
-    "ReturnTypes": []
-  },
-  {
-    "ContainingType": "instore_optima.Api.Controllers.UserController",
-    "Method": "GetUser",
-    "RelativePath": "api/User/{id}",
+    "Method": "GetUserById",
+    "RelativePath": "api/user/{id}",
     "HttpMethod": "GET",
     "IsController": true,
     "Order": 0,
@@ -637,7 +647,7 @@
   {
     "ContainingType": "instore_optima.Api.Controllers.UserController",
     "Method": "UpdateUser",
-    "RelativePath": "api/User/{id}",
+    "RelativePath": "api/user/{id}",
     "HttpMethod": "PUT",
     "IsController": true,
     "Order": 0,
@@ -648,8 +658,8 @@
         "IsRequired": true
       },
       {
-        "Name": "user",
-        "Type": "instore_optima.Domain.Entities.User",
+        "Name": "dto",
+        "Type": "instore_optima.Application.DTOs.RegisterDto",
         "IsRequired": true
       }
     ],
@@ -658,7 +668,7 @@
   {
     "ContainingType": "instore_optima.Api.Controllers.UserController",
     "Method": "DeleteUser",
-    "RelativePath": "api/User/{id}",
+    "RelativePath": "api/user/{id}",
     "HttpMethod": "DELETE",
     "IsController": true,
     "Order": 0,

@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("instore_optima.Api")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Release")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+b72b20181b94d2ac608a139e67a88292b3ad98c9")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+e509acc92cf4b29fb93c1a0bace5d9c93a105bcb")]
 [assembly: System.Reflection.AssemblyProductAttribute("instore_optima.Api")]
 [assembly: System.Reflection.AssemblyTitleAttribute("instore_optima.Api")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
