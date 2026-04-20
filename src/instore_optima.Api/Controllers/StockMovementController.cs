@@ -1,8 +1,8 @@
+
 using instore_optima.Domain.Entities;
-using instore_optima.Infrastructure.Data;
-using Microsoft.AspNetCore.Http;
+using instore_optima.Application.DTOs;
+using instore_optima.Infrastructure.Interfaces;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 
 namespace instore_optima.Api.Controllers
 {
@@ -10,45 +10,84 @@ namespace instore_optima.Api.Controllers
     [Route("api/[controller]")]
     public class StockMovementController : ControllerBase
     {
-        private readonly AppDbContext _context;
+        private readonly IStockMovementRepository _repo;
 
-        public StockMovementController(AppDbContext context)
+        public StockMovementController(IStockMovementRepository repo)
         {
-            _context = context;
+            _repo = repo;
         }
 
+        // GET api/stockmovement
         [HttpGet]
         public async Task<IActionResult> GetAll()
         {
-            return Ok(await _context.StockMovements.ToListAsync());
+            var movements = await _repo.GetAllAsync();
+            return Ok(movements.Select(MapToResponse));
         }
 
-        [HttpPost]
-        public async Task<IActionResult> Create(StockMovement movement)
+        // GET api/stockmovement/product/{productId}
+        [HttpGet("product/{productId}")]
+        public async Task<IActionResult> GetByProduct(int productId)
         {
-            if (movement.ProductId <= 0)
-                return BadRequest("ProductId is required");
-
-            if (movement.PerformedBy <= 0)
-                return BadRequest("PerformedBy (User) is required");
-
-            if (!await _context.Products.AnyAsync(p => p.ProductId == movement.ProductId))
-                return BadRequest($"Product with ID {movement.ProductId} not found");
-
-            if (!await _context.Users.AnyAsync(u => u.UserId == movement.PerformedBy))
-                return BadRequest($"User with ID {movement.PerformedBy} not found");
-
-            try
-            {
-                movement.PerformedAt = DateTime.Now;
-                _context.StockMovements.Add(movement);
-                await _context.SaveChangesAsync();
-                return CreatedAtAction(nameof(GetAll), new { id = movement.MovementId }, movement);
-            }
-            catch (DbUpdateException ex)
-            {
-                return BadRequest("Error: " + ex.InnerException?.Message);
-            }
+            var movements = await _repo.GetByProductIdAsync(productId);
+            return Ok(movements.Select(MapToResponse));
         }
+
+        // GET api/stockmovement/{id}
+        [HttpGet("{id}")]
+        public async Task<IActionResult> GetById(int id)
+        {
+            var m = await _repo.GetByIdAsync(id);
+            if (m == null) return NotFound(new { message = $"Movement {id} not found." });
+            return Ok(MapToResponse(m));
+        }
+
+        // POST api/stockmovement
+        [HttpPost]
+        public async Task<IActionResult> Create(StockMovementCreateDTO dto)
+        {
+            if (dto.ProductId <= 0)
+                return BadRequest(new { message = "ProductId is required." });
+
+            if (dto.PerformedBy <= 0)
+                return BadRequest(new { message = "PerformedBy (UserId) is required." });
+
+            var entity = new StockMovement
+            {
+                ProductId = dto.ProductId,
+                Quantity = dto.Quantity,
+                MovementType = dto.MovementType.ToUpper(),
+                PerformedBy = dto.PerformedBy,
+                Reason = dto.Reason
+            };
+
+            var created = await _repo.CreateAsync(entity);
+            return CreatedAtAction(nameof(GetById), new { id = created.MovementId }, MapToResponse(created));
+        }
+
+        // PATCH api/stockmovement/{id}
+        [HttpPatch("{id}")]
+        public async Task<IActionResult> UpdateReason(int id, StockMovementUpdateDTO dto)
+        {
+            var updated = await _repo.UpdateAsync(id, new StockMovement
+            {
+                Reason = dto.Reason
+            });
+
+            if (updated == null) return NotFound(new { message = $"Movement {id} not found." });
+            return Ok(MapToResponse(updated));
+        }
+
+        // ── Mapping ──────────────────────────────────────────────────
+        private static StockMovementResponseDTO MapToResponse(StockMovement m) => new()
+        {
+            MovementId = m.MovementId,
+            ProductId = m.ProductId,
+            Quantity = m.Quantity,
+            MovementType = m.MovementType,
+            PerformedBy = m.PerformedBy,
+            PerformedAt = m.PerformedAt,
+            Reason = m.Reason
+        };
     }
 }
