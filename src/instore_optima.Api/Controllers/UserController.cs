@@ -1,89 +1,97 @@
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using instore_optima.Infrastructure.Data;
+using instore_optima.Application.DTOs;
+using instore_optima.Domain.Interfaces;
 using instore_optima.Domain.Entities;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 
 namespace instore_optima.Api.Controllers
 {
     [ApiController]
-    [Route("api/[controller]")]
+    [Route("api/user")]
+    [Authorize]
     public class UserController : ControllerBase
     {
-        private readonly AppDbContext _context;
+        private readonly IUserRepository _userRepository;
 
-        public UserController(AppDbContext context)
+        public UserController(IUserRepository userRepository)
         {
-            _context = context;
+            _userRepository = userRepository;
         }
 
-        // ?? GET ALL
+        // GET api/user — returns all users (no passwords)
         [HttpGet]
-        public async Task<IActionResult> GetUsers()
+        public async Task<IActionResult> GetAllUsers()
         {
-            var users = await _context.Users.ToListAsync();
-            return Ok(users);
+            var users = await _userRepository.GetAllUsersAsync();
+
+            var result = users.Select(u => new AuthResponseDto
+            {
+                UserId = u.UserId,
+                Name = u.Name,
+                Email = u.Email,
+                Role = u.Role,
+                Token = string.Empty   // no token needed for listing users
+            });
+
+            return Ok(result);
         }
 
-        // ?? GET BY ID
+        // GET api/user/{id}
         [HttpGet("{id}")]
-        public async Task<IActionResult> GetUser(int id)
+        public async Task<IActionResult> GetUserById(int id)
         {
-            var user = await _context.Users.FindAsync(id);
-            if (user == null) return NotFound();
-            return Ok(user);
-        }
+            var user = await _userRepository.GetUserByIdAsync(id);
 
-        // ?? POST
-        [HttpPost]
-        public async Task<IActionResult> CreateUser(User user)
-        {
-            if (string.IsNullOrWhiteSpace(user.Name) || string.IsNullOrWhiteSpace(user.Email))
+            if (user == null)
+                return NotFound(new { message = $"User with ID {id} not found." });
+
+            return Ok(new AuthResponseDto
             {
-                return BadRequest("Name and Email are required");
-            }
-
-            user.CreatedAt = DateTime.Now;
-            _context.Users.Add(user);
-            await _context.SaveChangesAsync();
-            return CreatedAtAction(nameof(GetUser), new { id = user.UserId }, user);
+                UserId = user.UserId,
+                Name = user.Name,
+                Email = user.Email,
+                Role = user.Role,
+                Token = string.Empty
+            });
         }
 
-        // ?? PUT
+        // PUT api/user/{id} — update name, email, role
         [HttpPut("{id}")]
-        public async Task<IActionResult> UpdateUser(int id, User user)
+        public async Task<IActionResult> UpdateUser(int id, [FromBody] RegisterDto dto)
         {
-            if (id != user.UserId)
+            var existing = await _userRepository.GetUserByIdAsync(id);
+
+            if (existing == null)
+                return NotFound(new { message = $"User with ID {id} not found." });
+
+            existing.Name = dto.Name;
+            existing.Email = dto.Email;
+            existing.Role = dto.Role;
+
+            var updated = await _userRepository.UpdateUserAsync(existing);
+
+            return Ok(new AuthResponseDto
             {
-                return BadRequest("ID mismatch");
-            }
-
-            var existing = await _context.Users.FindAsync(id);
-            if (existing == null) return NotFound();
-
-            if (string.IsNullOrWhiteSpace(user.Name) || string.IsNullOrWhiteSpace(user.Email))
-            {
-                return BadRequest("Name and Email are required");
-            }
-
-            existing.Name = user.Name;
-            existing.Email = user.Email;
-            existing.Password = user.Password;
-            existing.Role = user.Role;
-
-            await _context.SaveChangesAsync();
-            return Ok(existing);
+                UserId = updated.UserId,
+                Name = updated.Name,
+                Email = updated.Email,
+                Role = updated.Role,
+                Token = string.Empty
+            });
         }
 
-        // ?? DELETE
+        // DELETE api/user/{id} — soft delete
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteUser(int id)
         {
-            var user = await _context.Users.FindAsync(id);
-            if (user == null) return NotFound();
+            var existing = await _userRepository.GetUserByIdAsync(id);
 
-            _context.Users.Remove(user);
-            await _context.SaveChangesAsync();
-            return Ok();
+            if (existing == null)
+                return NotFound(new { message = $"User with ID {id} not found." });
+
+            await _userRepository.DeleteUserAsync(id);
+
+            return NoContent(); // 204 — success, no body
         }
     }
 }
