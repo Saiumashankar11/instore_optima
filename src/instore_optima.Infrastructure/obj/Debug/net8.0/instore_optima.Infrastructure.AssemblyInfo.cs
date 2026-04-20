@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("instore_optima.Infrastructure")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+b72b20181b94d2ac608a139e67a88292b3ad98c9")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+38d20dca4558a8c85188362dded547f790d97fdf")]
 [assembly: System.Reflection.AssemblyProductAttribute("instore_optima.Infrastructure")]
 [assembly: System.Reflection.AssemblyTitleAttribute("instore_optima.Infrastructure")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
