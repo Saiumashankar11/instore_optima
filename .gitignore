@@ -27,3 +27,7 @@ Release/
 # Local environment
 .env
 .env.local
+
+**/obj/
+**/bin/
+*.cache
