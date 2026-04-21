@@ -1,70 +1,135 @@
+using instore_optima.Api.DTOs;
+using instore_optima.Api.Repositories.Interfaces;
 using instore_optima.Domain.Entities;
-using instore_optima.Infrastructure.Data;
-using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 
 namespace instore_optima.Api.Controllers
 {
     [ApiController]
-    [Route("api/[controller]")]
+    [Route("api/payment")]
+    [Authorize]
     public class PaymentController : ControllerBase
     {
-        private readonly AppDbContext _context;
+        private readonly IPaymentRepository _paymentRepository;
+        private readonly IOrderRepository _orderRepository;
 
-        public PaymentController(AppDbContext context)
+        public PaymentController(
+            IPaymentRepository paymentRepository,
+            IOrderRepository orderRepository)
         {
-            _context = context;
+            _paymentRepository = paymentRepository;
+            _orderRepository = orderRepository;
         }
 
         [HttpGet]
-        public async Task<IActionResult> GetAll()
+        public async Task<IActionResult> GetAllPayments()
         {
-            return Ok(await _context.Payments.ToListAsync());
+            var payments = await _paymentRepository.GetAllPaymentsAsync();
+            var response = payments.Select(p => new PaymentResponseDto
+            {
+                PaymentId = p.PaymentId,
+                OrderId = p.OrderId,
+                PaymentMethod = p.PaymentMethod,
+                PaymentStatus = p.PaymentStatus,
+                PaymentDate = p.PaymentDate
+            });
+            return Ok(response);
+        }
+
+        [HttpGet("{id}")]
+        public async Task<IActionResult> GetPaymentById(int id)
+        {
+            var payment = await _paymentRepository.GetPaymentByIdAsync(id);
+            if (payment == null)
+                return NotFound(new { message = $"Payment with ID {id} not found." });
+            return Ok(new PaymentResponseDto
+            {
+                PaymentId = payment.PaymentId,
+                OrderId = payment.OrderId,
+                PaymentMethod = payment.PaymentMethod,
+                PaymentStatus = payment.PaymentStatus,
+                PaymentDate = payment.PaymentDate
+            });
+        }
+
+        [HttpGet("order/{orderId}")]
+        public async Task<IActionResult> GetPaymentByOrderId(int orderId)
+        {
+            var payment = await _paymentRepository.GetPaymentByOrderIdAsync(orderId);
+            if (payment == null)
+                return NotFound(new { message = $"No payment found for Order ID {orderId}." });
+            return Ok(new PaymentResponseDto
+            {
+                PaymentId = payment.PaymentId,
+                OrderId = payment.OrderId,
+                PaymentMethod = payment.PaymentMethod,
+                PaymentStatus = payment.PaymentStatus,
+                PaymentDate = payment.PaymentDate
+            });
         }
 
         [HttpPost]
-        public async Task<IActionResult> Create(Payment payment)
+        public async Task<IActionResult> CreatePayment([FromBody] CreatePaymentDto dto)
         {
-            if (payment.OrderId <= 0)
-                return BadRequest("OrderId is required");
-
-            if (!await _context.Orders.AnyAsync(o => o.OrderId == payment.OrderId))
-                return BadRequest($"Order with ID {payment.OrderId} not found");
-
-            try
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+            var order = await _orderRepository.GetOrderByIdAsync(dto.OrderId);
+            if (order == null)
+                return NotFound(new { message = $"Order with ID {dto.OrderId} not found." });
+            var payment = new Payment
             {
-                _context.Payments.Add(payment);
-                await _context.SaveChangesAsync();
-                return CreatedAtAction(nameof(GetAll), new { id = payment.PaymentId }, payment);
-            }
-            catch (DbUpdateException ex)
-            {
-                return BadRequest("Error: " + ex.InnerException?.Message);
-            }
+                OrderId = dto.OrderId,
+                PaymentMethod = dto.PaymentMethod,
+                PaymentStatus = dto.PaymentStatus
+            };
+            var created = await _paymentRepository.CreatePaymentAsync(payment);
+            return CreatedAtAction(nameof(GetPaymentById), new { id = created.PaymentId },
+                new PaymentResponseDto
+                {
+                    PaymentId = created.PaymentId,
+                    OrderId = created.OrderId,
+                    PaymentMethod = created.PaymentMethod,
+                    PaymentStatus = created.PaymentStatus,
+                    PaymentDate = created.PaymentDate
+                });
         }
 
         [HttpPut("{id}")]
-        public async Task<IActionResult> Update(int id, Payment payment)
+        public async Task<IActionResult> UpdatePaymentStatus(int id, [FromBody] UpdatePaymentStatusDto dto)
         {
-            var existing = await _context.Payments.FindAsync(id);
-            if (existing == null) return NotFound();
-
-            existing.PaymentStatus = payment.PaymentStatus;
-            await _context.SaveChangesAsync();
-
-            return Ok(existing);
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+            try
+            {
+                var updated = await _paymentRepository.UpdatePaymentStatusAsync(id, dto.PaymentStatus);
+                return Ok(new PaymentResponseDto
+                {
+                    PaymentId = updated.PaymentId,
+                    OrderId = updated.OrderId,
+                    PaymentMethod = updated.PaymentMethod,
+                    PaymentStatus = updated.PaymentStatus,
+                    PaymentDate = updated.PaymentDate
+                });
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(new { message = ex.Message });
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
         }
 
         [HttpDelete("{id}")]
-        public async Task<IActionResult> Delete(int id)
+        public async Task<IActionResult> DeletePayment(int id)
         {
-            var data = await _context.Payments.FindAsync(id);
-            if (data == null) return NotFound();
-
-            _context.Payments.Remove(data);
-            await _context.SaveChangesAsync();
-            return Ok();
+            var payment = await _paymentRepository.GetPaymentByIdAsync(id);
+            if (payment == null)
+                return NotFound(new { message = $"Payment with ID {id} not found." });
+            await _paymentRepository.UpdatePaymentStatusAsync(id, "Refunded");
+            return NoContent();
         }
     }
 }
