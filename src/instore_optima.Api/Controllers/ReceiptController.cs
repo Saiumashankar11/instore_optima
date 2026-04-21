@@ -1,58 +1,87 @@
+using instore_optima.Application.DTOs;
 using instore_optima.Domain.Entities;
-using instore_optima.Infrastructure.Data;
-using Microsoft.AspNetCore.Http;
+using instore_optima.Domain.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 
 namespace instore_optima.Api.Controllers
 {
     [ApiController]
-    [Route("api/[controller]")]
+    [Route("api/receipt")]
+    [Authorize]
     public class ReceiptController : ControllerBase
     {
-        private readonly AppDbContext _context;
+        private readonly IReceiptRepository _receiptRepo;
 
-        public ReceiptController(AppDbContext context)
+        public ReceiptController(IReceiptRepository receiptRepo)
         {
-            _context = context;
+            _receiptRepo = receiptRepo;
         }
 
+        // GET api/receipt
         [HttpGet]
-        public async Task<IActionResult> GetAll()
+        public async Task<ActionResult<IEnumerable<ReceiptResponseDto>>> GetAll()
         {
-            return Ok(await _context.Receipts.ToListAsync());
+            var receipts = await _receiptRepo.GetAllReceiptsAsync();
+            return Ok(receipts.Select(MapToDto));
         }
 
+        // GET api/receipt/{id}
+        [HttpGet("{id}")]
+        public async Task<ActionResult<ReceiptResponseDto>> GetById(int id)
+        {
+            var receipt = await _receiptRepo.GetReceiptByIdAsync(id);
+            if (receipt == null)
+                return NotFound(new { message = $"Receipt {id} not found" });
+
+            return Ok(MapToDto(receipt));
+        }
+
+        // POST api/receipt
         [HttpPost]
-        public async Task<IActionResult> Create(Receipt receipt)
+        public async Task<ActionResult<ReceiptResponseDto>> Create([FromBody] CreateReceiptDto dto)
         {
-            if (receipt.PaymentId <= 0)
-                return BadRequest("PaymentId is required");
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
 
-            if (!await _context.Payments.AnyAsync(p => p.PaymentId == receipt.PaymentId))
-                return BadRequest($"Payment with ID {receipt.PaymentId} not found");
+            var receipt = new Receipt
+            {
+                PaymentId = dto.PaymentId,
+                ReceiptNumber = dto.ReceiptNumber,
+                AmountPaid = dto.AmountPaid,
+                PaymentDate = dto.PaymentDate
+                // GeneratedAt set inside repository
+            };
 
-            try
-            {
-                _context.Receipts.Add(receipt);
-                await _context.SaveChangesAsync();
-                return CreatedAtAction(nameof(GetAll), new { id = receipt.ReceiptId }, receipt);
-            }
-            catch (DbUpdateException ex)
-            {
-                return BadRequest("Error: " + ex.InnerException?.Message);
-            }
+            var created = await _receiptRepo.CreateReceiptAsync(receipt);
+            return CreatedAtAction(nameof(GetById), new { id = created.ReceiptId }, MapToDto(created));
         }
 
-        [HttpDelete("{id}")]
-        public async Task<IActionResult> Delete(int id)
+        // PUT api/receipt/{id}
+        [HttpPut("{id}")]
+        public async Task<ActionResult<ReceiptResponseDto>> Update(
+            int id, [FromBody] UpdateReceiptDto dto)
         {
-            var data = await _context.Receipts.FindAsync(id);
-            if (data == null) return NotFound();
+            var existing = await _receiptRepo.GetReceiptByIdAsync(id);
+            if (existing == null)
+                return NotFound(new { message = $"Receipt {id} not found" });
 
-            _context.Receipts.Remove(data);
-            await _context.SaveChangesAsync();
-            return Ok();
+            existing.ReceiptNumber = dto.ReceiptNumber;
+            existing.AmountPaid = dto.AmountPaid;
+            existing.PaymentDate = dto.PaymentDate;
+
+            var updated = await _receiptRepo.UpdateReceiptAsync(existing);
+            return Ok(MapToDto(updated));
         }
+
+        private static ReceiptResponseDto MapToDto(Receipt r) => new()
+        {
+            ReceiptId = r.ReceiptId,
+            PaymentId = r.PaymentId,
+            ReceiptNumber = r.ReceiptNumber,
+            AmountPaid = r.AmountPaid,
+            PaymentDate = r.PaymentDate,
+            GeneratedAt = r.GeneratedAt
+        };
     }
 }
