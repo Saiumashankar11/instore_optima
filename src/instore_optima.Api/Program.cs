@@ -4,10 +4,11 @@ using instore_optima.Infrastructure.Interfaces;
 using instore_optima.Infrastructure.Repositories;
 using Microsoft.EntityFrameworkCore;
 using instore_optima.Domain.Interfaces;
-using instore_optima.Infrastructure.Repositories;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
+using instore_optima.Api.Repositories.Interfaces;
+using instore_optima.Api.Repositories.Implementations;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -17,7 +18,7 @@ builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IAuditLogRepository, AuditLogRepository>();
  
 // --- Team API & Security: Abdul ---
-builder.Services.AddScoped<IProductsRepository, ProductsRepository>();
+builder.Services.AddScoped<IProductRepository, ProductRepository>();
 builder.Services.AddScoped<IStockRepository, StockRepository>();
 builder.Services.AddScoped<IStockMovementRepository, StockMovementRepository>();
 builder.Services.AddScoped<IReplenishmentRepository, ReplenishmentRepository>();
