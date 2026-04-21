@@ -1,4 +1,7 @@
 using instore_optima.Infrastructure.Data;
+
+using instore_optima.Infrastructure.Interfaces;
+using instore_optima.Infrastructure.Repositories;
 using Microsoft.EntityFrameworkCore;
 using instore_optima.Domain.Interfaces;
 using instore_optima.Infrastructure.Repositories;
@@ -25,6 +28,8 @@ builder.Services.AddScoped<IAuditLogRepository, AuditLogRepository>();
 //builder.Services.AddScoped<IOrderItemRepository, OrderItemRepository>();
 //builder.Services.AddScoped<IPaymentRepository, PaymentRepository>();
 builder.Services.AddControllers();
+
+
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 
@@ -76,6 +81,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
                 Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]!))
         };
     });
+
 
 var app = builder.Build();
 

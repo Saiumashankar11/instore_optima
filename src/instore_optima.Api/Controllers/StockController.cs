@@ -1,8 +1,8 @@
+using instore_optima.Application.DTOs;
 using instore_optima.Domain.Entities;
-using instore_optima.Infrastructure.Data;
-using Microsoft.AspNetCore.Http;
+
+using instore_optima.Infrastructure.Interfaces;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 
 namespace instore_optima.Api.Controllers
 {
@@ -10,60 +10,88 @@ namespace instore_optima.Api.Controllers
     [Route("api/[controller]")]
     public class StockController : ControllerBase
     {
-        private readonly AppDbContext _context;
+        private readonly IStockRepository _repo;
 
-        public StockController(AppDbContext context)
+        public StockController(IStockRepository repo)
         {
-            _context = context;
+            _repo = repo;
         }
 
+        // GET api/stock
         [HttpGet]
         public async Task<IActionResult> GetAll()
         {
-            return Ok(await _context.Stocks.ToListAsync());
+            var stocks = await _repo.GetAllAsync();
+            return Ok(stocks.Select(MapToResponse));
         }
 
+        // GET api/stock/{id}
+        [HttpGet("{id}")]
+        public async Task<IActionResult> GetById(int id)
+        {
+            var s = await _repo.GetByIdAsync(id);
+            if (s == null) return NotFound(new { message = $"Stock {id} not found." });
+            return Ok(MapToResponse(s));
+        }
+
+        // GET api/stock/low
+        [HttpGet("low")]
+        public async Task<IActionResult> GetLowStock()
+        {
+            var stocks = await _repo.GetBelowMinStockAsync();
+            return Ok(stocks.Select(MapToResponse));
+        }
+
+        // POST api/stock
         [HttpPost]
-        public async Task<IActionResult> Create(Stock stock)
+        public async Task<IActionResult> Create(StockCreateDTO dto)
         {
-            if (stock.ProductId <= 0)
-                return BadRequest("ProductId is required");
+            if (dto.ProductId <= 0)
+                return BadRequest(new { message = "ProductId is required." });
 
-            if (!await _context.Products.AnyAsync(p => p.ProductId == stock.ProductId))
-                return BadRequest($"Product with ID {stock.ProductId} not found");
+            var existing = await _repo.GetByProductIdAsync(dto.ProductId);
+            if (existing != null)
+                return Conflict(new { message = $"Stock for product {dto.ProductId} already exists." });
 
-            try
+            var entity = new Stock
             {
-                _context.Stocks.Add(stock);
-                await _context.SaveChangesAsync();
-                return CreatedAtAction(nameof(GetAll), new { id = stock.StockId }, stock);
-            }
-            catch (DbUpdateException ex)
-            {
-                return BadRequest("Error: " + ex.InnerException?.Message);
-            }
+                ProductId = dto.ProductId,
+                CurrentStock = dto.CurrentStock
+            };
+
+            var created = await _repo.CreateAsync(entity);
+            return CreatedAtAction(nameof(GetById), new { id = created.StockId }, MapToResponse(created));
         }
 
+        // PUT api/stock/{id}
         [HttpPut("{id}")]
-        public async Task<IActionResult> Update(int id, Stock stock)
+        public async Task<IActionResult> Update(int id, StockUpdateDTO dto)
         {
-            var existing = await _context.Stocks.FindAsync(id);
-            if (existing == null) return NotFound();
+            var updated = await _repo.UpdateAsync(id, new Stock
+            {
+                CurrentStock = dto.CurrentStock
+            });
 
-            existing.CurrentStock = stock.CurrentStock;
-            await _context.SaveChangesAsync();
-            return Ok(existing);
+            if (updated == null) return NotFound(new { message = $"Stock {id} not found." });
+            return Ok(MapToResponse(updated));
         }
 
+        // DELETE api/stock/{id}
         [HttpDelete("{id}")]
         public async Task<IActionResult> Delete(int id)
         {
-            var data = await _context.Stocks.FindAsync(id);
-            if (data == null) return NotFound();
-
-            _context.Stocks.Remove(data);
-            await _context.SaveChangesAsync();
-            return Ok();
+            var result = await _repo.DeleteAsync(id);
+            if (!result) return NotFound(new { message = $"Stock {id} not found." });
+            return Ok(new { message = $"Stock {id} deleted successfully." });
         }
+
+        // ── Mapping ──────────────────────────────────────────────────
+        private static StockResponseDTO MapToResponse(Stock s) => new()
+        {
+            StockId = s.StockId,
+            ProductId = s.ProductId,
+            CurrentStock = s.CurrentStock,
+            LastUpdated = s.LastUpdated
+        };
     }
 }

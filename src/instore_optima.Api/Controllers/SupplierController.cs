@@ -42,6 +42,21 @@ namespace instore_optima.Api.Controllers
         [HttpPost]
         public async Task<IActionResult> Create(CreateSupplierDto dto)
         {
+<<<<<<< HEAD
+            var entity = new Supplier
+            {
+                Name = supplier.Name,
+                Contact = supplier.Contact,
+                Email = supplier.Email,
+                Address = supplier.Address
+                // SupplierId is NOT set — SQL Server auto-generates it
+            };
+
+            _context.Suppliers.Add(entity);
+            await _context.SaveChangesAsync();
+            return Ok(entity);
+        }
+=======
             if (string.IsNullOrWhiteSpace(dto.Name) || string.IsNullOrWhiteSpace(dto.Email))
                 return BadRequest("Name and Email are required");
 
@@ -58,6 +73,7 @@ namespace instore_optima.Api.Controllers
         }
 
         // PUT api/supplier/{id}
+>>>>>>> dev
         [HttpPut("{id}")]
         public async Task<IActionResult> Update(int id, UpdateSupplierDto dto)
         {
