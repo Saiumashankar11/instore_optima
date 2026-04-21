@@ -1,4 +1,7 @@
 using instore_optima.Infrastructure.Data;
+
+using instore_optima.Infrastructure.Interfaces;
+using instore_optima.Infrastructure.Repositories;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -9,9 +12,12 @@ builder.Services.AddDbContext<AppDbContext>(options =>
         b => b.MigrationsAssembly("instore_optima.Api")));
 
 builder.Services.AddControllers();
+
+
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+
 
 var app = builder.Build();
 

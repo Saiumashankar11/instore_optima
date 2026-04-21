@@ -19,6 +19,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\instore_optima.Application\instore_optima.Application.csproj" />
+    <ProjectReference Include="..\instore_optima.Domain\instore_optima.Domain.csproj" />
     <ProjectReference Include="..\instore_optima.Infrastructure\instore_optima.Infrastructure.csproj" />
   </ItemGroup>
 
