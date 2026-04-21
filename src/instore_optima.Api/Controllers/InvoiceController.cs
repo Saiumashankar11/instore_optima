@@ -1,58 +1,101 @@
+using instore_optima.Application.DTOs;
 using instore_optima.Domain.Entities;
-using instore_optima.Infrastructure.Data;
-using Microsoft.AspNetCore.Http;
+using instore_optima.Domain.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 
 namespace instore_optima.Api.Controllers
 {
     [ApiController]
-    [Route("api/[controller]")]
+    [Route("api/invoice")]
+    [Authorize]
     public class InvoiceController : ControllerBase
     {
-        private readonly AppDbContext _context;
+        private readonly IInvoiceRepository _invoiceRepo;
 
-        public InvoiceController(AppDbContext context)
+        public InvoiceController(IInvoiceRepository invoiceRepo)
         {
-            _context = context;
+            _invoiceRepo = invoiceRepo;
         }
 
+        // GET api/invoice
         [HttpGet]
-        public async Task<IActionResult> GetAll()
+        public async Task<ActionResult<IEnumerable<InvoiceResponseDto>>> GetAll()
         {
-            return Ok(await _context.Invoices.ToListAsync());
+            var invoices = await _invoiceRepo.GetAllInvoicesAsync();
+            return Ok(invoices.Select(MapToDto));
         }
 
-        [HttpPost]
-        public async Task<IActionResult> Create(Invoice invoice)
+        // GET api/invoice/{id}
+        [HttpGet("{id}")]
+        public async Task<ActionResult<InvoiceResponseDto>> GetById(int id)
         {
-            if (invoice.OrderId <= 0)
-                return BadRequest("OrderId is required");
+            var invoice = await _invoiceRepo.GetInvoiceByIdAsync(id);
+            if (invoice == null)
+                return NotFound(new { message = $"Invoice {id} not found" });
 
-            if (!await _context.Orders.AnyAsync(o => o.OrderId == invoice.OrderId))
-                return BadRequest($"Order with ID {invoice.OrderId} not found");
+            return Ok(MapToDto(invoice));
+        }
 
+        // GET api/invoice/order/{orderId}
+        [HttpGet("order/{orderId}")]
+        public async Task<ActionResult<IEnumerable<InvoiceResponseDto>>> GetByOrder(int orderId)
+        {
+            var invoices = await _invoiceRepo.GetInvoicesByOrderIdAsync(orderId);
+            return Ok(invoices.Select(MapToDto));
+        }
+
+        // POST api/invoice
+        [HttpPost]
+        public async Task<ActionResult<InvoiceResponseDto>> Create([FromBody] CreateInvoiceDto dto)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            var invoice = new Invoice
+            {
+                OrderId = dto.OrderId,
+                InvoiceNumber = dto.InvoiceNumber,
+                TotalAmount = dto.TotalAmount,
+                TaxAmount = dto.TaxAmount,
+                DueDate = dto.DueDate
+                // IssuedDate and Status set inside repository
+            };
+
+            var created = await _invoiceRepo.CreateInvoiceAsync(invoice);
+            return CreatedAtAction(nameof(GetById), new { id = created.InvoiceId }, MapToDto(created));
+        }
+
+        // PUT api/invoice/{id}
+        [HttpPut("{id}")]
+        public async Task<ActionResult<InvoiceResponseDto>> UpdateStatus(
+            int id, [FromBody] UpdateInvoiceStatusDto dto)
+        {
             try
             {
-                _context.Invoices.Add(invoice);
-                await _context.SaveChangesAsync();
-                return CreatedAtAction(nameof(GetAll), new { id = invoice.InvoiceId }, invoice);
+                var updated = await _invoiceRepo.UpdateInvoiceStatusAsync(id, dto.Status);
+                return Ok(MapToDto(updated));
             }
-            catch (DbUpdateException ex)
+            catch (KeyNotFoundException ex)
             {
-                return BadRequest("Error: " + ex.InnerException?.Message);
+                return NotFound(new { message = ex.Message });
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { message = ex.Message });
             }
         }
 
-        [HttpDelete("{id}")]
-        public async Task<IActionResult> Delete(int id)
+        private static InvoiceResponseDto MapToDto(Invoice i) => new()
         {
-            var data = await _context.Invoices.FindAsync(id);
-            if (data == null) return NotFound();
-
-            _context.Invoices.Remove(data);
-            await _context.SaveChangesAsync();
-            return Ok();
-        }
+            InvoiceId = i.InvoiceId,
+            OrderId = i.OrderId,
+            InvoiceNumber = i.InvoiceNumber,
+            TotalAmount = i.TotalAmount,
+            TaxAmount = i.TaxAmount,
+            IssuedDate = i.IssuedDate,
+            DueDate = i.DueDate,
+            Status = i.Status
+        };
     }
 }
