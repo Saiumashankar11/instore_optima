@@ -187,7 +187,8 @@ namespace instore_optima.Infrastructure.Data
                 .HasOne<User>()
                 .WithMany()
                 .HasForeignKey(ro => ro.ApprovedBy)
-                .OnDelete(DeleteBehavior.Restrict);
+                .OnDelete(DeleteBehavior.Restrict)
+                .IsRequired(false);
 
             // PurchaseOrder.SupplierId ? Suppliers.SupplierId
             modelBuilder.Entity<PurchaseOrder>()
