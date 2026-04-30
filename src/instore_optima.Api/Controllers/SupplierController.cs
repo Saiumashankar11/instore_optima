@@ -11,7 +11,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace instore_optima.Api.Controllers
 {
     [ApiController]
-    [Route("api/[controller]")]
+    [Route("api/[controller]")]      
     public class SupplierController : ControllerBase
     {
         private readonly ISupplierRepository _supplierRepository;

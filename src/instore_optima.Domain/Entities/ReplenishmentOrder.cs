@@ -9,16 +9,12 @@ namespace instore_optima.Domain.Entities
     public class ReplenishmentOrder
     {
         public int ReplenishmentOrderId { get; set; }
-
         public int ProductId { get; set; }
-
         public int QuantityRequested { get; set; }
-
         public DateTime GeneratedAt { get; set; }
 
-        public int ApprovedBy { get; set; }
-
-        public DateTime ApprovedAt { get; set; }
-        public string Status { get; set; }
+        public int? ApprovedBy { get; set; }      // ← was: int
+        public DateTime? ApprovedAt { get; set; } // ← was: DateTime
+        public string Status { get; set; } = "Pending";
     }
 }
