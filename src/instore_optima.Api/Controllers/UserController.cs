@@ -1,6 +1,7 @@
 using instore_optima.Application.DTOs;
 using instore_optima.Domain.Interfaces;
 using instore_optima.Domain.Entities;
+using instore_optima.Api.Exceptions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -9,6 +10,9 @@ namespace instore_optima.Api.Controllers
     [ApiController]
     [Route("api/user")]
     [Authorize]
+    /// <summary>
+    /// API endpoints for managing users.
+    /// </summary>
     public class UserController : ControllerBase
     {
         private readonly IUserRepository _userRepository;
@@ -18,7 +22,10 @@ namespace instore_optima.Api.Controllers
             _userRepository = userRepository;
         }
 
-        // GET api/user — returns all users (no passwords)
+        /// <summary>
+        /// Gets all users in the system (no passwords).
+        /// </summary>
+        /// <returns>A list of all users.</returns>
         [HttpGet]
         public async Task<IActionResult> GetAllUsers()
         {
@@ -36,14 +43,18 @@ namespace instore_optima.Api.Controllers
             return Ok(result);
         }
 
-        // GET api/user/{id}
+        /// <summary>
+        /// Gets a specific user by their ID.
+        /// </summary>
+        /// <param name="id">The ID of the user.</param>
+        /// <returns>The user details if found; otherwise, NotFound.</returns>
         [HttpGet("{id}")]
         public async Task<IActionResult> GetUserById(int id)
         {
             var user = await _userRepository.GetUserByIdAsync(id);
 
             if (user == null)
-                return NotFound(new { message = $"User with ID {id} not found." });
+                throw new ResourceNotFoundException("User", id);
 
             return Ok(new AuthResponseDto
             {
@@ -55,14 +66,19 @@ namespace instore_optima.Api.Controllers
             });
         }
 
-        // PUT api/user/{id} — update name, email, role
+        /// <summary>
+        /// Updates a user's name, email, or role.
+        /// </summary>
+        /// <param name="id">The ID of the user to update.</param>
+        /// <param name="dto">The updated user data.</param>
+        /// <returns>The updated user details if successful; otherwise, NotFound.</returns>
         [HttpPut("{id}")]
         public async Task<IActionResult> UpdateUser(int id, [FromBody] RegisterDto dto)
         {
             var existing = await _userRepository.GetUserByIdAsync(id);
 
             if (existing == null)
-                return NotFound(new { message = $"User with ID {id} not found." });
+                throw new ResourceNotFoundException("User", id);
 
             existing.Name = dto.Name;
             existing.Email = dto.Email;
@@ -80,18 +96,22 @@ namespace instore_optima.Api.Controllers
             });
         }
 
-        // DELETE api/user/{id} — soft delete
+        /// <summary>
+        /// Deletes a user by their ID.
+        /// </summary>
+        /// <param name="id">The ID of the user to delete.</param>
+        /// <returns>NoContent if successful; otherwise, NotFound.</returns>
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteUser(int id)
         {
             var existing = await _userRepository.GetUserByIdAsync(id);
 
             if (existing == null)
-                return NotFound(new { message = $"User with ID {id} not found." });
+                throw new ResourceNotFoundException("User", id);
 
             await _userRepository.DeleteUserAsync(id);
 
-            return NoContent(); // 204 — success, no body
+            return NoContent();
         }
     }
 }

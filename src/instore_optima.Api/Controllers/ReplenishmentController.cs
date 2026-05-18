@@ -1,3 +1,4 @@
+using instore_optima.Api.Exceptions;
 using instore_optima.Application.DTOs;
 using instore_optima.Domain.Entities;
 
@@ -8,6 +9,9 @@ namespace instore_optima.Api.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
+    /// <summary>
+    /// API endpoints for managing replenishment rules and operations.
+    /// </summary>
     public class ReplenishmentController : ControllerBase
     {
         private readonly IReplenishmentRepository _repo;
@@ -19,7 +23,10 @@ namespace instore_optima.Api.Controllers
 
         // ── Rules ────────────────────────────────────────────────────
 
-        // GET api/replenishment/rules
+        /// <summary>
+        /// Gets all replenishment rules in the system.
+        /// </summary>
+        /// <returns>A list of all replenishment rules.</returns>
         [HttpGet("rules")]
         public async Task<IActionResult> GetRules()
         {
@@ -27,16 +34,26 @@ namespace instore_optima.Api.Controllers
             return Ok(rules.Select(MapRuleToResponse));
         }
 
-        // GET api/replenishment/rules/{id}
+        /// <summary>
+        /// Gets a specific replenishment rule by its ID.
+        /// </summary>
+        /// <param name="id">The ID of the replenishment rule.</param>
+        /// <returns>The replenishment rule details if found; otherwise, NotFound.</returns>
         [HttpGet("rules/{id}")]
         public async Task<IActionResult> GetRuleById(int id)
         {
             var rule = await _repo.GetRuleByIdAsync(id);
-            if (rule == null) return NotFound(new { message = $"Rule {id} not found." });
+            if (rule == null)
+                throw new ResourceNotFoundException("ReplenishmentRule", id);
+
             return Ok(MapRuleToResponse(rule));
         }
 
-        // POST api/replenishment/rules
+        /// <summary>
+        /// Creates a new replenishment rule.
+        /// </summary>
+        /// <param name="dto">The replenishment rule creation data.</param>
+        /// <returns>The created replenishment rule.</returns>
         [HttpPost("rules")]
         public async Task<IActionResult> CreateRule(ReplenishmentRuleCreateDTO dto)
         {

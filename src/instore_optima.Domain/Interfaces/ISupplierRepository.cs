@@ -14,7 +14,7 @@ namespace instore_optima.Domain.Interfaces
         Task<Supplier?> GetSupplierByIdAsync(int supplierId);
         Task<Supplier> CreateSupplierAsync(Supplier supplier);
         Task<Supplier> UpdateSupplierAsync(Supplier supplier);
-        Task DeleteSupplierAsync(int supplierId);
+        Task<bool> DeleteSupplierAsync(int supplierId);
     }
 }
 

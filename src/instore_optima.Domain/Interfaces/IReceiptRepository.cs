@@ -6,6 +6,7 @@ namespace instore_optima.Domain.Interfaces
     {
         Task<IEnumerable<Receipt>> GetAllReceiptsAsync();
         Task<Receipt?> GetReceiptByIdAsync(int receiptId);
+        Task<Receipt?> GetReceiptByPaymentIdAsync(int paymentId);
         Task<Receipt> CreateReceiptAsync(Receipt receipt);
         Task<Receipt> UpdateReceiptAsync(Receipt receipt);
     }

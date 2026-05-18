@@ -14,15 +14,24 @@ namespace instore_optima.Api.Repositories.Implementations
             _context = context;
         }
 
+        public async Task<IEnumerable<Order_Items>> GetAllOrderItemsAsync()
+        {
+            return await _context.OrderItems.AsNoTracking()
+                .Include(oi => oi.Product)
+                .ToListAsync();
+        }
+
         public async Task<IEnumerable<Order_Items>> GetItemsByOrderIdAsync(int orderId)
         {
             return await _context.OrderItems.AsNoTracking()
+                .Include(oi => oi.Product)
                 .Where(oi => oi.OrderId == orderId).ToListAsync();
         }
 
         public async Task<Order_Items?> GetOrderItemByIdAsync(int orderItemId)
         {
             return await _context.OrderItems.AsNoTracking()
+                .Include(oi => oi.Product)
                 .FirstOrDefaultAsync(oi => oi.OrderItemId == orderItemId);
         }
 

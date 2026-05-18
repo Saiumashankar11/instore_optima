@@ -4,12 +4,16 @@ using instore_optima.Application.DTOs;
 using instore_optima.Domain.Entities;
 using instore_optima.Domain.Interfaces;
 using Microsoft.AspNetCore.Mvc;
+using instore_optima.Api.Exceptions;
 
 namespace instore_optima.Api.Controllers
 {
     [ApiController]
     [Route("api/auth")]
-    public class AuthController : ControllerBase
+    /// <summary>
+    /// API endpoints for authentication and user registration.
+    /// </summary>
+    public class AuthController : BaseApiController
     {
         private readonly IAuthRepository _authRepository;
 
@@ -18,15 +22,20 @@ namespace instore_optima.Api.Controllers
             _authRepository = authRepository;
         }
 
-        // ─── Register ─────────────────────────────────────────
-        // POST api/auth/register
+        /// <summary>
+        /// Registers a new user in the system.
+        /// </summary>
+        /// <param name="dto">The registration data for the new user.</param>
+        /// <returns>The created user details, or an error if registration fails.</returns>
         [HttpPost("register")]
         public async Task<IActionResult> Register([FromBody] RegisterDto dto)
         {
+            ValidateModelState();
+
             // Check if email already exists
             var existingUser = await _authRepository.GetUserByEmailAsync(dto.Email);
             if (existingUser != null)
-                return BadRequest(new { message = "Email already registered" });
+                throw new ValidationException(new Dictionary<string, string[]> { { "Email", new[] { "Email already registered" } } });
 
             // Hash password and create user
             var user = new User
@@ -54,20 +63,25 @@ namespace instore_optima.Api.Controllers
             });
         }
 
-        // ─── Login ────────────────────────────────────────────
-        // POST api/auth/login
+        /// <summary>
+        /// Authenticates a user and returns a JWT token if successful.
+        /// </summary>
+        /// <param name="dto">The login credentials.</param>
+        /// <returns>User details and JWT token if authentication is successful; otherwise, Unauthorized.</returns>
         [HttpPost("login")]
         public async Task<IActionResult> Login([FromBody] LoginDto dto)
         {
+            ValidateModelState();
+
             // Check if user exists
             var user = await _authRepository.GetUserByEmailAsync(dto.Email);
             if (user == null)
-                return Unauthorized(new { message = "Invalid email or password" });
+                throw new UnauthorizedAccessException("Invalid email or password");
 
             // Verify password
             var isValid = _authRepository.VerifyPassword(dto.Password, user.Password);
             if (!isValid)
-                return Unauthorized(new { message = "Invalid email or password" });
+                throw new UnauthorizedAccessException("Invalid email or password");
 
             // Generate JWT token
             var token = _authRepository.GenerateJwtToken(user);

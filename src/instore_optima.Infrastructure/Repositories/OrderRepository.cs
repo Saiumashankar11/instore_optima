@@ -16,12 +16,17 @@ namespace instore_optima.Api.Repositories.Implementations
 
         public async Task<IEnumerable<Orders>> GetAllOrdersAsync()
         {
-            return await _context.Orders.AsNoTracking().ToListAsync();
+            return await _context.Orders.AsNoTracking()
+                .Include(o => o.OrderItems)
+                    .ThenInclude(oi => oi.Product)
+                .ToListAsync();
         }
 
         public async Task<Orders?> GetOrderByIdAsync(int orderId)
         {
             return await _context.Orders.AsNoTracking()
+                .Include(o => o.OrderItems)
+                    .ThenInclude(oi => oi.Product)
                 .FirstOrDefaultAsync(o => o.OrderId == orderId);
         }
 
@@ -42,7 +47,12 @@ namespace instore_optima.Api.Repositories.Implementations
             existing.Status = order.Status;
             existing.TotalAmount = order.TotalAmount;
             await _context.SaveChangesAsync();
-            return existing;
+
+            // Reload with OrderItems and Products
+            return await _context.Orders.AsNoTracking()
+                .Include(o => o.OrderItems)
+                    .ThenInclude(oi => oi.Product)
+                .FirstAsync(o => o.OrderId == order.OrderId);
         }
 
         public async Task DeleteOrderAsync(int orderId)

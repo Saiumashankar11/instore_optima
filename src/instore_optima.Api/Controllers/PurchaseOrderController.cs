@@ -1,3 +1,4 @@
+using instore_optima.Api.Exceptions;
 using instore_optima.Domain.Entities;
 using instore_optima.Infrastructure.Data;
 using Microsoft.AspNetCore.Http;
@@ -12,6 +13,9 @@ namespace instore_optima.Api.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
+    /// <summary>
+    /// API endpoints for managing purchase orders.
+    /// </summary>
     public class PurchaseOrderController : ControllerBase
     {
         private readonly IPurchaseOrderRepository _purchaseOrderRepository;
@@ -21,7 +25,10 @@ namespace instore_optima.Api.Controllers
             _purchaseOrderRepository = purchaseOrderRepository;
         }
 
-        // GET api/purchaseorder
+        /// <summary>
+        /// Gets all purchase orders in the system.
+        /// </summary>
+        /// <returns>A list of all purchase orders.</returns>
         [HttpGet]
         public async Task<IActionResult> GetAll()
         {
@@ -29,16 +36,26 @@ namespace instore_optima.Api.Controllers
             return Ok(orders);
         }
 
-        // GET api/purchaseorder/{id}
+        /// <summary>
+        /// Gets a specific purchase order by its ID.
+        /// </summary>
+        /// <param name="id">The ID of the purchase order.</param>
+        /// <returns>The purchase order details if found; otherwise, NotFound.</returns>
         [HttpGet("{id}")]
         public async Task<IActionResult> GetById(int id)
         {
             var po = await _purchaseOrderRepository.GetPOByIdAsync(id);
-            if (po == null) return NotFound();
+            if (po == null)
+                throw new ResourceNotFoundException("PurchaseOrder", id);
+
             return Ok(po);
         }
 
-        // POST api/purchaseorder
+        /// <summary>
+        /// Creates a new purchase order.
+        /// </summary>
+        /// <param name="dto">The purchase order creation data.</param>
+        /// <returns>The created purchase order.</returns>
         [HttpPost]
         public async Task<IActionResult> Create(CreatePurchaseOrderDto dto)
         {

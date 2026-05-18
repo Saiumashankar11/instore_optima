@@ -29,6 +29,13 @@ namespace instore_optima.Infrastructure.Repositories
                 .FirstOrDefaultAsync(r => r.ReceiptId == receiptId);
         }
 
+        public async Task<Receipt?> GetReceiptByPaymentIdAsync(int paymentId)
+        {
+            return await _context.Receipts
+                .AsNoTracking()
+                .FirstOrDefaultAsync(r => r.PaymentId == paymentId);
+        }
+
         public async Task<Receipt> CreateReceiptAsync(Receipt receipt)
         {
             receipt.GeneratedAt = DateTime.UtcNow;

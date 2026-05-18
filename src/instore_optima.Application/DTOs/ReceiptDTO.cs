@@ -32,5 +32,9 @@ namespace instore_optima.Application.DTOs
         public decimal AmountPaid { get; set; }
         public DateTime PaymentDate { get; set; }
         public DateTime GeneratedAt { get; set; }
+
+        // Order and invoice context
+        public int? OrderId { get; set; }
+        public string? InvoiceNumber { get; set; }
     }
 }

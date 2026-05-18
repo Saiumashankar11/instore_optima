@@ -23,12 +23,17 @@ namespace instore_optima.Application.DTOs
     public class InvoiceResponseDto
     {
         public int InvoiceId { get; set; }
-        public int OrderId { get; set; }   // changed from PurchaseOrderId
+        public int OrderId { get; set; }
         public string InvoiceNumber { get; set; } = string.Empty;
         public decimal TotalAmount { get; set; }
         public decimal TaxAmount { get; set; }
         public DateTime IssuedDate { get; set; }
         public DateTime DueDate { get; set; }
         public string Status { get; set; } = string.Empty;
+
+        // Payment context
+        public int? PaymentId { get; set; }
+        public string? PaymentStatus { get; set; }
+        public string? PaymentMethod { get; set; }
     }
 }

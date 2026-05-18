@@ -52,6 +52,16 @@ namespace instore_optima.Infrastructure.Repositories
                 .FirstOrDefaultAsync(p => p.ProductId == productId);
             if (product == null) return false;
 
+            bool hasStock = await _context.Stocks.AnyAsync(s => s.ProductId == productId);
+            bool hasOrderItems = await _context.OrderItems.AnyAsync(oi => oi.ProductId == productId);
+            bool hasStockMovements = await _context.StockMovements.AnyAsync(sm => sm.ProductId == productId);
+            bool hasReplenishmentRules = await _context.Set<ReplenishmentRule>().AnyAsync(r => r.ProductId == productId);
+            bool hasReplenishmentOrders = await _context.Set<ReplenishmentOrder>().AnyAsync(ro => ro.ProductId == productId);
+            bool hasReplenishmentLogs = await _context.ReplenishmentLogs.AnyAsync(rl => rl.ProductId == productId);
+
+            if (hasStock || hasOrderItems || hasStockMovements || hasReplenishmentRules || hasReplenishmentOrders || hasReplenishmentLogs)
+                return false;
+
             _context.Products.Remove(product);
             await _context.SaveChangesAsync();
             return true;

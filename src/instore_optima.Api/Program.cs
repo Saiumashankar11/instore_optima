@@ -9,6 +9,7 @@ using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using instore_optima.Api.Repositories.Interfaces;
 using instore_optima.Api.Repositories.Implementations;
+using instore_optima.Api.Middleware;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -78,6 +79,14 @@ builder.Services.AddSwaggerGen(options =>
             new string[] {}
         }
     });
+
+    // Include XML comments (enable in .csproj as well)
+    var xmlFile = $"{System.Reflection.Assembly.GetExecutingAssembly().GetName().Name}.xml";
+    var xmlPath = System.IO.Path.Combine(AppContext.BaseDirectory, xmlFile);
+    if (System.IO.File.Exists(xmlPath))
+    {
+        options.IncludeXmlComments(xmlPath);
+    }
 });
 
 // ─── Auth Repository ──────────────────────────────────
@@ -100,8 +109,20 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         };
     });
 
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowFrontend", policy =>
+    {
+        policy.WithOrigins("http://localhost:5173")
+              .AllowAnyHeader()
+              .AllowAnyMethod();
+    });
+});
 
 var app = builder.Build();
+
+// ─── Global Exception Handling Middleware ────────────
+app.UseMiddleware<GlobalExceptionHandlingMiddleware>();
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
@@ -112,6 +133,7 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 app.UseAuthentication();
+app.UseCors("AllowFrontend");
 app.UseAuthorization();
 app.MapControllers();
 

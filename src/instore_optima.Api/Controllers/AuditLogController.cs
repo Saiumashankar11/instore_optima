@@ -1,4 +1,5 @@
-﻿using instore_optima.Application.DTOs;
+﻿using instore_optima.Api.Exceptions;
+using instore_optima.Application.DTOs;
 using instore_optima.Domain.Entities;
 using instore_optima.Domain.Interfaces;
 using Microsoft.AspNetCore.Authorization;
@@ -9,6 +10,9 @@ namespace instore_optima.Api.Controllers
     [ApiController]
     [Route("api/auditlog")]
     [Authorize]
+    /// <summary>
+    /// API endpoints for managing audit logs.
+    /// </summary>
     public class AuditLogController : ControllerBase
     {
         private readonly IAuditLogRepository _auditLogRepository;
@@ -22,12 +26,18 @@ namespace instore_optima.Api.Controllers
             _userRepository = userRepository;
         }
 
-        // GET api/auditlog — Admin only
+        /// <summary>
+        /// Gets all audit logs. Admin only.
+        /// </summary>
+        /// <returns>A list of all audit logs in the system.</returns>
         [HttpGet]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> GetAllLogs()
         {
             var logs = await _auditLogRepository.GetAllLogsAsync();
+
+            if (logs == null || !logs.Any())
+                throw new ResourceNotFoundException("AuditLogs", "All");
 
             var result = logs.Select(l => new AuditLogResponseDto
             {
@@ -45,7 +55,11 @@ namespace instore_optima.Api.Controllers
             return Ok(result);
         }
 
-        // GET api/auditlog/user/{userId}
+        /// <summary>
+        /// Gets all audit logs for a specific user.
+        /// </summary>
+        /// <param name="userId">The ID of the user whose logs to retrieve.</param>
+        /// <returns>A list of audit logs for the specified user.</returns>
         [HttpGet("user/{userId}")]
         public async Task<IActionResult> GetLogsByUser(int userId)
         {

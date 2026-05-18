@@ -1,12 +1,16 @@
 using instore_optima.Domain.Entities;
 using instore_optima.Infrastructure.Interfaces;
 using instore_optima.Application.DTOs;
+using instore_optima.Api.Exceptions;
 using Microsoft.AspNetCore.Mvc;
 
 namespace instore_optima.Api.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
+    /// <summary>
+    /// API endpoints for managing products.
+    /// </summary>
     public class ProductsController : ControllerBase
     {
         private readonly IProductRepository _repo;
@@ -16,7 +20,10 @@ namespace instore_optima.Api.Controllers
             _repo = repo;
         }
 
-        // GET api/products
+        /// <summary>
+        /// Gets all products in the system.
+        /// </summary>
+        /// <returns>A list of all products.</returns>
         [HttpGet]
         public async Task<IActionResult> GetProducts()
         {
@@ -36,12 +43,17 @@ namespace instore_optima.Api.Controllers
             return Ok(response);
         }
 
-        // GET api/products/{id}
+        /// <summary>
+        /// Gets a specific product by its ID.
+        /// </summary>
+        /// <param name="id">The ID of the product.</param>
+        /// <returns>The product details if found; otherwise, NotFound.</returns>
         [HttpGet("{id}")]
         public async Task<IActionResult> GetById(int id)
         {
             var p = await _repo.GetByIdAsync(id);
-            if (p == null) return NotFound(new { message = $"Product {id} not found." });
+            if (p == null)
+                throw new ResourceNotFoundException("Product", id);
 
             return Ok(new ProductResponseDTO
             {
@@ -55,7 +67,11 @@ namespace instore_optima.Api.Controllers
             });
         }
 
-        // POST api/products
+        /// <summary>
+        /// Creates a new product.
+        /// </summary>
+        /// <param name="dto">The product creation data.</param>
+        /// <returns>The created product.</returns>
         [HttpPost]
         public async Task<IActionResult> CreateProduct(ProductCreateDTO dto)
         {
@@ -97,7 +113,8 @@ namespace instore_optima.Api.Controllers
                 SupplierId = dto.SupplierId
             });
 
-            if (updated == null) return NotFound(new { message = $"Product {id} not found." });
+            if (updated == null)
+                throw new ResourceNotFoundException("Product", id);
 
             return Ok(new ProductResponseDTO
             {
@@ -115,8 +132,14 @@ namespace instore_optima.Api.Controllers
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteProduct(int id)
         {
+            var existing = await _repo.GetByIdAsync(id);
+            if (existing == null)
+                throw new ResourceNotFoundException("Product", id);
+
             var result = await _repo.DeleteAsync(id);
-            if (!result) return NotFound(new { message = $"Product {id} not found." });
+            if (!result)
+                throw new ConflictException($"Product {id} cannot be deleted because it is referenced by existing stock, orders, stock movements, or replenishment data.");
+
             return Ok(new { message = $"Product {id} deleted successfully." });
         }
     }

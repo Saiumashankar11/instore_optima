@@ -125,13 +125,13 @@ namespace instore_optima.Infrastructure.Data
             // Order_Items.OrderId ? Orders.OrderId
             modelBuilder.Entity<Order_Items>()
                 .HasOne<Orders>()
-                .WithMany()
+                .WithMany(o => o.OrderItems)
                 .HasForeignKey(oi => oi.OrderId)
                 .OnDelete(DeleteBehavior.Cascade);
 
             // Order_Items.ProductId ? Products.ProductId
             modelBuilder.Entity<Order_Items>()
-                .HasOne<Products>()
+                .HasOne(oi => oi.Product)
                 .WithMany()
                 .HasForeignKey(oi => oi.ProductId)
                 .OnDelete(DeleteBehavior.Restrict);

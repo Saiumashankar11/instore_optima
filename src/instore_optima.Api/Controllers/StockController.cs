@@ -1,6 +1,6 @@
 using instore_optima.Application.DTOs;
 using instore_optima.Domain.Entities;
-
+using instore_optima.Api.Exceptions;
 using instore_optima.Infrastructure.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 
@@ -8,6 +8,9 @@ namespace instore_optima.Api.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
+    /// <summary>
+    /// API endpoints for managing stock.
+    /// </summary>
     public class StockController : ControllerBase
     {
         private readonly IStockRepository _repo;
@@ -17,7 +20,10 @@ namespace instore_optima.Api.Controllers
             _repo = repo;
         }
 
-        // GET api/stock
+        /// <summary>
+        /// Gets all stock records in the system.
+        /// </summary>
+        /// <returns>A list of all stock records.</returns>
         [HttpGet]
         public async Task<IActionResult> GetAll()
         {
@@ -25,16 +31,25 @@ namespace instore_optima.Api.Controllers
             return Ok(stocks.Select(MapToResponse));
         }
 
-        // GET api/stock/{id}
+        /// <summary>
+        /// Gets a specific stock record by its ID.
+        /// </summary>
+        /// <param name="id">The ID of the stock record.</param>
+        /// <returns>The stock record details if found; otherwise, NotFound.</returns>
         [HttpGet("{id}")]
         public async Task<IActionResult> GetById(int id)
         {
             var s = await _repo.GetByIdAsync(id);
-            if (s == null) return NotFound(new { message = $"Stock {id} not found." });
+            if (s == null)
+                throw new ResourceNotFoundException("Stock", id);
+
             return Ok(MapToResponse(s));
         }
 
-        // GET api/stock/low
+        /// <summary>
+        /// Gets all stock records that are below the minimum stock level.
+        /// </summary>
+        /// <returns>A list of stock records below the minimum stock level.</returns>
         [HttpGet("low")]
         public async Task<IActionResult> GetLowStock()
         {
@@ -42,16 +57,23 @@ namespace instore_optima.Api.Controllers
             return Ok(stocks.Select(MapToResponse));
         }
 
-        // POST api/stock
+        /// <summary>
+        /// Creates a new stock record.
+        /// </summary>
+        /// <param name="dto">The stock creation data.</param>
+        /// <returns>The created stock record.</returns>
         [HttpPost]
         public async Task<IActionResult> Create(StockCreateDTO dto)
         {
             if (dto.ProductId <= 0)
-                return BadRequest(new { message = "ProductId is required." });
+                throw new ValidationException(new Dictionary<string, string[]>
+                {
+                    { "ProductId", new[] { "ProductId is required and must be greater than 0" } }
+                });
 
             var existing = await _repo.GetByProductIdAsync(dto.ProductId);
             if (existing != null)
-                return Conflict(new { message = $"Stock for product {dto.ProductId} already exists." });
+                throw new ConflictException($"Stock for product {dto.ProductId} already exists.");
 
             var entity = new Stock
             {
@@ -72,7 +94,9 @@ namespace instore_optima.Api.Controllers
                 CurrentStock = dto.CurrentStock
             });
 
-            if (updated == null) return NotFound(new { message = $"Stock {id} not found." });
+            if (updated == null)
+                throw new ResourceNotFoundException("Stock", id);
+
             return Ok(MapToResponse(updated));
         }
 
@@ -81,7 +105,9 @@ namespace instore_optima.Api.Controllers
         public async Task<IActionResult> Delete(int id)
         {
             var result = await _repo.DeleteAsync(id);
-            if (!result) return NotFound(new { message = $"Stock {id} not found." });
+            if (!result)
+                throw new ResourceNotFoundException("Stock", id);
+
             return Ok(new { message = $"Stock {id} deleted successfully." });
         }
 

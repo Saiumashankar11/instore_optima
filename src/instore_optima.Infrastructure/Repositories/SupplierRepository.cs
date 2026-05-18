@@ -44,15 +44,22 @@ namespace instore_optima.Infrastructure.Repositories
             await _context.SaveChangesAsync();
             return supplier;
         }
-        public async Task DeleteSupplierAsync(int supplierId)
+        public async Task<bool> DeleteSupplierAsync(int supplierId)
         {
             var supplier = await _context.Suppliers
                 .FirstOrDefaultAsync(s => s.SupplierId == supplierId);
-            if (supplier != null)
-            {
-                _context.Suppliers.Remove(supplier);
-                await _context.SaveChangesAsync();
-            }
+            if (supplier == null) return false;
+
+            bool hasProducts = await _context.Products.AnyAsync(p => p.SupplierId == supplierId);
+            bool hasPurchaseOrders = await _context.PurchaseOrders.AnyAsync(po => po.SupplierId == supplierId);
+            bool hasReplenishmentLogs = await _context.ReplenishmentLogs.AnyAsync(rl => rl.SupplierId == supplierId);
+
+            if (hasProducts || hasPurchaseOrders || hasReplenishmentLogs)
+                return false;
+
+            _context.Suppliers.Remove(supplier);
+            await _context.SaveChangesAsync();
+            return true;
         }
     }
 }
