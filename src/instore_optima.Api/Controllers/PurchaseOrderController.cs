@@ -7,12 +7,14 @@ using Microsoft.EntityFrameworkCore;
 
 using instore_optima.Application.DTOs;
 using instore_optima.Domain.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace instore_optima.Api.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
+    [Authorize]
     /// <summary>
     /// API endpoints for managing purchase orders.
     /// </summary>
@@ -57,6 +59,7 @@ namespace instore_optima.Api.Controllers
         /// <param name="dto">The purchase order creation data.</param>
         /// <returns>The created purchase order.</returns>
         [HttpPost]
+        [Authorize(Roles = "Admin,Manager")]
         public async Task<IActionResult> Create(CreatePurchaseOrderDto dto)
         {
             if (dto.SupplierId <= 0)
@@ -80,6 +83,7 @@ namespace instore_optima.Api.Controllers
 
         // PUT api/purchaseorder/{id}
         [HttpPut("{id}")]
+        [Authorize(Roles = "Admin,Manager")]
         public async Task<IActionResult> UpdateStatus(int id, UpdatePurchaseOrderDto dto)
         {
             if (string.IsNullOrWhiteSpace(dto.Status))

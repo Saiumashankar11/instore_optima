@@ -1,53 +1,64 @@
-import { Outlet, NavLink, useLocation } from 'react-router-dom'
+import { Outlet, NavLink, useLocation, Navigate } from 'react-router-dom'
 import TopNavbar from './TopNavbar'
+import { useAuth } from '../context/AuthContext'
 
-const SIDEBARS = {
+const SIDEBAR_DEFS = {
   inventory: {
     section: 'Inventory',
     links: [
-      { to: '/products',       icon: 'bi-box-seam',         label: 'Products' },
-      { to: '/stock',          icon: 'bi-layers',           label: 'Stock' },
-      { to: '/stock-movement', icon: 'bi-arrow-left-right', label: 'Stock Movement' },
+      { page: 'products',       icon: 'bi-box-seam',         label: 'Products' },
+      { page: 'stock',          icon: 'bi-layers',           label: 'Stock' },
+      { page: 'stock-movement', icon: 'bi-arrow-left-right', label: 'Stock Movement' },
     ]
   },
   procurement: {
     section: 'Procurement',
     links: [
-      { to: '/suppliers',       icon: 'bi-truck',             label: 'Suppliers' },
-      { to: '/replenishment',   icon: 'bi-arrow-repeat',      label: 'Replenishment' },
-      { to: '/purchase-orders', icon: 'bi-file-earmark-text', label: 'Purchase Orders' },
+      { page: 'suppliers',       icon: 'bi-truck',             label: 'Suppliers' },
+      { page: 'replenishment',   icon: 'bi-arrow-repeat',      label: 'Replenishment' },
+      { page: 'purchase-orders', icon: 'bi-file-earmark-text', label: 'Purchase Orders' },
     ]
   },
   finance: {
     section: 'Finance',
     links: [
-      { to: '/orders',       icon: 'bi-cart3',              label: 'Orders' },
-      { to: '/order-items',  icon: 'bi-list-ul',            label: 'Order Items' },
-      { to: '/payments',     icon: 'bi-credit-card',        label: 'Payments' },
-      { to: '/invoices',     icon: 'bi-receipt',            label: 'Invoices' },
-      { to: '/receipts',     icon: 'bi-file-earmark-check', label: 'Receipts' },
+      { page: 'orders',       icon: 'bi-cart3',              label: 'Orders' },
+      { page: 'order-items',  icon: 'bi-list-ul',            label: 'Order Items' },
+      { page: 'payments',     icon: 'bi-credit-card',        label: 'Payments' },
+      { page: 'invoices',     icon: 'bi-receipt',            label: 'Invoices' },
+      { page: 'receipts',     icon: 'bi-file-earmark-check', label: 'Receipts' },
     ]
   },
   admin: {
     section: 'Admin',
     links: [
-      { to: '/users',      icon: 'bi-people',       label: 'Users' },
-      { to: '/audit-logs', icon: 'bi-shield-check', label: 'Audit Logs' },
+      { page: 'users',      icon: 'bi-people',       label: 'Users' },
+      { page: 'audit-logs', icon: 'bi-shield-check', label: 'Audit Logs' },
     ]
   },
 }
 
-function getSidebar(pathname) {
-  if (['/products','/stock','/stock-movement'].includes(pathname))            return SIDEBARS.inventory
-  if (['/suppliers','/replenishment','/purchase-orders'].includes(pathname))  return SIDEBARS.procurement
-  if (['/orders','/order-items','/payments','/invoices','/receipts'].includes(pathname)) return SIDEBARS.finance
-  if (['/users','/audit-logs'].includes(pathname))                             return SIDEBARS.admin
-  return SIDEBARS.inventory
+function getSidebarKey(pathname) {
+  const page = pathname.split('/').pop()
+  if (['products','stock','stock-movement'].includes(page))            return 'inventory'
+  if (['suppliers','replenishment','purchase-orders'].includes(page))  return 'procurement'
+  if (['orders','order-items','payments','invoices','receipts'].includes(page)) return 'finance'
+  if (['users','audit-logs'].includes(page))                           return 'admin'
+  return 'inventory'
 }
 
 export default function InnerLayout() {
   const { pathname } = useLocation()
-  const sidebar = getSidebar(pathname)
+  const { canManage, role } = useAuth()
+  const rolePrefix = `/${role.toLowerCase()}`
+  const currentPage = pathname.split('/').pop()
+  const sidebarKey  = getSidebarKey(pathname)
+  const sidebar     = SIDEBAR_DEFS[sidebarKey]
+
+  // If Staff navigates directly to /staff/users or /staff/audit-logs, redirect away
+  if (!canManage && ['users', 'audit-logs'].includes(currentPage)) {
+    return <Navigate to={`${rolePrefix}/dashboard`} replace />
+  }
 
   return (
     <div className="app-root">
@@ -55,10 +66,15 @@ export default function InnerLayout() {
       <div className="inner-body">
         <aside className="inner-sidebar">
           <div className="isb-section">{sidebar.section}</div>
-          {sidebar.links.map(link => (
+          {sidebar.links
+            .filter(link => {
+              if (['users', 'audit-logs'].includes(link.page)) return canManage
+              return true
+            })
+            .map(link => (
             <NavLink
-              key={link.to}
-              to={link.to}
+              key={link.page}
+              to={`${rolePrefix}/${link.page}`}
               className={({ isActive }) => `isb-link${isActive ? ' active' : ''}`}
             >
               <i className={`bi ${link.icon}`}></i>

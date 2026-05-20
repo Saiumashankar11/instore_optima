@@ -52,15 +52,21 @@ namespace instore_optima.Infrastructure.Repositories
                 .FirstOrDefaultAsync(p => p.ProductId == productId);
             if (product == null) return false;
 
-            bool hasStock = await _context.Stocks.AnyAsync(s => s.ProductId == productId);
-            bool hasOrderItems = await _context.OrderItems.AnyAsync(oi => oi.ProductId == productId);
-            bool hasStockMovements = await _context.StockMovements.AnyAsync(sm => sm.ProductId == productId);
-            bool hasReplenishmentRules = await _context.Set<ReplenishmentRule>().AnyAsync(r => r.ProductId == productId);
-            bool hasReplenishmentOrders = await _context.Set<ReplenishmentOrder>().AnyAsync(ro => ro.ProductId == productId);
-            bool hasReplenishmentLogs = await _context.ReplenishmentLogs.AnyAsync(rl => rl.ProductId == productId);
+            // Block deletion if real transaction records exist
+            bool hasOrderItems      = await _context.OrderItems.AnyAsync(oi => oi.ProductId == productId);
+            bool hasStockMovements  = await _context.StockMovements.AnyAsync(sm => sm.ProductId == productId);
+            bool hasReplenishOrders = await _context.Set<ReplenishmentOrder>().AnyAsync(ro => ro.ProductId == productId);
+            bool hasReplenishLogs   = await _context.ReplenishmentLogs.AnyAsync(rl => rl.ProductId == productId);
 
-            if (hasStock || hasOrderItems || hasStockMovements || hasReplenishmentRules || hasReplenishmentOrders || hasReplenishmentLogs)
+            if (hasOrderItems || hasStockMovements || hasReplenishOrders || hasReplenishLogs)
                 return false;
+
+            // Cascade-delete product-owned records (auto-created, no standalone meaning)
+            var stocks = await _context.Stocks.Where(s => s.ProductId == productId).ToListAsync();
+            _context.Stocks.RemoveRange(stocks);
+
+            var rules = await _context.Set<ReplenishmentRule>().Where(r => r.ProductId == productId).ToListAsync();
+            _context.Set<ReplenishmentRule>().RemoveRange(rules);
 
             _context.Products.Remove(product);
             await _context.SaveChangesAsync();

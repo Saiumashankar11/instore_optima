@@ -1,22 +1,24 @@
 import { NavLink, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useTheme } from '../context/ThemeContext'
-
-
-
-const SECTIONS = [
-  { label: 'Dashboard',   to: '/dashboard', paths: ['/dashboard'] },
-  { label: 'Inventory',   to: '/products',  paths: ['/products', '/stock', '/stock-movement'] },
-  { label: 'Procurement', to: '/suppliers', paths: ['/suppliers', '/replenishment', '/purchase-orders'] },
-  { label: 'Finance',     to: '/orders',    paths: ['/orders', '/order-items', '/payments', '/invoices', '/receipts'] },
-  { label: 'Admin',       to: '/users',     paths: ['/users', '/audit-logs'] },
-]
+import { useState, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 
 export default function TopNavbar() {
-  const { user, logout } = useAuth()
+  const { user, logout, canManage, role } = useAuth()
   const { dark, toggle } = useTheme()
   const navigate = useNavigate()
   const { pathname } = useLocation()
+  const [toast, setToast] = useState(null)
+  const rolePrefix = `/${role?.toLowerCase()}`
+
+  const SECTIONS = [
+    { label: 'Dashboard',   to: `${rolePrefix}/dashboard`,       pages: ['dashboard'] },
+    { label: 'Inventory',   to: `${rolePrefix}/products`,        pages: ['products', 'stock', 'stock-movement'] },
+    { label: 'Procurement', to: `${rolePrefix}/suppliers`,       pages: ['suppliers', 'replenishment', 'purchase-orders'] },
+    { label: 'Finance',     to: `${rolePrefix}/orders`,          pages: ['orders', 'order-items', 'payments', 'invoices', 'receipts'] },
+    { label: 'Admin',       to: `${rolePrefix}/users`,           pages: ['users', 'audit-logs'], adminOnly: true },
+  ]
 
   const initials = user?.name
     ? user.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
@@ -24,18 +26,28 @@ export default function TopNavbar() {
 
   const handleLogout = () => { logout(); navigate('/login') }
 
-  const isActive = s => s.paths.includes(pathname)
+  const currentPage = pathname.split('/').pop()
+  const isActive = s => s.pages.includes(currentPage)
+
+  const showToast = useCallback((msg) => {
+    setToast(msg)
+    setTimeout(() => setToast(null), 3000)
+  }, [])
+
+  const handleNavClick = (e, section) => {
+    if (section.adminOnly && !canManage) {
+      e.preventDefault()
+      showToast('Admin section is not accessible for Staff.')
+    }
+  }
 
   return (
+    <>
     <nav className="top-navbar">
       {/* LEFT — brand */}
       <div className="tnav-brand-wrap">
         <NavLink to="/dashboard" className="tnav-brand">
-          <div className="tnav-icon">IO</div>
-          <div>
-            <div className="tnav-name">InStore Optima</div>
-            <div className="tnav-sub">Inventory System</div>
-          </div>
+          <img src="/logo.png" alt="InStore Optima" style={{ height: 35, width: 'auto', objectFit: 'contain' }} />
         </NavLink>
       </div>
 
@@ -46,9 +58,11 @@ export default function TopNavbar() {
             <NavLink
               key={s.to}
               to={s.to}
-              className={`tnav-pill${isActive(s) ? ' active' : ''}`}
+              className={`tnav-pill${isActive(s) ? ' active' : ''}${s.adminOnly && !canManage ? ' tnav-pill-locked' : ''}`}
+              onClick={e => handleNavClick(e, s)}
             >
               {isActive(s) && <span className="tnav-pill-dot"></span>}
+              {s.adminOnly && !canManage && <i className="bi bi-lock" style={{ fontSize: 9, opacity: .6 }}></i>}
               {s.label}
             </NavLink>
           ))}
@@ -76,5 +90,17 @@ export default function TopNavbar() {
         </div>
       </div>
     </nav>
+
+    {/* Toast rendered via portal directly into document.body — avoids any nav stacking/clipping */}
+    {toast && createPortal(
+      <div className="app-toast-wrap">
+        <div className="app-toast app-toast-warn">
+          <i className="bi bi-shield-lock"></i>
+          {toast}
+        </div>
+      </div>,
+      document.body
+    )}
+    </>
   )
 }

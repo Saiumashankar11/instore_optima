@@ -31,7 +31,7 @@ namespace instore_optima.Api.Controllers
         /// </summary>
         /// <returns>A list of all audit logs in the system.</returns>
         [HttpGet]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin,Manager")]
         public async Task<IActionResult> GetAllLogs()
         {
             var logs = await _auditLogRepository.GetAllLogsAsync();

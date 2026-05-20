@@ -45,8 +45,7 @@ export default function Register() {
         <div className="login-left-glow2"></div>
         <div className="login-left-top">
           <div className="login-brand">
-            <div className="login-brand-icon">IO</div>
-            <span className="login-brand-name">InStore Optima</span>
+            <img src="/logo.png" alt="InStore Optima" style={{ height: 58, width: 'auto', objectFit: 'contain' }} />
           </div>
           <div className="login-left-headline">
             Join your team.<br/>
@@ -76,18 +75,18 @@ export default function Register() {
         <div className="login-right-grid"></div>
         <div className="login-right-glow"></div>
         <div className="login-card">
-          <div className="login-card-icon">IO</div>
+          <div className="login-card-icon"><img src="/logo-1.png" alt="InStore Optima" style={{ height: 45, width: 'auto', objectFit: 'contain' }} /></div>
           <h1 className="login-card-title">Create account</h1>
           <p className="login-card-sub">Join InStore Optima</p>
 
           {error && (
-            <div className="alert alert-danger" style={{ marginBottom: 16 }}>
-              <i className="bi bi-exclamation-circle me-2"></i>{error}
+            <div className="login-alert-error">
+              <i className="bi bi-exclamation-circle"></i>{error}
             </div>
           )}
           {success && (
-            <div className="alert alert-success" style={{ marginBottom: 16 }}>
-              <i className="bi bi-check-circle me-2"></i>{success}
+            <div className="login-alert-success">
+              <i className="bi bi-check-circle"></i>{success}
             </div>
           )}
 

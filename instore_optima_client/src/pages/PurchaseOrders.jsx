@@ -7,10 +7,12 @@ import StatusBadge from '../components/shared/StatusBadge'
 import { getAllPOs, createPO, updatePO } from '../services/purchaseOrderService'
 import { getAllSuppliers } from '../services/supplierService'
 import { getAllReplenishments } from '../services/replenishmentService'
+import { useAuth } from '../context/AuthContext'
 
 const EMPTY = { replenishmentOrderId: '', supplierId: '', expectedDeliveryDate: '' }
 
 export default function PurchaseOrders() {
+  const { canManage } = useAuth()
   const [data, setData]                     = useState([])
   const [suppliers, setSuppliers]           = useState([])
   const [replenishments, setReplenishments] = useState([])
@@ -63,12 +65,15 @@ export default function PurchaseOrders() {
     { key: 'issuedAt',             label: 'Issued',   render: r => r.issuedAt ? new Date(r.issuedAt).toLocaleDateString('en-IN') : '—' },
     { key: 'expectedDeliveryDate', label: 'Expected', render: r => r.expectedDeliveryDate ? new Date(r.expectedDeliveryDate).toLocaleDateString('en-IN') : '—' },
     { key: 'status',               label: 'Status',   render: r => <StatusBadge status={r.status} /> },
-    { key: 'actions',              label: 'Actions',  render: r => r.status === 'Pending' ? (
-      <button className="btn-primary-custom" style={{ padding: '4px 11px', fontSize: 11.5 }}
-        onClick={() => handleStatusUpdate(r, 'Delivered')}>
-        <i className="bi bi-check-lg"></i> Mark Delivered
-      </button>
-    ) : <span style={{ color: 'var(--text-700)', fontSize: 12 }}>—</span> }
+    { key: 'actions', label: 'Actions', render: r => {
+      if (!canManage) return <span style={{ color: 'var(--text-700)', fontSize: 12 }}>—</span>
+      return r.status === 'Pending' ? (
+        <button className="btn-primary-custom" style={{ padding: '4px 11px', fontSize: 11.5 }}
+          onClick={() => handleStatusUpdate(r, 'Delivered')}>
+          <i className="bi bi-check-lg"></i> Mark Delivered
+        </button>
+      ) : <span style={{ color: 'var(--text-700)', fontSize: 12 }}>—</span>
+    }}
   ]
 
   return (
@@ -76,7 +81,10 @@ export default function PurchaseOrders() {
       <PageHeader
         title="Purchase Orders"
         subtitle="Track purchase orders sent to suppliers"
-        action={<button className="btn-primary-custom" onClick={() => { setForm(EMPTY); setShowForm(true) }}><i className="bi bi-plus-lg"></i> Create PO</button>}
+        action={canManage
+          ? <button className="btn-primary-custom" onClick={() => { setForm(EMPTY); setShowForm(true) }}><i className="bi bi-plus-lg"></i> Create PO</button>
+          : null
+        }
       />
 
       <div className="table-card">

@@ -14,10 +14,12 @@ namespace instore_optima.Api.Controllers
     public class ProductsController : ControllerBase
     {
         private readonly IProductRepository _repo;
+        private readonly IStockRepository _stockRepo;
 
-        public ProductsController(IProductRepository repo)
+        public ProductsController(IProductRepository repo, IStockRepository stockRepo)
         {
             _repo = repo;
+            _stockRepo = stockRepo;
         }
 
         /// <summary>
@@ -86,6 +88,16 @@ namespace instore_optima.Api.Controllers
             };
 
             var created = await _repo.CreateAsync(entity);
+
+            // Automatically create a stock record for the new product
+            // This ensures the product appears in the Stock page
+            var stock = new Stock
+            {
+                ProductId = created.ProductId,
+                CurrentStock = 0,
+                LastUpdated = DateTime.UtcNow
+            };
+            await _stockRepo.CreateAsync(stock);
 
             return Ok(new ProductResponseDTO
             {

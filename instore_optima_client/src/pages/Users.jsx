@@ -4,8 +4,10 @@ import DataTable from '../components/shared/DataTable'
 import SearchBar from '../components/shared/SearchBar'
 import ConfirmModal from '../components/shared/ConfirmModal'
 import { getAllUsers, deleteUser } from '../services/userService'
+import { useAuth } from '../context/AuthContext'
 
 export default function Users() {
+  const { isAdmin } = useAuth()
   const [data, setData]       = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError]     = useState('')
@@ -60,11 +62,11 @@ export default function Users() {
       return <span style={{ background: s.bg, color: s.color, padding: '2px 8px', borderRadius: 4, fontSize: 11, fontWeight: 600 }}>{r.role}</span>
     }},
     { key: 'createdAt', label: 'Joined', render: r => r.createdAt ? new Date(r.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—' },
-    { key: 'actions',   label: 'Actions',render: r => (
+    { key: 'actions',   label: 'Actions', render: r => isAdmin ? (
       <button className="btn-icon danger" onClick={() => { setDelId(r.userId); setShowDel(true) }}>
         <i className="bi bi-trash"></i>
       </button>
-    )}
+    ) : <span style={{ color: 'var(--text-700)', fontSize: 12 }}>—</span> }
   ]
 
   return (

@@ -6,6 +6,9 @@
 # dotenv files
 .env
 
+# Sensitive local config — never commit real credentials
+**/appsettings.Development.json
+
 # User-specific files
 *.rsuser
 *.suo

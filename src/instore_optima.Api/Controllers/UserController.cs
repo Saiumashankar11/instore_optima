@@ -9,7 +9,7 @@ namespace instore_optima.Api.Controllers
 {
     [ApiController]
     [Route("api/user")]
-    [Authorize]
+    [Authorize(Roles = "Admin,Manager")]
     /// <summary>
     /// API endpoints for managing users.
     /// </summary>
@@ -102,6 +102,7 @@ namespace instore_optima.Api.Controllers
         /// <param name="id">The ID of the user to delete.</param>
         /// <returns>NoContent if successful; otherwise, NotFound.</returns>
         [HttpDelete("{id}")]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> DeleteUser(int id)
         {
             var existing = await _userRepository.GetUserByIdAsync(id);

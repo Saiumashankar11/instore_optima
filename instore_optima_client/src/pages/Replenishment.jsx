@@ -12,7 +12,7 @@ import { useAuth } from '../context/AuthContext'
 const EMPTY = { productId: '', quantityRequested: '' }
 
 export default function Replenishment() {
-  const { user } = useAuth()
+  const { user, canManage } = useAuth()
   const [data, setData]               = useState([])
   const [products, setProducts]       = useState([])
   const [loading, setLoading]         = useState(true)
@@ -72,16 +72,19 @@ export default function Replenishment() {
     { key: 'quantityRequested',    label: 'Qty',      render: r => <span style={{ fontWeight: 700, color: 'var(--text-200)' }}>{r.quantityRequested}</span> },
     { key: 'status',               label: 'Status',   render: r => <StatusBadge status={r.status} /> },
     { key: 'generatedAt',          label: 'Generated',render: r => r.generatedAt ? new Date(r.generatedAt).toLocaleDateString('en-IN') : '—' },
-    { key: 'actions',              label: 'Actions',  render: r => r.status === 'Pending' ? (
-      <div style={{ display: 'flex', gap: 6 }}>
-        <button className="btn-primary-custom" style={{ padding: '4px 11px', fontSize: 11.5, background: '#059669' }} onClick={() => triggerAction(r, 'Approved')}>
-          <i className="bi bi-check-lg"></i> Approve
-        </button>
-        <button className="btn-primary-custom" style={{ padding: '4px 11px', fontSize: 11.5, background: '#dc2626' }} onClick={() => triggerAction(r, 'Rejected')}>
-          <i className="bi bi-x-lg"></i> Reject
-        </button>
-      </div>
-    ) : <span style={{ color: 'var(--text-700)', fontSize: 12 }}>—</span> }
+    { key: 'actions', label: 'Actions', render: r => {
+      if (!canManage) return <span style={{ color: 'var(--text-700)', fontSize: 12 }}>—</span>
+      return r.status === 'Pending' ? (
+        <div style={{ display: 'flex', gap: 6 }}>
+          <button className="btn-primary-custom" style={{ padding: '4px 11px', fontSize: 11.5, background: '#059669' }} onClick={() => triggerAction(r, 'Approved')}>
+            <i className="bi bi-check-lg"></i> Approve
+          </button>
+          <button className="btn-primary-custom" style={{ padding: '4px 11px', fontSize: 11.5, background: '#dc2626' }} onClick={() => triggerAction(r, 'Rejected')}>
+            <i className="bi bi-x-lg"></i> Reject
+          </button>
+        </div>
+      ) : <span style={{ color: 'var(--text-700)', fontSize: 12 }}>—</span>
+    }}
   ]
 
   return (
@@ -89,7 +92,10 @@ export default function Replenishment() {
       <PageHeader
         title="Replenishment"
         subtitle="Manage stock replenishment orders"
-        action={<button className="btn-primary-custom" onClick={() => { setForm(EMPTY); setShowForm(true) }}><i className="bi bi-plus-lg"></i> New Order</button>}
+        action={canManage
+          ? <button className="btn-primary-custom" onClick={() => { setForm(EMPTY); setShowForm(true) }}><i className="bi bi-plus-lg"></i> New Order</button>
+          : null
+        }
       />
 
       <div className="table-card">

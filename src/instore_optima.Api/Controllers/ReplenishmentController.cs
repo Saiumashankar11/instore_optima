@@ -3,12 +3,14 @@ using instore_optima.Application.DTOs;
 using instore_optima.Domain.Entities;
 
 using instore_optima.Infrastructure.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace instore_optima.Api.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
+    [Authorize]
     /// <summary>
     /// API endpoints for managing replenishment rules and operations.
     /// </summary>
@@ -120,6 +122,7 @@ namespace instore_optima.Api.Controllers
 
         // POST api/replenishment/orders
         [HttpPost("orders")]
+        [Authorize(Roles = "Admin,Manager")]
         public async Task<IActionResult> CreateOrder(ReplenishmentOrderCreateDTO dto)
         {
             var entity = new ReplenishmentOrder
@@ -135,6 +138,7 @@ namespace instore_optima.Api.Controllers
 
         // PATCH api/replenishment/orders/{id}/status
         [HttpPatch("orders/{id}/status")]
+        [Authorize(Roles = "Admin,Manager")]
         public async Task<IActionResult> UpdateStatus(int id, ReplenishmentOrderUpdateDTO dto)
         {
             var updated = await _repo.UpdateOrderStatusAsync(id, dto.Status, dto.ApprovedBy);

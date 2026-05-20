@@ -3,10 +3,21 @@ import PageHeader from '../components/shared/PageHeader'
 import DataTable from '../components/shared/DataTable'
 import SearchBar from '../components/shared/SearchBar'
 import FormModal from '../components/shared/FormModal'
-import { getAllStock, updateStock } from '../services/stockService'
+import { getAllStock, updateStock, createStock } from '../services/stockService'
 import { getAllProducts } from '../services/productsService'
 
 export default function Stock() {
+  // NOTE: Stock page displays products that have STOCK RECORDS in the database.
+  // When a new product is created in the Products page, you must also create
+  // a corresponding Stock entry (with currentStock and productId).
+  // Without a Stock record, the product won't appear here, even if it exists in Products.
+  // 
+  // Data Flow:
+  // 1. Load all Stock records from /api/stock endpoint (shows only products with stock entries)
+  // 2. Load all Products for reference to show product names and check min/max stock levels
+  // 3. Enrich stock data with product details by joining on productId
+  // 4. Filter and display only those stock records that exist in the database
+  
   const [data, setData]         = useState([])
   const [products, setProducts] = useState([])
   const [loading, setLoading]   = useState(true)
@@ -16,6 +27,8 @@ export default function Stock() {
   const [editing, setEditing]   = useState(null)
   const [form, setForm]         = useState({ currentStock: '' })
   const [saving, setSaving]     = useState(false)
+  const [showCreateForm, setShowCreateForm] = useState(false)
+  const [createForm, setCreateForm] = useState({ productId: '', currentStock: '' })
 
   const load = async () => {
     setLoading(true)
@@ -44,7 +57,31 @@ export default function Stock() {
     finally { setSaving(false) }
   }
 
+  const handleCreateStock = async () => {
+    setSaving(true)
+    try {
+      if (!createForm.productId) {
+        alert('Please select a product')
+        setSaving(false)
+        return
+      }
+      await createStock({ productId: Number(createForm.productId), currentStock: Number(createForm.currentStock) || 0 })
+      setShowCreateForm(false)
+      setCreateForm({ productId: '', currentStock: '' })
+      load()
+    } catch (err) {
+      alert(err.response?.data?.message || 'Failed to create stock.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
   const getProduct = id => products.find(p => p.productId === id)
+
+  const getProductsWithoutStock = () => {
+    const stockProductIds = new Set(data.map(s => s.productId))
+    return products.filter(p => !stockProductIds.has(p.productId))
+  }
 
   const enriched = data.map(row => {
     const prod = getProduct(row.productId)
@@ -84,12 +121,24 @@ export default function Stock() {
         title="Stock"
         subtitle="Monitor and update inventory stock levels"
         action={
-          lowCount > 0 ? (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 7, background: 'rgba(239,68,68,.08)', border: '1px solid rgba(239,68,68,.15)', color: '#fca5a5', padding: '6px 12px', borderRadius: 'var(--radius-md)', fontSize: 12, fontWeight: 500 }}>
-              <i className="bi bi-exclamation-triangle"></i>
-              {lowCount} item{lowCount > 1 ? 's' : ''} below minimum
-            </div>
-          ) : null
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            {lowCount > 0 && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 7, background: 'rgba(239,68,68,.08)', border: '1px solid rgba(239,68,68,.15)', color: '#fca5a5', padding: '6px 12px', borderRadius: 'var(--radius-md)', fontSize: 12, fontWeight: 500 }}>
+                <i className="bi bi-exclamation-triangle"></i>
+                {lowCount} item{lowCount > 1 ? 's' : ''} below minimum
+              </div>
+            )}
+            {getProductsWithoutStock().length > 0 && (
+              <button 
+                className="btn-primary-custom"
+                onClick={() => setShowCreateForm(true)}
+                style={{ padding: '6px 14px', fontSize: 12, fontWeight: 500, display: 'flex', alignItems: 'center', gap: 6 }}
+              >
+                <i className="bi bi-plus-lg"></i>
+                Create Stock
+              </button>
+            )}
+          </div>
         }
       />
 
@@ -117,6 +166,27 @@ export default function Stock() {
           <input className="form-control-custom" type="number"
             value={form.currentStock}
             onChange={e => setForm(f => ({ ...f, currentStock: e.target.value }))} />
+        </div>
+      </FormModal>
+
+      <FormModal show={showCreateForm} onHide={() => setShowCreateForm(false)} onSubmit={handleCreateStock}
+        title="Create Stock for Product" loading={saving}>
+        <div style={{ marginBottom: 14 }}>
+          <label className="form-label-custom">Product *</label>
+          <select className="form-control-custom" value={createForm.productId}
+            onChange={e => setCreateForm(f => ({ ...f, productId: e.target.value }))}>
+            <option value="">— Select a product —</option>
+            {getProductsWithoutStock().map(p => (
+              <option key={p.productId} value={p.productId}>{p.name}</option>
+            ))}
+          </select>
+        </div>
+        <div style={{ marginBottom: 14 }}>
+          <label className="form-label-custom">Initial Stock</label>
+          <input className="form-control-custom" type="number" min="0"
+            value={createForm.currentStock}
+            onChange={e => setCreateForm(f => ({ ...f, currentStock: e.target.value }))}
+            placeholder="0" />
         </div>
       </FormModal>
     </div>

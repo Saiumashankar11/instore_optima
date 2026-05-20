@@ -16,9 +16,16 @@ export function ThemeProvider({ children }) {
       root.setAttribute('data-theme', 'light')
     }
     localStorage.setItem('theme', dark ? 'dark' : 'light')
+    // Remove transition class after animation completes
+    const t = setTimeout(() => root.classList.remove('theme-transitioning'), 300)
+    return () => clearTimeout(t)
   }, [dark])
 
-  const toggle = () => setDark(d => !d)
+  const toggle = () => {
+    // Add transition class BEFORE setDark so it's present when data-theme changes
+    document.documentElement.classList.add('theme-transitioning')
+    setDark(d => !d)
+  }
 
   return (
     <ThemeContext.Provider value={{ dark, toggle }}>

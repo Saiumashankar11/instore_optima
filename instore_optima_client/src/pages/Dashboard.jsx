@@ -11,7 +11,8 @@ import { getAllPayments } from '../services/paymentService'
 import { useAuth } from '../context/AuthContext'
 
 export default function Dashboard() {
-  const { user } = useAuth()
+  const { user, role } = useAuth()
+  const rp = `/${role?.toLowerCase() || 'staff'}`
   const [stats, setStats] = useState({
     products: 0, lowStock: 0, orders: 0,
     suppliers: 0, pending: 0, approved: 0,
@@ -109,10 +110,10 @@ export default function Dashboard() {
               {greet()}, {user?.name?.split(' ')[0] || 'there'}. Real-time inventory, automated replenishment, complete order pipeline — all in one place.
             </div>
             <div className="dash-actions">
-              <Link to="/products" className="dash-btn-primary">
+              <Link to={`${rp}/products`} className="dash-btn-primary">
                 <i className="bi bi-arrow-right-circle"></i> Go to Inventory
               </Link>
-              <Link to="/orders" className="dash-btn-secondary">
+              <Link to={`${rp}/orders`} className="dash-btn-secondary">
                 View Orders
               </Link>
             </div>
@@ -213,11 +214,11 @@ export default function Dashboard() {
               <div className="bento-links-label">Quick Navigation</div>
               <div className="bento-links-row">
                 {[
-                  { label: 'Products',      to: '/products',      icon: 'bi-box-seam' },
-                  { label: 'Stock',         to: '/stock',         icon: 'bi-layers' },
-                  { label: 'Orders',        to: '/orders',        icon: 'bi-cart3' },
-                  { label: 'Replenishment', to: '/replenishment', icon: 'bi-arrow-repeat' },
-                  { label: 'Invoices',      to: '/invoices',      icon: 'bi-receipt' },
+                  { label: 'Products',      to: `${rp}/products`,      icon: 'bi-box-seam' },
+                  { label: 'Stock',         to: `${rp}/stock`,         icon: 'bi-layers' },
+                  { label: 'Orders',        to: `${rp}/orders`,        icon: 'bi-cart3' },
+                  { label: 'Replenishment', to: `${rp}/replenishment`, icon: 'bi-arrow-repeat' },
+                  { label: 'Invoices',      to: `${rp}/invoices`,      icon: 'bi-receipt' },
                 ].map(item => (
                   <Link key={item.to} to={item.to} className="bento-link-chip">
                     <i className={`bi ${item.icon}`}></i>
@@ -238,7 +239,7 @@ export default function Dashboard() {
             <h2 className="dash-lower-title">Recent Orders</h2>
             <p className="dash-lower-sub">Latest activity across your store</p>
           </div>
-          <Link to="/orders" className="btn-outline-custom" style={{ fontSize: 12 }}>
+          <Link to={`${rp}/orders`} className="btn-outline-custom" style={{ fontSize: 12 }}>
             View all <i className="bi bi-arrow-right"></i>
           </Link>
         </div>

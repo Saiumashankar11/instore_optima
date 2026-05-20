@@ -52,7 +52,11 @@ export default function Products() {
   const handleDelete = async () => {
     setSaving(true)
     try { await deleteProduct(delId); setShowDel(false); load() }
-    catch { alert('Delete failed.') }
+    catch (err) {
+      const status = err?.response?.status
+      if (status === 409) alert('Cannot delete this product — it has associated orders, stock movements, or replenishment records.')
+      else alert('Delete failed.')
+    }
     finally { setSaving(false) }
   }
 
