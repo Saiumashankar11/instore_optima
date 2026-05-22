@@ -54,9 +54,7 @@ export default function Suppliers() {
     scheduleDelete({
       id: delId,
       label: `Supplier "${row?.name || '#' + delId}"`,
-      deleteFn: () => deleteSupplier(delId),
-      onDeleted: () => load(),
-      onUndo: () => load(),
+      deleteFn: () => deleteSupplier(delId),      onUndo: () => load(),
     })
   }
 

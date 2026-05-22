@@ -61,7 +61,6 @@ export default function Products() {
       id: delId,
       label: `Product "${row?.name || '#' + delId}"`,
       deleteFn: () => deleteProduct(delId),
-      onDeleted: () => load(),
       onUndo: () => load(),
     })
   }

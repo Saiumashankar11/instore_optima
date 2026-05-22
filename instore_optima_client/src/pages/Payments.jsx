@@ -61,9 +61,7 @@ export default function Payments() {
     scheduleDelete({
       id: delId,
       label: `Payment #${delId} (Order #${row?.orderId})`,
-      deleteFn: () => deletePayment(delId),
-      onDeleted: () => load(),
-      onUndo: () => load(),
+      deleteFn: () => deletePayment(delId),      onUndo: () => load(),
     })
   }
 

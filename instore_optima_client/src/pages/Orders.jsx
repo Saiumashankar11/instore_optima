@@ -105,7 +105,6 @@ export default function Orders() {
       id,
       label: `Order #${id}`,
       deleteFn: () => deleteOrder(id),
-      onDeleted: () => loadOrders(null),
       onUndo: () => loadOrders(null),
     })
   }
@@ -141,7 +140,6 @@ export default function Orders() {
       id,
       label: `Order Item #${id}`,
       deleteFn: () => deleteOrderItem(id),
-      onDeleted: () => { loadItems(orderId); loadOrders(selectedOrder) },
       onUndo: () => { loadItems(orderId); loadOrders(selectedOrder) },
     })
   }

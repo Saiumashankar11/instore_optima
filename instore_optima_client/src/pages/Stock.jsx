@@ -62,9 +62,7 @@ export default function Stock() {
     scheduleDelete({
       id: delId,
       label: `Stock for "${prod?.name || '#' + delId}"`,
-      deleteFn: () => deleteStock(delId),
-      onDeleted: () => load(),
-      onUndo: () => load(),
+      deleteFn: () => deleteStock(delId),      onUndo: () => load(),
     })
   }
 

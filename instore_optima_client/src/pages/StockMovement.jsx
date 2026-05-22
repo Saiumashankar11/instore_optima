@@ -58,9 +58,7 @@ export default function StockMovement() {
     scheduleDelete({
       id: delId,
       label: `Movement #${delId} (${prod?.name || 'Product'})`,
-      deleteFn: () => deleteMovement(delId),
-      onDeleted: () => load(),
-      onUndo: () => load(),
+      deleteFn: () => deleteMovement(delId),      onUndo: () => load(),
     })
   }
 

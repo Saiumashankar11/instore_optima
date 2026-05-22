@@ -62,9 +62,7 @@ export default function Replenishment() {
         scheduleDelete({
           id: row.replenishmentOrderId,
           label: `Replenishment #${row.replenishmentOrderId} (${prod?.name || 'Product'})`,
-          deleteFn: () => deleteReplenishment(row.replenishmentOrderId),
-          onDeleted: () => load(),
-          onUndo: () => load(),
+          deleteFn: () => deleteReplenishment(row.replenishmentOrderId),          onUndo: () => load(),
         })
         setSaving(false)
         return

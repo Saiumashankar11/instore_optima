@@ -35,9 +35,7 @@ export default function Users() {
     scheduleDelete({
       id: delId,
       label: `User "${row?.name || '#' + delId}"`,
-      deleteFn: () => deleteUser(delId),
-      onDeleted: () => load(),
-      onUndo: () => load(),
+      deleteFn: () => deleteUser(delId),      onUndo: () => load(),
     })
   }
 
