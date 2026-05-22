@@ -146,6 +146,16 @@ namespace instore_optima.Api.Controllers
             return Ok(MapOrderToResponse(updated));
         }
 
+        // DELETE api/replenishment/orders/{id}
+        [HttpDelete("orders/{id}")]
+        [Authorize(Roles = "Admin,Manager")]
+        public async Task<IActionResult> DeleteOrder(int id)
+        {
+            var result = await _repo.DeleteOrderAsync(id);
+            if (!result) return NotFound(new { message = $"Replenishment order {id} not found." });
+            return Ok(new { message = $"Replenishment order {id} deleted." });
+        }
+
         // POST api/replenishment/trigger
         [HttpPost("trigger")]
         public async Task<IActionResult> TriggerAuto()

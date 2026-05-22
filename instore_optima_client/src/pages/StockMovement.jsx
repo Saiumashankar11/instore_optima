@@ -3,15 +3,18 @@ import PageHeader from '../components/shared/PageHeader'
 import DataTable from '../components/shared/DataTable'
 import SearchBar from '../components/shared/SearchBar'
 import FormModal from '../components/shared/FormModal'
+import ConfirmModal from '../components/shared/ConfirmModal'
 import StatusBadge from '../components/shared/StatusBadge'
-import { getAllMovements, recordMovement } from '../services/stockMovementService'
+import { getAllMovements, recordMovement, deleteMovement } from '../services/stockMovementService'
 import { getAllProducts } from '../services/productsService'
 import { useAuth } from '../context/AuthContext'
+import { useUndoDelete } from '../hooks/useUndoDelete'
 
 const EMPTY = { productId: '', quantity: '', movementType: 'IN', reason: '' }
 
 export default function StockMovement() {
-  const { user } = useAuth()
+  const { user, isAdmin } = useAuth()
+  const { scheduleDelete, UndoToast } = useUndoDelete()
   const [data, setData]         = useState([])
   const [products, setProducts] = useState([])
   const [loading, setLoading]   = useState(true)
@@ -21,6 +24,8 @@ export default function StockMovement() {
   const [showForm, setShowForm] = useState(false)
   const [form, setForm]         = useState(EMPTY)
   const [saving, setSaving]     = useState(false)
+  const [showDel, setShowDel]   = useState(false)
+  const [delId, setDelId]       = useState(null)
 
   const load = async () => {
     setLoading(true)
@@ -45,6 +50,20 @@ export default function StockMovement() {
     finally { setSaving(false) }
   }
 
+  const handleDelete = async () => {
+    const row = data.find(d => d.movementId === delId)
+    const prod = products.find(p => p.productId === row?.productId)
+    setShowDel(false)
+    setData(prev => prev.filter(d => d.movementId !== delId))
+    scheduleDelete({
+      id: delId,
+      label: `Movement #${delId} (${prod?.name || 'Product'})`,
+      deleteFn: () => deleteMovement(delId),
+      onDeleted: () => load(),
+      onUndo: () => load(),
+    })
+  }
+
   const getProduct = id => products.find(p => p.productId === id)
 
   const enriched = data.map(row => ({
@@ -62,6 +81,11 @@ export default function StockMovement() {
     { key: 'movementType', label: 'Type',    render: r => <StatusBadge status={r.movementType} /> },
     { key: 'reason',       label: 'Reason',  render: r => <span style={{ color: 'var(--text-600)' }}>{r.reason || '—'}</span> },
     { key: 'performedAt',  label: 'Date',    render: r => r.performedAt ? new Date(r.performedAt).toLocaleString('en-IN') : '—' },
+    { key: 'actions', label: 'Actions', render: r => isAdmin ? (
+      <button className="btn-icon danger" title="Delete" onClick={() => { setDelId(r.movementId); setShowDel(true) }}>
+        <i className="bi bi-trash"></i>
+      </button>
+    ) : <span style={{ color: 'var(--text-700)', fontSize: 12 }}>—</span> },
   ]
 
   return (
@@ -116,6 +140,10 @@ export default function StockMovement() {
           <input className="form-control-custom" placeholder="e.g. Supplier delivery..." value={form.reason} onChange={set('reason')} />
         </div>
       </FormModal>
+
+      <ConfirmModal show={showDel} onHide={() => setShowDel(false)} onConfirm={handleDelete}
+        title="Delete Movement" message="Are you sure you want to delete this stock movement record?" confirmLabel="Delete" loading={saving} />
+      {UndoToast}
     </div>
   )
 }

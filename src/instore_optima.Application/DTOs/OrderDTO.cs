@@ -3,7 +3,7 @@
     public class CreateOrderDto
     {
         public int UserId { get; set; }
-        public decimal TotalAmount { get; set; }
+        // TotalAmount is always 0 on creation — computed from order items
     }
 
     public class UpdateOrderDto

@@ -6,34 +6,33 @@ const SIDEBAR_DEFS = {
   inventory: {
     section: 'Inventory',
     links: [
-      { page: 'products',       icon: 'bi-box-seam',         label: 'Products' },
-      { page: 'stock',          icon: 'bi-layers',           label: 'Stock' },
-      { page: 'stock-movement', icon: 'bi-arrow-left-right', label: 'Stock Movement' },
+      { page: 'products',       icon: 'bi-box-seam',         label: 'Products',       roles: ['Admin','Manager'] },
+      { page: 'stock',          icon: 'bi-layers',           label: 'Stock',          roles: ['Admin','Manager','Staff'] },
+      { page: 'stock-movement', icon: 'bi-arrow-left-right', label: 'Stock Movement', roles: ['Admin','Manager','Staff'] },
     ]
   },
   procurement: {
     section: 'Procurement',
     links: [
-      { page: 'suppliers',       icon: 'bi-truck',             label: 'Suppliers' },
-      { page: 'replenishment',   icon: 'bi-arrow-repeat',      label: 'Replenishment' },
-      { page: 'purchase-orders', icon: 'bi-file-earmark-text', label: 'Purchase Orders' },
+      { page: 'suppliers',       icon: 'bi-truck',             label: 'Suppliers',       roles: ['Admin','Manager'] },
+      { page: 'replenishment',   icon: 'bi-arrow-repeat',      label: 'Replenishment',   roles: ['Admin','Manager'] },
+      { page: 'purchase-orders', icon: 'bi-file-earmark-text', label: 'Purchase Orders', roles: ['Admin','Manager','Staff'] },
     ]
   },
   finance: {
     section: 'Finance',
     links: [
-      { page: 'orders',       icon: 'bi-cart3',              label: 'Orders' },
-      { page: 'order-items',  icon: 'bi-list-ul',            label: 'Order Items' },
-      { page: 'payments',     icon: 'bi-credit-card',        label: 'Payments' },
-      { page: 'invoices',     icon: 'bi-receipt',            label: 'Invoices' },
-      { page: 'receipts',     icon: 'bi-file-earmark-check', label: 'Receipts' },
+      { page: 'orders',    icon: 'bi-cart3',              label: 'Orders',    roles: ['Admin','Manager','Staff'] },
+      { page: 'payments',  icon: 'bi-credit-card',        label: 'Payments',  roles: ['Admin','Manager','Staff'] },
+      { page: 'invoices',  icon: 'bi-receipt',            label: 'Invoices',  roles: ['Admin','Manager','Staff'] },
+      { page: 'receipts',  icon: 'bi-file-earmark-check', label: 'Receipts',  roles: ['Admin','Manager','Staff'] },
     ]
   },
   admin: {
     section: 'Admin',
     links: [
-      { page: 'users',      icon: 'bi-people',       label: 'Users' },
-      { page: 'audit-logs', icon: 'bi-shield-check', label: 'Audit Logs' },
+      { page: 'users',      icon: 'bi-people',       label: 'Users',       roles: ['Admin','Manager'] },
+      { page: 'audit-logs', icon: 'bi-shield-check', label: 'Audit Logs',  roles: ['Admin'] },
     ]
   },
 }
@@ -42,23 +41,31 @@ function getSidebarKey(pathname) {
   const page = pathname.split('/').pop()
   if (['products','stock','stock-movement'].includes(page))            return 'inventory'
   if (['suppliers','replenishment','purchase-orders'].includes(page))  return 'procurement'
-  if (['orders','order-items','payments','invoices','receipts'].includes(page)) return 'finance'
+  if (['orders','payments','invoices','receipts'].includes(page)) return 'finance'
   if (['users','audit-logs'].includes(page))                           return 'admin'
   return 'inventory'
 }
 
 export default function InnerLayout() {
   const { pathname } = useLocation()
-  const { canManage, role } = useAuth()
+  const { role } = useAuth()
   const rolePrefix = `/${role.toLowerCase()}`
   const currentPage = pathname.split('/').pop()
   const sidebarKey  = getSidebarKey(pathname)
   const sidebar     = SIDEBAR_DEFS[sidebarKey]
 
-  // If Staff navigates directly to /staff/users or /staff/audit-logs, redirect away
-  if (!canManage && ['users', 'audit-logs'].includes(currentPage)) {
+  // Block access to pages the current role can't use — redirect to dashboard
+  const adminManagerOnly = ['products', 'suppliers', 'replenishment']
+  const adminOnly        = ['users', 'audit-logs']
+  if (adminOnly.includes(currentPage) && role !== 'Admin') {
     return <Navigate to={`${rolePrefix}/dashboard`} replace />
   }
+  if (adminManagerOnly.includes(currentPage) && !['Admin','Manager'].includes(role)) {
+    return <Navigate to={`${rolePrefix}/dashboard`} replace />
+  }
+
+  // Filter links visible for the current role
+  const visibleLinks = sidebar.links.filter(link => link.roles.includes(role))
 
   return (
     <div className="app-root">
@@ -66,12 +73,7 @@ export default function InnerLayout() {
       <div className="inner-body">
         <aside className="inner-sidebar">
           <div className="isb-section">{sidebar.section}</div>
-          {sidebar.links
-            .filter(link => {
-              if (['users', 'audit-logs'].includes(link.page)) return canManage
-              return true
-            })
-            .map(link => (
+          {visibleLinks.map(link => (
             <NavLink
               key={link.page}
               to={`${rolePrefix}/${link.page}`}

@@ -22,6 +22,13 @@
   --warning:     #d97706;
   --danger:      #dc2626;
 
+  /* theme-aware text colours — use these for inline styles */
+  --text-primary:   #e2e8f0;
+  --text-secondary: #cbd5e1;
+  --text-muted:     #94a3b8;
+  --text-header:    #64748b;
+  --border-row:     rgba(255,255,255,.07);
+
   --navbar-h:    52px;
   --sidebar-w:   200px;
   --radius-sm:   5px;
@@ -40,6 +47,13 @@
   --navy-2:  #f0f4f8;
   --navy-3:  #f1f5f9;
   --page-bg: #f4f6f9;
+
+  /* light theme text overrides */
+  --text-primary:   #0f172a;
+  --text-secondary: #334155;
+  --text-muted:     #64748b;
+  --text-header:    #475569;
+  --border-row:     #e2e8f0;
 }
 
 /* ── navbar light ── */
@@ -609,3 +623,16 @@ table.custom-table tbody tr.row-overdue td   { background: rgba(245,158,11,.08) 
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 99px; }
 ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+/* ── Undo delete toast ────────────────────────────────────────── */
+@keyframes slideUpIn {
+  from { opacity: 0; transform: translateX(-50%) translateY(16px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+/* ── Print styles for GRN receipt ─────────────────────────────── */
+@media print {
+  body > *:not(#grn-print-area) { display: none !important; }
+  #grn-print-area { position: static !important; box-shadow: none !important; width: 100% !important; padding: 24px !important; }
+  .no-print { display: none !important; }
+}

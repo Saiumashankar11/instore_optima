@@ -11,7 +11,7 @@ import { getAllPayments } from '../services/paymentService'
 import { useAuth } from '../context/AuthContext'
 
 export default function Dashboard() {
-  const { user, role } = useAuth()
+  const { user, role, canManage } = useAuth()
   const rp = `/${role?.toLowerCase() || 'staff'}`
   const [stats, setStats] = useState({
     products: 0, lowStock: 0, orders: 0,
@@ -110,8 +110,8 @@ export default function Dashboard() {
               {greet()}, {user?.name?.split(' ')[0] || 'there'}. Real-time inventory, automated replenishment, complete order pipeline — all in one place.
             </div>
             <div className="dash-actions">
-              <Link to={`${rp}/products`} className="dash-btn-primary">
-                <i className="bi bi-arrow-right-circle"></i> Go to Inventory
+              <Link to={canManage ? `${rp}/products` : `${rp}/stock`} className="dash-btn-primary">
+                <i className="bi bi-arrow-right-circle"></i> {canManage ? 'Go to Inventory' : 'View Stock'}
               </Link>
               <Link to={`${rp}/orders`} className="dash-btn-secondary">
                 View Orders
@@ -214,12 +214,13 @@ export default function Dashboard() {
               <div className="bento-links-label">Quick Navigation</div>
               <div className="bento-links-row">
                 {[
-                  { label: 'Products',      to: `${rp}/products`,      icon: 'bi-box-seam' },
-                  { label: 'Stock',         to: `${rp}/stock`,         icon: 'bi-layers' },
-                  { label: 'Orders',        to: `${rp}/orders`,        icon: 'bi-cart3' },
-                  { label: 'Replenishment', to: `${rp}/replenishment`, icon: 'bi-arrow-repeat' },
-                  { label: 'Invoices',      to: `${rp}/invoices`,      icon: 'bi-receipt' },
-                ].map(item => (
+                  { label: 'Products',      to: `${rp}/products`,      icon: 'bi-box-seam',    roles: ['Admin','Manager'] },
+                  { label: 'Stock',         to: `${rp}/stock`,         icon: 'bi-layers',      roles: ['Admin','Manager','Staff'] },
+                  { label: 'Orders',        to: `${rp}/orders`,        icon: 'bi-cart3',       roles: ['Admin','Manager','Staff'] },
+                  { label: 'Replenishment', to: `${rp}/replenishment`, icon: 'bi-arrow-repeat',roles: ['Admin','Manager'] },
+                  { label: 'Invoices',      to: `${rp}/invoices`,      icon: 'bi-receipt',     roles: ['Admin','Manager','Staff'] },
+                  { label: 'Purchase Orders', to: `${rp}/purchase-orders`, icon: 'bi-file-earmark-text', roles: ['Admin','Manager','Staff'] },
+                ].filter(item => item.roles.includes(role)).map(item => (
                   <Link key={item.to} to={item.to} className="bento-link-chip">
                     <i className={`bi ${item.icon}`}></i>
                     {item.label}

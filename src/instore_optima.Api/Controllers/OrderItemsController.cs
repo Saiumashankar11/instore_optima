@@ -113,8 +113,8 @@ namespace instore_optima.Api.Controllers
             {
                 OrderId = dto.OrderId,
                 ProductId = dto.ProductId,
-                Quantity = dto.Quantity,
-                Price = dto.Price
+                Quantity = dto.Quantity
+                // Price fetched from product in repository
             };
             var created = await _orderItemRepository.CreateOrderItemAsync(item);
             return CreatedAtAction(nameof(GetOrderItemById), new { id = created.OrderItemId },
@@ -150,8 +150,8 @@ namespace instore_optima.Api.Controllers
                 var updated = await _orderItemRepository.UpdateOrderItemAsync(new Order_Items
                 {
                     OrderItemId = id,
-                    Quantity = dto.Quantity,
-                    Price = dto.Price
+                    Quantity = dto.Quantity
+                    // Price stays from product, managed in repository
                 });
                 return Ok(new OrderItemResponseDto
                 {

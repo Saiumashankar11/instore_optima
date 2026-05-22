@@ -5,6 +5,7 @@ import SearchBar from '../components/shared/SearchBar'
 import ConfirmModal from '../components/shared/ConfirmModal'
 import { getAllUsers, deleteUser } from '../services/userService'
 import { useAuth } from '../context/AuthContext'
+import { useUndoDelete } from '../hooks/useUndoDelete'
 
 export default function Users() {
   const { isAdmin } = useAuth()
@@ -16,6 +17,8 @@ export default function Users() {
   const [delId, setDelId]     = useState(null)
   const [saving, setSaving]   = useState(false)
 
+  const { scheduleDelete, UndoToast } = useUndoDelete()
+
   const load = async () => {
     setLoading(true)
     try { setData((await getAllUsers()).data || []) }
@@ -26,10 +29,16 @@ export default function Users() {
   useEffect(() => { load() }, [])
 
   const handleDelete = async () => {
-    setSaving(true)
-    try { await deleteUser(delId); setShowDel(false); load() }
-    catch { alert('Delete failed.') }
-    finally { setSaving(false) }
+    const row = data.find(d => d.userId === delId)
+    setShowDel(false)
+    setData(prev => prev.filter(d => d.userId !== delId))
+    scheduleDelete({
+      id: delId,
+      label: `User "${row?.name || '#' + delId}"`,
+      deleteFn: () => deleteUser(delId),
+      onDeleted: () => load(),
+      onUndo: () => load(),
+    })
   }
 
   const ROLE_STYLE = {
@@ -87,6 +96,7 @@ export default function Users() {
 
       <ConfirmModal show={showDel} onHide={() => setShowDel(false)} onConfirm={handleDelete}
         title="Delete User" message="Are you sure you want to delete this user?" confirmLabel="Delete" loading={saving} />
+      {UndoToast}
     </div>
   )
 }

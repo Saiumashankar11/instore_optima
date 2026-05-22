@@ -112,6 +112,15 @@ namespace instore_optima.Infrastructure.Repositories
             return order;
         }
 
+        public async Task<bool> DeleteOrderAsync(int replenishmentOrderId)
+        {
+            var order = await _context.ReplenishmentOrders.FindAsync(replenishmentOrderId);
+            if (order == null) return false;
+            _context.ReplenishmentOrders.Remove(order);
+            await _context.SaveChangesAsync();
+            return true;
+        }
+
         // ── Auto Trigger ──────────────────────────────────────────────
 
         public async Task TriggerAutoReplenishmentAsync()

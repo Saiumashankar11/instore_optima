@@ -37,9 +37,16 @@ builder.Services.AddScoped<IPaymentRepository, PaymentRepository>();
 builder.Services.AddScoped<IInvoiceRepository, InvoiceRepository>();
 builder.Services.AddScoped<IReceiptRepository, ReceiptRepository>();
 
-builder.Services.AddDbContext<AppDbContext>(options =>
+// ── Audit interceptor ──────────────────────────────────
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddSingleton<instore_optima.Infrastructure.Data.AuditInterceptor>();
+
+builder.Services.AddDbContext<AppDbContext>((sp, options) =>
+{
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"),
-        b => b.MigrationsAssembly("instore_optima.Api")));
+        b => b.MigrationsAssembly("instore_optima.Api"));
+    options.AddInterceptors(sp.GetRequiredService<instore_optima.Infrastructure.Data.AuditInterceptor>());
+});
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IAuditLogRepository, AuditLogRepository>();
 

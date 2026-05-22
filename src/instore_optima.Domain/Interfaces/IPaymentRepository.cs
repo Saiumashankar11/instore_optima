@@ -9,5 +9,6 @@ namespace instore_optima.Api.Repositories.Interfaces
         Task<Payment?> GetPaymentByOrderIdAsync(int orderId);
         Task<Payment> CreatePaymentAsync(Payment payment);
         Task<Payment> UpdatePaymentStatusAsync(int paymentId, string status);
+        Task<bool> DeletePaymentAsync(int paymentId);
     }
 }

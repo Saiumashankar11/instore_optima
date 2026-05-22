@@ -99,6 +99,17 @@ namespace instore_optima.Api.Controllers
             return Ok(MapToResponse(updated));
         }
 
+        // DELETE api/stockmovement/{id} — Admin only
+        [HttpDelete("{id}")]
+        [Microsoft.AspNetCore.Authorization.Authorize(Roles = "Admin")]
+        public async Task<IActionResult> Delete(int id)
+        {
+            var result = await _repo.DeleteAsync(id);
+            if (!result)
+                throw new ResourceNotFoundException("StockMovement", id);
+            return Ok(new { message = $"StockMovement {id} deleted." });
+        }
+
         // ── Mapping ──────────────────────────────────────────────────
         private static StockMovementResponseDTO MapToResponse(StockMovement m) => new()
         {

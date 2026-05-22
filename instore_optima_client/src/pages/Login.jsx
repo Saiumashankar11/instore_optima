@@ -29,7 +29,7 @@ export default function Login() {
       const { token, userId, role, name, email } = res.data
       login(token, { userId, role, name, email })
       setSuccess(true)
-      setTimeout(() => navigate(`/${role.toLowerCase()}/dashboard`), 1400)
+      setTimeout(() => navigate('/dashboard'), 1400)
     } catch (err) {
       setError(err.response?.data?.message || 'Invalid credentials. Please try again.')
       setLoading(false)
@@ -39,8 +39,8 @@ export default function Login() {
   if (success) return (
     <div className="login-success-screen">
       <div className="login-success-inner">
-        <div className="login-success-logo">
-          <img src="/logo-1.png" alt="InStore Optima" style={{ height: 90, width: 'auto', objectFit: 'contain' }} />
+        <div className="login-success-icon" style={{ background: 'none', border: 'none', width: 'auto', height: 'auto' }}>
+          <img src="/logo-1.png" alt="InStore Optima" style={{ height: 80, objectFit: 'contain' }} />
         </div>
         <div className="login-success-title">Welcome back</div>
         <div className="login-success-sub">Taking you to your dashboard...</div>
@@ -50,6 +50,9 @@ export default function Login() {
       </div>
     </div>
   )
+
+  // Add the following styles to ensure text is white in dark mode
+  const labelStyle = { color: dark ? 'white' : 'black' }
 
   return (
     <div className="login-page">
@@ -66,7 +69,7 @@ export default function Login() {
         <div className="login-left-glow2"></div>
         <div className="login-left-top">
           <div className="login-brand">
-            <img src="/logo.png" alt="InStore Optima" style={{ height: 58, width: 'auto', objectFit: 'contain' }} />
+            <div className="login-brand-icon"><img src="/logo.png" alt="InStore Optima" style={{ height: 50 }} /></div>
           </div>
           <div className="login-left-headline">
             Smart inventory.<br/>
@@ -97,18 +100,18 @@ export default function Login() {
         <div className="login-right-grid"></div>
         <div className="login-right-glow"></div>
         <div className="login-card">
-          <div className="login-card-icon"><img src="/logo-1.png" alt="InStore Optima" style={{ height: 45, width: 'auto', objectFit: 'contain' }} /></div>
+          <div className="login-card-icon"><img src="/logo-1.png" alt="InStore Optima" style={{ height: 56, objectFit: 'contain' }} /></div>
           <h1 className="login-card-title">Welcome back</h1>
           <p className="login-card-sub">Sign in to your account</p>
 
           {error && (
-            <div className="login-alert-error">
-              <i className="bi bi-exclamation-circle"></i>{error}
+            <div className="alert alert-danger" style={{ marginBottom: 16 }}>
+              <i className="bi bi-exclamation-circle me-2"></i>{error}
             </div>
           )}
 
           <div className="login-field">
-            <label className="form-label-custom">Email address</label>
+            <label className="form-label-custom" style={labelStyle}>Email address</label>
             <div className="login-input-wrap">
               <i className="bi bi-envelope login-input-icon"></i>
               <input
@@ -125,7 +128,7 @@ export default function Login() {
           </div>
 
           <div className="login-field">
-            <label className="form-label-custom">Password</label>
+            <label className="form-label-custom" style={labelStyle}>Password</label>
             <div className="login-input-wrap">
               <i className="bi bi-lock login-input-icon"></i>
               <input
@@ -148,7 +151,7 @@ export default function Login() {
             }
           </button>
 
-          <p className="login-footer-text">
+          <p className="login-footer-text" style={{ color: dark ? 'white' : 'black' }}>
             Don't have an account?{' '}
             <Link to="/register" className="login-link">Create account</Link>
           </p>

@@ -83,7 +83,6 @@ namespace instore_optima.Api.Controllers
 
         // PUT api/purchaseorder/{id}
         [HttpPut("{id}")]
-        [Authorize(Roles = "Admin,Manager")]
         public async Task<IActionResult> UpdateStatus(int id, UpdatePurchaseOrderDto dto)
         {
             if (string.IsNullOrWhiteSpace(dto.Status))

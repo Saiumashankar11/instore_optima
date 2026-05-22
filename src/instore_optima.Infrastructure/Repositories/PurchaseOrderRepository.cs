@@ -48,6 +48,46 @@ namespace instore_optima.Infrastructure.Repositories
 
             po.Status = status;
             await _context.SaveChangesAsync();
+
+            // When delivered: update stock, mark replenishment fulfilled, issue GRN
+            if (status == "Delivered")
+            {
+                // Stamp GRN number and delivery time on the PO itself
+                po.GrnNumber = $"GRN-{DateTime.UtcNow.Year}-{poId:D4}";
+                po.DeliveredAt = DateTime.UtcNow;
+                await _context.SaveChangesAsync();
+                var replenOrder = await _context.ReplenishmentOrders
+                    .FirstOrDefaultAsync(r => r.ReplenishmentOrderId == po.ReplenishmentOrderId);
+                if (replenOrder != null)
+                {
+                    // Update stock level
+                    var stock = await _context.Stocks
+                        .FirstOrDefaultAsync(s => s.ProductId == replenOrder.ProductId);
+                    if (stock != null)
+                    {
+                        stock.CurrentStock += replenOrder.QuantityRequested;
+                        stock.LastUpdated = DateTime.UtcNow;
+                    }
+
+                    // Mark replenishment order as Fulfilled
+                    replenOrder.Status = "Fulfilled";
+                    replenOrder.ApprovedAt = DateTime.UtcNow;
+
+                    // Record StockMovement IN for audit trail
+                    _context.StockMovements.Add(new StockMovement
+                    {
+                        ProductId = replenOrder.ProductId,
+                        Quantity = replenOrder.QuantityRequested,
+                        MovementType = "IN",
+                        PerformedBy = 1,
+                        Reason = $"PO #{poId} delivered from supplier",
+                        PerformedAt = DateTime.UtcNow
+                    });
+
+                    await _context.SaveChangesAsync();
+                }
+            }
+
             return po;
         }
     }

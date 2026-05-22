@@ -5,6 +5,7 @@ import SearchBar from '../components/shared/SearchBar'
 import FormModal from '../components/shared/FormModal'
 import ConfirmModal from '../components/shared/ConfirmModal'
 import { getAllSuppliers, createSupplier, updateSupplier, deleteSupplier } from '../services/supplierService'
+import { useUndoDelete } from '../hooks/useUndoDelete'
 
 const EMPTY = { name: '', contact: '', email: '', address: '' }
 
@@ -19,6 +20,8 @@ export default function Suppliers() {
   const [form, setForm]         = useState(EMPTY)
   const [saving, setSaving]     = useState(false)
   const [delId, setDelId]       = useState(null)
+
+  const { scheduleDelete, UndoToast } = useUndoDelete()
 
   const load = async () => {
     setLoading(true)
@@ -45,10 +48,16 @@ export default function Suppliers() {
   }
 
   const handleDelete = async () => {
-    setSaving(true)
-    try { await deleteSupplier(delId); setShowDel(false); load() }
-    catch { alert('Delete failed.') }
-    finally { setSaving(false) }
+    const row = data.find(d => d.supplierId === delId)
+    setShowDel(false)
+    setData(prev => prev.filter(d => d.supplierId !== delId))
+    scheduleDelete({
+      id: delId,
+      label: `Supplier "${row?.name || '#' + delId}"`,
+      deleteFn: () => deleteSupplier(delId),
+      onDeleted: () => load(),
+      onUndo: () => load(),
+    })
   }
 
   const filtered = data.filter(d =>
@@ -120,6 +129,7 @@ export default function Suppliers() {
       <ConfirmModal show={showDel} onHide={() => setShowDel(false)} onConfirm={handleDelete}
         title="Delete Supplier" message="Are you sure you want to delete this supplier?"
         confirmLabel="Delete" loading={saving} />
+      {UndoToast}
     </div>
   )
 }

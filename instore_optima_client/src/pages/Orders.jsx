@@ -1,133 +1,353 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import PageHeader from '../components/shared/PageHeader'
-import DataTable from '../components/shared/DataTable'
 import SearchBar from '../components/shared/SearchBar'
 import FormModal from '../components/shared/FormModal'
 import ConfirmModal from '../components/shared/ConfirmModal'
 import StatusBadge from '../components/shared/StatusBadge'
 import { getAllOrders, createOrder, updateOrder, deleteOrder } from '../services/ordersService'
+import { getItemsByOrderId, createOrderItem, updateOrderItem, deleteOrderItem } from '../services/orderItemsService'
+import { getAllProducts } from '../services/productsService'
 import { useAuth } from '../context/AuthContext'
+import { useUndoDelete } from '../hooks/useUndoDelete'
 
-const EMPTY = { totalAmount: '', status: 'Pending' }
+const ORDER_STATUSES = ['Pending', 'Processing', 'Completed', 'Cancelled']
+
+// Only allow forward transitions; Completed and Cancelled are terminal
+const getValidNextStatuses = (current) => {
+  if (current === 'Pending')    return ['Pending', 'Processing', 'Cancelled']
+  if (current === 'Processing') return ['Processing', 'Completed', 'Cancelled']
+  return [current] // Completed / Cancelled — no further changes
+}
+
+const isTerminal = (status) => status === 'Completed' || status === 'Cancelled'
 
 export default function Orders() {
   const { user } = useAuth()
-  const [data, setData]         = useState([])
-  const [loading, setLoading]   = useState(true)
-  const [error, setError]       = useState('')
-  const [search, setSearch]     = useState('')
-  const [showForm, setShowForm] = useState(false)
-  const [showDel, setShowDel]   = useState(false)
-  const [editing, setEditing]   = useState(null)
-  const [form, setForm]         = useState(EMPTY)
-  const [saving, setSaving]     = useState(false)
-  const [delId, setDelId]       = useState(null)
+  const { scheduleDelete, UndoToast } = useUndoDelete()
 
-  const load = async () => {
-    setLoading(true)
-    try { setData((await getAllOrders()).data || []) }
-    catch { setError('Failed to load orders.') }
-    finally { setLoading(false) }
-  }
+  const [orders, setOrders]           = useState([])
+  const [loading, setLoading]         = useState(true)
+  const [error, setError]             = useState('')
+  const [search, setSearch]           = useState('')
+  const [selectedOrder, setSelected]  = useState(null)
+  const [items, setItems]             = useState([])
+  const [itemsLoading, setItemsLoading] = useState(false)
+  const [products, setProducts]       = useState([])
 
-  useEffect(() => { load() }, [])
+  const [showOrderForm, setShowOrderForm] = useState(false)
+  const [editOrder, setEditOrder]     = useState(null)
+  const [orderForm, setOrderForm]     = useState({ status: 'Pending' })
+  const [savingOrder, setSavingOrder] = useState(false)
+  const [showDelOrder, setShowDelOrder] = useState(false)
+  const [delOrderId, setDelOrderId]   = useState(null)
 
-  const set      = k => e => setForm(f => ({ ...f, [k]: e.target.value }))
-  const openAdd  = () => { setEditing(null); setForm(EMPTY); setShowForm(true) }
-  const openEdit = row => { setEditing(row); setForm({ totalAmount: row.totalAmount, status: row.status }); setShowForm(true) }
-  const openDel  = id  => { setDelId(id); setShowDel(true) }
+  const [showItemForm, setShowItemForm] = useState(false)
+  const [editItem, setEditItem]       = useState(null)
+  const [itemForm, setItemForm]       = useState({ productId: '', quantity: '' })
+  const [savingItem, setSavingItem]   = useState(false)
+  const [showDelItem, setShowDelItem] = useState(false)
+  const [delItemId, setDelItemId]     = useState(null)
 
-  const handleSave = async () => {
-    setSaving(true)
+  const loadOrders = useCallback(async (keepSelected) => {
     try {
-      if (editing) await updateOrder(editing.orderId, { ...editing, ...form, totalAmount: Number(form.totalAmount) })
-      else await createOrder({ ...form, userId: user?.userId, totalAmount: Number(form.totalAmount) })
-      setShowForm(false); load()
-    } catch { alert('Save failed.') }
-    finally { setSaving(false) }
+      const list = (await getAllOrders()).data || []
+      setOrders(list)
+      if (keepSelected) {
+        const fresh = list.find(o => o.orderId === keepSelected.orderId)
+        setSelected(fresh || null)
+      }
+    } catch { setError('Failed to load orders.') }
+  }, [])
+
+  const loadItems = useCallback(async (orderId) => {
+    if (!orderId) return setItems([])
+    setItemsLoading(true)
+    try { setItems((await getItemsByOrderId(orderId)).data || []) }
+    catch { setItems([]) }
+    finally { setItemsLoading(false) }
+  }, [])
+
+  useEffect(() => {
+    setLoading(true)
+    Promise.all([getAllOrders(), getAllProducts()]).then(([o, p]) => {
+      setOrders(o.data || [])
+      setProducts(p.data || [])
+    }).catch(() => setError('Failed to load.')).finally(() => setLoading(false))
+  }, [])
+
+  useEffect(() => {
+    if (selectedOrder) loadItems(selectedOrder.orderId)
+    else setItems([])
+  }, [selectedOrder?.orderId])
+
+  // ── Order handlers ──────────────────────────────
+  const openAddOrder  = () => { setEditOrder(null); setOrderForm({ status: 'Pending' }); setShowOrderForm(true) }
+  const openEditOrder = (o, e) => { e.stopPropagation(); setEditOrder(o); setOrderForm({ status: o.status }); setShowOrderForm(true) }
+  const openDelOrder  = (id, e) => { e.stopPropagation(); setDelOrderId(id); setShowDelOrder(true) }
+
+  const handleSaveOrder = async () => {
+    setSavingOrder(true)
+    try {
+      if (editOrder) await updateOrder(editOrder.orderId, { status: orderForm.status, totalAmount: editOrder.totalAmount })
+      else await createOrder({ userId: user?.userId })
+      setShowOrderForm(false)
+      await loadOrders(selectedOrder)
+    } catch (err) { alert(err?.response?.data?.message || 'Save failed.') }
+    finally { setSavingOrder(false) }
   }
 
-  const handleDelete = async () => {
-    setSaving(true)
-    try { await deleteOrder(delId); setShowDel(false); load() }
-    catch { alert('Delete failed.') }
-    finally { setSaving(false) }
+  const handleDeleteOrder = () => {
+    const id = delOrderId
+    setShowDelOrder(false)
+    if (selectedOrder?.orderId === id) setSelected(null)
+    setOrders(prev => prev.filter(o => o.orderId !== id))
+    scheduleDelete({
+      id,
+      label: `Order #${id}`,
+      deleteFn: () => deleteOrder(id),
+      onDeleted: () => loadOrders(null),
+      onUndo: () => loadOrders(null),
+    })
   }
 
-  const filtered = data.filter(d =>
-    String(d.orderId).includes(search) ||
-    d.status?.toLowerCase().includes(search.toLowerCase())
+  // ── Item handlers ────────────────────────────────
+  const openAddItem  = () => { setEditItem(null); setItemForm({ productId: '', quantity: '' }); setShowItemForm(true) }
+  const openEditItem = (item) => { setEditItem(item); setItemForm({ productId: item.productId, quantity: String(item.quantity) }); setShowItemForm(true) }
+  const openDelItem  = (id) => { setDelItemId(id); setShowDelItem(true) }
+
+  const handleSaveItem = async () => {
+    if (!itemForm.quantity || Number(itemForm.quantity) < 1) return alert('Enter a valid quantity.')
+    if (!editItem && !itemForm.productId) return alert('Select a product.')
+    setSavingItem(true)
+    try {
+      if (editItem) {
+        await updateOrderItem(editItem.orderItemId, { quantity: Number(itemForm.quantity) })
+      } else {
+        await createOrderItem({ orderId: selectedOrder.orderId, productId: Number(itemForm.productId), quantity: Number(itemForm.quantity) })
+      }
+      setShowItemForm(false)
+      await loadItems(selectedOrder.orderId)
+      await loadOrders(selectedOrder)   // refresh total on left panel
+    } catch (err) { alert(err?.response?.data?.message || 'Failed to save item.') }
+    finally { setSavingItem(false) }
+  }
+
+  const handleDeleteItem = () => {
+    const id = delItemId
+    const orderId = selectedOrder.orderId
+    setShowDelItem(false)
+    setItems(prev => prev.filter(i => i.orderItemId !== id))
+    scheduleDelete({
+      id,
+      label: `Order Item #${id}`,
+      deleteFn: () => deleteOrderItem(id),
+      onDeleted: () => { loadItems(orderId); loadOrders(selectedOrder) },
+      onUndo: () => { loadItems(orderId); loadOrders(selectedOrder) },
+    })
+  }
+
+  const filtered = orders.filter(o =>
+    String(o.orderId).includes(search) ||
+    o.status?.toLowerCase().includes(search.toLowerCase())
   )
 
-  const columns = [
-    { key: 'orderId',     label: 'Order ID', render: r => <span className="text-accent" style={{ fontWeight: 600 }}>#{r.orderId}</span> },
-    { key: 'userId',      label: 'User',     render: r => <span>#{r.userId}</span> },
-    { key: 'orderDate',   label: 'Date',     render: r => r.orderDate ? new Date(r.orderDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—' },
-    { key: 'totalAmount', label: 'Total',    render: r => <span style={{ fontWeight: 600, color: 'var(--text-200)' }}>₹{Number(r.totalAmount || 0).toLocaleString('en-IN')}</span> },
-    { key: 'status',      label: 'Status',   render: r => <StatusBadge status={r.status} /> },
-    { key: 'items',       label: 'Items',    render: r => (
-      <div style={{ fontSize: '0.9em', maxWidth: 250 }}>
-        {r.orderItems && r.orderItems.length > 0 ? (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-            {r.orderItems.map((item, idx) => (
-              <div key={idx} style={{ color: 'var(--text-200)' }}>
-                <span style={{ fontWeight: 500 }}>{item.productName}</span>
-                <span style={{ color: 'var(--text-300)', marginLeft: 6 }}>×{item.quantity}</span>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <span style={{ color: 'var(--text-400)', fontStyle: 'italic' }}>No items</span>
-        )}
-      </div>
-    )},
-    { key: 'actions',     label: 'Actions',  render: r => (
-      <div style={{ display: 'flex', gap: 6 }}>
-        <button className="btn-icon" onClick={() => openEdit(r)}><i className="bi bi-pencil"></i></button>
-        <button className="btn-icon danger" onClick={() => openDel(r.orderId)}><i className="bi bi-trash"></i></button>
-      </div>
-    )}
-  ]
+  const getProductName  = id => products.find(p => p.productId === id)?.name || `#${id}`
+  const getProductPrice = id => products.find(p => p.productId === id)?.price
+
+  const TH = ({ children }) => (
+    <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: 11, fontWeight: 600,
+      color: 'var(--text-header)', textTransform: 'uppercase', letterSpacing: '.04em' }}>{children}</th>
+  )
 
   return (
     <div className="animate-in">
       <PageHeader
         title="Orders"
-        subtitle="Manage customer orders"
-        action={<button className="btn-primary-custom" onClick={openAdd}><i className="bi bi-plus-lg"></i> New Order</button>}
+        subtitle="Manage orders — click a row to view & manage its items"
+        action={<button className="btn-primary-custom" onClick={openAddOrder}><i className="bi bi-plus-lg"></i> New Order</button>}
       />
 
-      <div className="table-card">
-        <div className="table-toolbar">
-          <p className="table-toolbar-title">
-            All Orders <span className="count">{filtered.length}</span>
-          </p>
-          <div className="table-toolbar-right">
-            <SearchBar value={search} onChange={e => setSearch(e.target.value)} placeholder="Search by ID or status..." />
+      <div style={{ display: 'grid', gridTemplateColumns: selectedOrder ? '1fr 1fr' : '1fr', gap: 16, alignItems: 'start' }}>
+
+        {/* ── Orders table ── */}
+        <div className="table-card" style={{ margin: 0 }}>
+          <div className="table-toolbar">
+            <p className="table-toolbar-title">All Orders <span className="count">{filtered.length}</span></p>
+            <div className="table-toolbar-right">
+              <SearchBar value={search} onChange={e => setSearch(e.target.value)} placeholder="Search ID or status..." />
+            </div>
           </div>
+
+          {loading ? (
+            <div className="loading-spinner" style={{ padding: 32 }}><span/><span/><span/></div>
+          ) : error ? (
+            <div style={{ padding: 24, color: 'var(--danger)', textAlign: 'center' }}>{error}</div>
+          ) : (
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead><tr style={{ borderBottom: '1px solid var(--border)' }}>
+                <TH>Order</TH><TH>Date</TH><TH>Items</TH><TH>Total</TH><TH>Status</TH><TH></TH>
+              </tr></thead>
+              <tbody>
+                {filtered.map(o => {
+                  const active = selectedOrder?.orderId === o.orderId
+                  return (
+                    <tr key={o.orderId} onClick={() => setSelected(active ? null : o)}
+                      style={{ borderBottom: '1px solid var(--border)', cursor: 'pointer',
+                        background: active ? 'rgba(8,145,178,.1)' : 'transparent', transition: 'background .12s' }}
+                      onMouseEnter={e => { if (!active) e.currentTarget.style.background = 'rgba(255,255,255,.03)' }}
+                      onMouseLeave={e => { if (!active) e.currentTarget.style.background = active ? 'rgba(8,145,178,.1)' : 'transparent' }}>
+                      <td style={{ padding: '10px 14px' }}>
+                        <span style={{ fontWeight: 700, color: 'var(--cyan)' }}>#{o.orderId}</span>
+                        {active && <span style={{ marginLeft: 6, fontSize: 10, background: 'var(--cyan)', color: '#fff', borderRadius: 4, padding: '1px 6px' }}>open</span>}
+                      </td>
+                      <td style={{ padding: '10px 14px', fontSize: 12, color: 'var(--text-secondary)' }}>
+                        {o.orderDate ? new Date(o.orderDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}
+                      </td>
+                      <td style={{ padding: '10px 14px', fontSize: 12, color: 'var(--text-secondary)' }}>
+                        {o.orderItems?.length ?? 0}
+                      </td>
+                      <td style={{ padding: '10px 14px', fontWeight: 600, color: 'var(--text-primary)' }}>
+                        ₹{Number(o.totalAmount || 0).toLocaleString('en-IN')}
+                      </td>
+                      <td style={{ padding: '10px 14px' }}><StatusBadge status={o.status} /></td>
+                      <td style={{ padding: '10px 14px' }}>
+                        <div style={{ display: 'flex', gap: 4 }}>
+                          <button className="btn-icon" title="Edit status" onClick={e => openEditOrder(o, e)} disabled={isTerminal(o.status)}><i className="bi bi-pencil"></i></button>
+                          <button className="btn-icon danger" title="Delete" onClick={e => openDelOrder(o.orderId, e)}><i className="bi bi-trash"></i></button>
+                        </div>
+                      </td>
+                    </tr>
+                  )
+                })}
+                {filtered.length === 0 && (
+                  <tr><td colSpan={6} style={{ padding: 32, textAlign: 'center', color: 'var(--text-muted)', fontStyle: 'italic' }}>No orders found.</td></tr>
+                )}
+              </tbody>
+            </table>
+          )}
         </div>
-        <DataTable columns={columns} data={filtered} loading={loading} error={error} />
+
+        {/* ── Items panel (slides in) ── */}
+        {selectedOrder && (
+          <div className="table-card" style={{ margin: 0 }}>
+            <div className="table-toolbar">
+              <div>
+                <p className="table-toolbar-title">
+                  Order <span style={{ color: 'var(--cyan)' }}>#{selectedOrder.orderId}</span> &mdash; Items
+                  <span className="count" style={{ marginLeft: 8 }}>{items.length}</span>
+                </p>
+                <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 3 }}>
+                  Total:&nbsp;<strong style={{ color: 'var(--cyan)' }}>
+                    ₹{Number(orders.find(o => o.orderId === selectedOrder.orderId)?.totalAmount || 0).toLocaleString('en-IN')}
+                  </strong>
+                  &nbsp;·&nbsp;<StatusBadge status={selectedOrder.status} />
+                </p>
+              </div>
+              <div className="table-toolbar-right">
+                <button className="btn-primary-custom" onClick={openAddItem}><i className="bi bi-plus-lg"></i> Add Item</button>
+                <button className="btn-icon" title="Close" onClick={() => setSelected(null)}><i className="bi bi-x-lg"></i></button>
+              </div>
+            </div>
+
+            {itemsLoading ? (
+              <div className="loading-spinner" style={{ padding: 32 }}><span/><span/><span/></div>
+            ) : items.length === 0 ? (
+              <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>
+                <i className="bi bi-cart3" style={{ fontSize: 32, display: 'block', marginBottom: 8 }}></i>
+                No items yet. Click <strong>Add Item</strong>.
+              </div>
+            ) : (
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <thead><tr style={{ borderBottom: '1px solid var(--border)' }}>
+                  <TH>Product</TH><TH>Qty</TH><TH>Unit Price</TH><TH>Line Total</TH><TH></TH>
+                </tr></thead>
+                <tbody>
+                  {items.map(item => (
+                    <tr key={item.orderItemId} style={{ borderBottom: '1px solid var(--border)' }}>
+                      <td style={{ padding: '10px 14px', fontWeight: 500, color: 'var(--text-primary)' }}>{item.productName || getProductName(item.productId)}</td>
+                      <td style={{ padding: '10px 14px', fontWeight: 700 }}>{item.quantity}</td>
+                      <td style={{ padding: '10px 14px', color: 'var(--text-secondary)', fontSize: 12 }}>₹{Number(item.price || 0).toLocaleString('en-IN')}</td>
+                      <td style={{ padding: '10px 14px', fontWeight: 600, color: 'var(--text-primary)' }}>₹{Number((item.price||0)*(item.quantity||0)).toLocaleString('en-IN')}</td>
+                      <td style={{ padding: '10px 14px' }}>
+                        <div style={{ display: 'flex', gap: 4 }}>
+                          <button className="btn-icon" onClick={() => openEditItem(item)}><i className="bi bi-pencil"></i></button>
+                          <button className="btn-icon danger" onClick={() => openDelItem(item.orderItemId)}><i className="bi bi-trash"></i></button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot>
+                  <tr style={{ borderTop: '2px solid var(--border)' }}>
+                    <td colSpan={3} style={{ padding: '10px 14px', textAlign: 'right', fontWeight: 600, color: 'var(--text-muted)', fontSize: 12 }}>Order Total</td>
+                    <td style={{ padding: '10px 14px', fontWeight: 700, color: 'var(--cyan)', fontSize: 14 }}>
+                      ₹{items.reduce((s, i) => s + (i.price||0)*(i.quantity||0), 0).toLocaleString('en-IN')}
+                    </td>
+                    <td></td>
+                  </tr>
+                </tfoot>
+              </table>
+            )}
+          </div>
+        )}
       </div>
 
-      <FormModal show={showForm} onHide={() => setShowForm(false)} onSubmit={handleSave}
-        title={editing ? 'Edit Order' : 'New Order'} loading={saving}>
-        <div style={{ marginBottom: 14 }}>
-          <label className="form-label-custom">Total Amount (₹)</label>
-          <input className="form-control-custom" type="number" placeholder="0.00" value={form.totalAmount} onChange={set('totalAmount')} />
-        </div>
+      {/* ── Order modals ── */}
+      <FormModal show={showOrderForm} onHide={() => setShowOrderForm(false)} onSubmit={handleSaveOrder}
+        title={editOrder ? `Edit Order #${editOrder.orderId}` : 'New Order'} loading={savingOrder}>
+        {editOrder && (
+          <div style={{ marginBottom: 14 }}>
+            <label className="form-label-custom">Total Amount (₹)</label>
+            <input className="form-control-custom" value={`₹${Number(editOrder.totalAmount || 0).toLocaleString('en-IN')}`} disabled />
+            <small style={{ color: 'var(--text-muted)', fontSize: 11 }}>Auto-calculated from items</small>
+          </div>
+        )}
         <div style={{ marginBottom: 14 }}>
           <label className="form-label-custom">Status</label>
-          <select className="form-control-custom" value={form.status} onChange={set('status')}>
-            <option>Pending</option>
-            <option>Processing</option>
-            <option>Completed</option>
-            <option>Cancelled</option>
+          <select className="form-control-custom" value={orderForm.status} onChange={e => setOrderForm(f => ({ ...f, status: e.target.value }))}>
+            {getValidNextStatuses(editOrder?.status || 'Pending').map(s => <option key={s}>{s}</option>)}
           </select>
+        </div>
+        {!editOrder && <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: 0 }}>Total starts at ₹0 and updates automatically as you add items.</p>}
+      </FormModal>
+
+      <ConfirmModal show={showDelOrder} onHide={() => setShowDelOrder(false)} onConfirm={handleDeleteOrder}
+        title="Delete Order" message="Delete this order and all its items permanently?" confirmLabel="Delete" loading={savingOrder} />
+
+      {/* ── Item modals ── */}
+      <FormModal show={showItemForm} onHide={() => setShowItemForm(false)} onSubmit={handleSaveItem}
+        title={editItem ? 'Edit Item Quantity' : `Add Item to Order #${selectedOrder?.orderId}`} loading={savingItem}>
+        {!editItem ? (
+          <div style={{ marginBottom: 14 }}>
+            <label className="form-label-custom">Product</label>
+            <select className="form-control-custom" value={itemForm.productId} onChange={e => setItemForm(f => ({ ...f, productId: e.target.value }))}>
+              <option value="">— Select Product —</option>
+              {products.map(p => <option key={p.productId} value={p.productId}>{p.name} — ₹{p.price}</option>)}
+            </select>
+            {itemForm.productId && (
+              <small style={{ color: 'var(--text-muted)', fontSize: 11 }}>
+                Price ₹{getProductPrice(Number(itemForm.productId)) ?? '—'} auto-fetched · stock deducted automatically
+              </small>
+            )}
+          </div>
+        ) : (
+          <div style={{ marginBottom: 14 }}>
+            <label className="form-label-custom">Product</label>
+            <input className="form-control-custom" value={editItem.productName || getProductName(editItem.productId)} disabled />
+            <small style={{ color: 'var(--text-muted)', fontSize: 11 }}>Unit price: ₹{Number(editItem.price || 0).toLocaleString('en-IN')}</small>
+          </div>
+        )}
+        <div style={{ marginBottom: 14 }}>
+          <label className="form-label-custom">Quantity</label>
+          <input className="form-control-custom" type="number" min="1" placeholder="1"
+            value={itemForm.quantity} onChange={e => setItemForm(f => ({ ...f, quantity: e.target.value }))} />
         </div>
       </FormModal>
 
-      <ConfirmModal show={showDel} onHide={() => setShowDel(false)} onConfirm={handleDelete}
-        title="Delete Order" message="Delete this order permanently?" confirmLabel="Delete" loading={saving} />
+      <ConfirmModal show={showDelItem} onHide={() => setShowDelItem(false)} onConfirm={handleDeleteItem}
+        title="Remove Item" message="Remove this item? Stock will be restored automatically." confirmLabel="Remove" loading={savingItem} />
+
+      {UndoToast}
     </div>
   )
 }

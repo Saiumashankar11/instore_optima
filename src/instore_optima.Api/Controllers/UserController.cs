@@ -37,7 +37,8 @@ namespace instore_optima.Api.Controllers
                 Name = u.Name,
                 Email = u.Email,
                 Role = u.Role,
-                Token = string.Empty   // no token needed for listing users
+                Token = string.Empty,
+                CreatedAt = u.CreatedAt
             });
 
             return Ok(result);
@@ -62,7 +63,8 @@ namespace instore_optima.Api.Controllers
                 Name = user.Name,
                 Email = user.Email,
                 Role = user.Role,
-                Token = string.Empty
+                Token = string.Empty,
+                CreatedAt = user.CreatedAt
             });
         }
 

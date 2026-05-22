@@ -3,21 +3,14 @@ import PageHeader from '../components/shared/PageHeader'
 import DataTable from '../components/shared/DataTable'
 import SearchBar from '../components/shared/SearchBar'
 import FormModal from '../components/shared/FormModal'
-import { getAllStock, updateStock, createStock } from '../services/stockService'
+import ConfirmModal from '../components/shared/ConfirmModal'
+import { getAllStock, updateStock, createStock, deleteStock } from '../services/stockService'
 import { getAllProducts } from '../services/productsService'
+import { useAuth } from '../context/AuthContext'
+import { useUndoDelete } from '../hooks/useUndoDelete'
 
 export default function Stock() {
-  // NOTE: Stock page displays products that have STOCK RECORDS in the database.
-  // When a new product is created in the Products page, you must also create
-  // a corresponding Stock entry (with currentStock and productId).
-  // Without a Stock record, the product won't appear here, even if it exists in Products.
-  // 
-  // Data Flow:
-  // 1. Load all Stock records from /api/stock endpoint (shows only products with stock entries)
-  // 2. Load all Products for reference to show product names and check min/max stock levels
-  // 3. Enrich stock data with product details by joining on productId
-  // 4. Filter and display only those stock records that exist in the database
-  
+  const { isAdmin } = useAuth()
   const [data, setData]         = useState([])
   const [products, setProducts] = useState([])
   const [loading, setLoading]   = useState(true)
@@ -29,6 +22,10 @@ export default function Stock() {
   const [saving, setSaving]     = useState(false)
   const [showCreateForm, setShowCreateForm] = useState(false)
   const [createForm, setCreateForm] = useState({ productId: '', currentStock: '' })
+  const [showDel, setShowDel]   = useState(false)
+  const [delId, setDelId]       = useState(null)
+
+  const { scheduleDelete, UndoToast } = useUndoDelete()
 
   const load = async () => {
     setLoading(true)
@@ -55,6 +52,20 @@ export default function Stock() {
       setShowForm(false); load()
     } catch { alert('Update failed.') }
     finally { setSaving(false) }
+  }
+
+  const handleDelete = async () => {
+    const row = data.find(d => d.stockId === delId)
+    const prod = products.find(p => p.productId === row?.productId)
+    setShowDel(false)
+    setData(prev => prev.filter(d => d.stockId !== delId))
+    scheduleDelete({
+      id: delId,
+      label: `Stock for "${prod?.name || '#' + delId}"`,
+      deleteFn: () => deleteStock(delId),
+      onDeleted: () => load(),
+      onUndo: () => load(),
+    })
   }
 
   const handleCreateStock = async () => {
@@ -109,9 +120,16 @@ export default function Stock() {
     },
     { key: 'lastUpdated', label: 'Last Updated',   render: r => r.lastUpdated ? new Date(r.lastUpdated).toLocaleDateString('en-IN') : '—' },
     { key: 'actions',     label: 'Actions',        render: r => (
-      <button className="btn-icon" onClick={() => openEdit(r)} title="Update Stock">
-        <i className="bi bi-pencil"></i>
-      </button>
+      <div style={{ display: 'flex', gap: 6 }}>
+        <button className="btn-icon" onClick={() => openEdit(r)} title="Update Stock">
+          <i className="bi bi-pencil"></i>
+        </button>
+        {isAdmin && (
+          <button className="btn-icon danger" onClick={() => { setDelId(r.stockId); setShowDel(true) }} title="Delete Stock">
+            <i className="bi bi-trash"></i>
+          </button>
+        )}
+      </div>
     )}
   ]
 
@@ -189,6 +207,10 @@ export default function Stock() {
             placeholder="0" />
         </div>
       </FormModal>
+
+      <ConfirmModal show={showDel} onHide={() => setShowDel(false)} onConfirm={handleDelete}
+        title="Delete Stock Record" message="Are you sure you want to delete this stock record?" confirmLabel="Delete" loading={saving} />
+      {UndoToast}
     </div>
   )
 }

@@ -34,6 +34,7 @@ namespace instore_optima.Api.Repositories.Implementations
         {
             order.OrderDate = DateTime.UtcNow;
             order.Status = "Pending";
+            order.TotalAmount = 0; // Always starts at zero; updated as items are added
             _context.Orders.Add(order);
             await _context.SaveChangesAsync();
             return order;

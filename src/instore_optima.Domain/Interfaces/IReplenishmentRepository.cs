@@ -18,6 +18,7 @@ namespace instore_optima.Infrastructure.Interfaces
 		Task<ReplenishmentOrder> CreateOrderAsync(ReplenishmentOrder order);
 		Task<ReplenishmentOrder?> UpdateOrderStatusAsync(int replenishmentOrderId, string status, int approvedBy);
 		Task<ReplenishmentOrder?> UpdateOrderStatusAsync(int replenishmentOrderId, string status, string notes);
+		Task<bool> DeleteOrderAsync(int replenishmentOrderId);
 		Task TriggerAutoReplenishmentAsync();
 	}
 }

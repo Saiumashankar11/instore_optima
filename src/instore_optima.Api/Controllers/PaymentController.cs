@@ -131,14 +131,13 @@ namespace instore_optima.Api.Controllers
         }
 
         [HttpDelete("{id}")]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> DeletePayment(int id)
         {
-            var payment = await _paymentRepository.GetPaymentByIdAsync(id);
-            if (payment == null)
+            var result = await _paymentRepository.DeletePaymentAsync(id);
+            if (!result)
                 throw new ResourceNotFoundException("Payment", id);
-
-            await _paymentRepository.UpdatePaymentStatusAsync(id, "Refunded");
-            return NoContent();
+            return Ok(new { message = $"Payment {id} and its linked invoice/receipt have been deleted." });
         }
 
         private async Task<(Invoice? invoice, Receipt? receipt)> GetInvoiceAndReceipt(Payment payment)

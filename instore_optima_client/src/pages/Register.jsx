@@ -33,6 +33,9 @@ export default function Register() {
     }
   }
 
+  // Add the following styles to ensure text is white in dark mode
+  const labelStyle = { color: dark ? 'white' : 'black' }
+
   return (
     <div className="login-page">
       {/* theme toggle */}
@@ -45,7 +48,7 @@ export default function Register() {
         <div className="login-left-glow2"></div>
         <div className="login-left-top">
           <div className="login-brand">
-            <img src="/logo.png" alt="InStore Optima" style={{ height: 58, width: 'auto', objectFit: 'contain' }} />
+            <div className="login-brand-icon"><img src="/logo.png" alt="InStore Optima" style={{ height: 50 }} /></div>
           </div>
           <div className="login-left-headline">
             Join your team.<br/>
@@ -75,23 +78,23 @@ export default function Register() {
         <div className="login-right-grid"></div>
         <div className="login-right-glow"></div>
         <div className="login-card">
-          <div className="login-card-icon"><img src="/logo-1.png" alt="InStore Optima" style={{ height: 45, width: 'auto', objectFit: 'contain' }} /></div>
+          <div className="login-card-icon"><img src="/logo-1.png" alt="InStore Optima" style={{ height: 56, objectFit: 'contain' }} /></div>
           <h1 className="login-card-title">Create account</h1>
           <p className="login-card-sub">Join InStore Optima</p>
 
           {error && (
-            <div className="login-alert-error">
-              <i className="bi bi-exclamation-circle"></i>{error}
+            <div className="alert alert-danger" style={{ marginBottom: 16 }}>
+              <i className="bi bi-exclamation-circle me-2"></i>{error}
             </div>
           )}
           {success && (
-            <div className="login-alert-success">
-              <i className="bi bi-check-circle"></i>{success}
+            <div className="alert alert-success" style={{ marginBottom: 16 }}>
+              <i className="bi bi-check-circle me-2"></i>{success}
             </div>
           )}
 
           <div className="login-field">
-            <label className="form-label-custom">Full Name</label>
+            <label className="form-label-custom" style={labelStyle}>Full Name</label>
             <div className="login-input-wrap">
               <i className="bi bi-person login-input-icon"></i>
               <input className="form-control-custom login-input"
@@ -100,7 +103,7 @@ export default function Register() {
             </div>
           </div>
           <div className="login-field">
-            <label className="form-label-custom">Email address</label>
+            <label className="form-label-custom" style={labelStyle}>Email address</label>
             <div className="login-input-wrap">
               <i className="bi bi-envelope login-input-icon"></i>
               <input className="form-control-custom login-input"
@@ -109,7 +112,7 @@ export default function Register() {
             </div>
           </div>
           <div className="login-field">
-            <label className="form-label-custom">Password</label>
+            <label className="form-label-custom" style={labelStyle}>Password</label>
             <div className="login-input-wrap">
               <i className="bi bi-lock login-input-icon"></i>
               <input className="form-control-custom login-input"
@@ -118,7 +121,7 @@ export default function Register() {
             </div>
           </div>
           <div className="login-field">
-            <label className="form-label-custom">Role</label>
+            <label className="form-label-custom" style={labelStyle}>Role</label>
             <select className="form-control-custom" value={form.role} onChange={set('role')}>
               <option>Admin</option>
               <option>Manager</option>

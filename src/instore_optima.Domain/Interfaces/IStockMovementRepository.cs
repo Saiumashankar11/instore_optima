@@ -9,5 +9,6 @@ namespace instore_optima.Infrastructure.Interfaces
         Task<StockMovement?> GetByIdAsync(int movementId);
         Task<StockMovement> CreateAsync(StockMovement movement);
         Task<StockMovement?> UpdateAsync(int movementId, StockMovement movement);  // ← add this line
+        Task<bool> DeleteAsync(int movementId);
     }
 }

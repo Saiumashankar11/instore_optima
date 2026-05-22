@@ -6,6 +6,7 @@ import FormModal from '../components/shared/FormModal'
 import ConfirmModal from '../components/shared/ConfirmModal'
 import { getAllProducts, createProduct, updateProduct, deleteProduct } from '../services/productsService'
 import { getAllSuppliers } from '../services/supplierService'
+import { useUndoDelete } from '../hooks/useUndoDelete'
 
 const EMPTY = { name: '', description: '', price: '', minStock: '', maxStock: '', supplierId: '' }
 
@@ -21,6 +22,8 @@ export default function Products() {
   const [form, setForm]           = useState(EMPTY)
   const [saving, setSaving]       = useState(false)
   const [delId, setDelId]         = useState(null)
+
+  const { scheduleDelete, UndoToast } = useUndoDelete()
 
   const load = async () => {
     setLoading(true)
@@ -50,14 +53,17 @@ export default function Products() {
   }
 
   const handleDelete = async () => {
-    setSaving(true)
-    try { await deleteProduct(delId); setShowDel(false); load() }
-    catch (err) {
-      const status = err?.response?.status
-      if (status === 409) alert('Cannot delete this product — it has associated orders, stock movements, or replenishment records.')
-      else alert('Delete failed.')
-    }
-    finally { setSaving(false) }
+    const row = data.find(d => d.productId === delId)
+    setShowDel(false)
+    // Optimistically remove from view
+    setData(prev => prev.filter(d => d.productId !== delId))
+    scheduleDelete({
+      id: delId,
+      label: `Product "${row?.name || '#' + delId}"`,
+      deleteFn: () => deleteProduct(delId),
+      onDeleted: () => load(),
+      onUndo: () => load(),
+    })
   }
 
   const filtered = data.filter(d =>
@@ -136,6 +142,7 @@ export default function Products() {
       <ConfirmModal show={showDel} onHide={() => setShowDel(false)} onConfirm={handleDelete}
         title="Delete Product" message="Are you sure you want to delete this product? This cannot be undone."
         confirmLabel="Delete" loading={saving} />
+      {UndoToast}
     </div>
   )
 }

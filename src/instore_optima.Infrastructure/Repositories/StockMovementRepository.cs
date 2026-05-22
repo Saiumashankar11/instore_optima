@@ -67,5 +67,14 @@ namespace instore_optima.Infrastructure.Repositories
             await _context.SaveChangesAsync();
             return movement;
         }
+
+        public async Task<bool> DeleteAsync(int movementId)
+        {
+            var movement = await _context.StockMovements.FindAsync(movementId);
+            if (movement == null) return false;
+            _context.StockMovements.Remove(movement);
+            await _context.SaveChangesAsync();
+            return true;
+        }
     }
 }

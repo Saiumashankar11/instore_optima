@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace instore_optima.Api.Migrations
 {
     /// <inheritdoc />
-    public partial class AddOtpCodes : Migration
+    public partial class TempCheck : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -26,31 +26,11 @@ namespace instore_optima.Api.Migrations
                 nullable: true,
                 oldClrType: typeof(DateTime),
                 oldType: "datetime2");
-
-            migrationBuilder.CreateTable(
-                name: "OtpCodes",
-                columns: table => new
-                {
-                    OtpId = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
-                    UserId = table.Column<int>(type: "int", nullable: false),
-                    Code = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    ExpiresAt = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    IsUsed = table.Column<bool>(type: "bit", nullable: false),
-                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_OtpCodes", x => x.OtpId);
-                });
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropTable(
-                name: "OtpCodes");
-
             migrationBuilder.AlterColumn<int>(
                 name: "ApprovedBy",
                 table: "ReplenishmentOrders",

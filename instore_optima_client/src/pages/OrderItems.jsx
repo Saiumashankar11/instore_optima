@@ -7,7 +7,7 @@ import { getItemsByOrderId, createOrderItem, updateOrderItem, deleteOrderItem } 
 import { getAllOrders } from '../services/ordersService'
 import { getAllProducts } from '../services/productsService'
 
-const EMPTY = { orderId: '', productId: '', quantity: '', price: '' }
+const EMPTY = { orderId: '', productId: '', quantity: '' }
 
 export default function OrderItems() {
   const [data, setData]                   = useState([])
@@ -46,11 +46,16 @@ export default function OrderItems() {
   const handleSave = async () => {
     setSaving(true)
     try {
-      const payload = { ...form, orderId: Number(form.orderId), productId: Number(form.productId), quantity: Number(form.quantity), price: Number(form.price) }
-      if (editing) await updateOrderItem(editing.orderItemId, payload)
-      else await createOrderItem(payload)
+      if (editing) {
+        await updateOrderItem(editing.orderItemId, { quantity: Number(form.quantity) })
+      } else {
+        await createOrderItem({ orderId: Number(form.orderId), productId: Number(form.productId), quantity: Number(form.quantity) })
+      }
       setShowForm(false); loadItems(selectedOrder)
-    } catch { alert('Save failed.') }
+    } catch (err) {
+      const msg = err?.response?.data?.message || 'Save failed.'
+      alert(msg)
+    }
     finally { setSaving(false) }
   }
 
@@ -112,22 +117,28 @@ export default function OrderItems() {
 
       <FormModal show={showForm} onHide={() => setShowForm(false)} onSubmit={handleSave}
         title={editing ? 'Edit Item' : 'Add Item'} loading={saving}>
+        {!editing && (
+          <div style={{ marginBottom: 14 }}>
+            <label className="form-label-custom">Product</label>
+            <select className="form-control-custom" value={form.productId} onChange={set('productId')}>
+              <option value="">— Select Product —</option>
+              {products.map(p => <option key={p.productId} value={p.productId}>{p.name} — ₹{p.price}</option>)}
+            </select>
+            {form.productId && (
+              <small style={{ color: 'var(--text-400)', fontSize: 11 }}>Price auto-fetched from product (₹{products.find(p => p.productId === Number(form.productId))?.price ?? '—'})</small>
+            )}
+          </div>
+        )}
+        {editing && (
+          <div style={{ marginBottom: 14 }}>
+            <label className="form-label-custom">Product</label>
+            <input className="form-control-custom" value={editing.productName || `#${editing.productId}`} disabled />
+            <small style={{ color: 'var(--text-400)', fontSize: 11 }}>Unit price: ₹{Number(editing.price || 0).toLocaleString('en-IN')} (from product)</small>
+          </div>
+        )}
         <div style={{ marginBottom: 14 }}>
-          <label className="form-label-custom">Product</label>
-          <select className="form-control-custom" value={form.productId} onChange={set('productId')}>
-            <option value="">— Select Product —</option>
-            {products.map(p => <option key={p.productId} value={p.productId}>{p.name} — ₹{p.price}</option>)}
-          </select>
-        </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
-          <div>
-            <label className="form-label-custom">Quantity</label>
-            <input className="form-control-custom" type="number" placeholder="1" value={form.quantity} onChange={set('quantity')} />
-          </div>
-          <div>
-            <label className="form-label-custom">Unit Price (₹)</label>
-            <input className="form-control-custom" type="number" placeholder="0.00" value={form.price} onChange={set('price')} />
-          </div>
+          <label className="form-label-custom">Quantity</label>
+          <input className="form-control-custom" type="number" placeholder="1" min="1" value={form.quantity} onChange={set('quantity')} />
         </div>
       </FormModal>
 

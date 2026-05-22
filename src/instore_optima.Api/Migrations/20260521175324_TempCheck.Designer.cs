@@ -12,8 +12,8 @@ using instore_optima.Infrastructure.Data;
 namespace instore_optima.Api.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260520051041_AddOtpCodes")]
-    partial class AddOtpCodes
+    [Migration("20260521175324_TempCheck")]
+    partial class TempCheck
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -206,35 +206,6 @@ namespace instore_optima.Api.Migrations
                     b.HasIndex("UserId");
 
                     b.ToTable("Orders");
-                });
-
-            modelBuilder.Entity("instore_optima.Domain.Entities.OtpCode", b =>
-                {
-                    b.Property<int>("OtpId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("OtpId"));
-
-                    b.Property<string>("Code")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<DateTime>("ExpiresAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<bool>("IsUsed")
-                        .HasColumnType("bit");
-
-                    b.Property<int>("UserId")
-                        .HasColumnType("int");
-
-                    b.HasKey("OtpId");
-
-                    b.ToTable("OtpCodes");
                 });
 
             modelBuilder.Entity("instore_optima.Domain.Entities.Payment", b =>

@@ -18,5 +18,9 @@ namespace instore_optima.Domain.Entities
         public DateTime ExpectedDeliveryDate { get; set; }
 
         public string Status { get; set; }
+
+        // Set automatically when Status → Delivered
+        public string? GrnNumber { get; set; }      // Goods Received Note number e.g. GRN-2026-0001
+        public DateTime? DeliveredAt { get; set; }
     }
 }

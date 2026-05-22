@@ -14,7 +14,6 @@ import Suppliers    from './pages/Suppliers'
 import Replenishment from './pages/Replenishment'
 import PurchaseOrders from './pages/PurchaseOrders'
 import Orders       from './pages/Orders'
-import OrderItems   from './pages/OrderItems'
 import Payments     from './pages/Payments'
 import Invoices     from './pages/Invoices'
 import Receipts     from './pages/Receipts'
@@ -60,14 +59,19 @@ export default function App() {
           </Route>
 
           <Route path="/:role" element={<RequireAuth><RoleUrlGuard><InnerLayout /></RoleUrlGuard></RequireAuth>}>
-            <Route path="products"        element={<Products />} />
+            <Route path="products"        element={
+              <RequireRole roles={['Admin','Manager']}><Products /></RequireRole>
+            } />
             <Route path="stock"           element={<Stock />} />
             <Route path="stock-movement"  element={<StockMovement />} />
-            <Route path="suppliers"       element={<Suppliers />} />
-            <Route path="replenishment"   element={<Replenishment />} />
+            <Route path="suppliers"       element={
+              <RequireRole roles={['Admin','Manager']}><Suppliers /></RequireRole>
+            } />
+            <Route path="replenishment"   element={
+              <RequireRole roles={['Admin','Manager']}><Replenishment /></RequireRole>
+            } />
             <Route path="purchase-orders" element={<PurchaseOrders />} />
             <Route path="orders"          element={<Orders />} />
-            <Route path="order-items"     element={<OrderItems />} />
             <Route path="payments"        element={<Payments />} />
             <Route path="invoices"        element={<Invoices />} />
             <Route path="receipts"        element={<Receipts />} />
@@ -75,7 +79,7 @@ export default function App() {
               <RequireRole roles={['Admin','Manager']}><Users /></RequireRole>
             } />
             <Route path="audit-logs"      element={
-              <RequireRole roles={['Admin','Manager']}><AuditLogs /></RequireRole>
+              <RequireRole roles={['Admin']}><AuditLogs /></RequireRole>
             } />
           </Route>
 

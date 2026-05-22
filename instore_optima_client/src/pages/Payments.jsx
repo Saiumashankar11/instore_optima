@@ -3,13 +3,18 @@ import PageHeader from '../components/shared/PageHeader'
 import DataTable from '../components/shared/DataTable'
 import SearchBar from '../components/shared/SearchBar'
 import FormModal from '../components/shared/FormModal'
+import ConfirmModal from '../components/shared/ConfirmModal'
 import StatusBadge from '../components/shared/StatusBadge'
-import { getAllPayments, createPayment, updatePayment } from '../services/paymentService'
+import { getAllPayments, createPayment, updatePayment, deletePayment } from '../services/paymentService'
 import { getAllOrders } from '../services/ordersService'
+import { useAuth } from '../context/AuthContext'
+import { useUndoDelete } from '../hooks/useUndoDelete'
 
-const EMPTY = { orderId: '', paymentMethod: 'Card', paymentStatus: 'Pending' }
+const EMPTY = { orderId: '', paymentMethod: 'Card' }
 
 export default function Payments() {
+  const { isAdmin } = useAuth()
+  const { scheduleDelete, UndoToast } = useUndoDelete()
   const [data, setData]         = useState([])
   const [orders, setOrders]     = useState([])
   const [loading, setLoading]   = useState(true)
@@ -18,6 +23,8 @@ export default function Payments() {
   const [showForm, setShowForm] = useState(false)
   const [form, setForm]         = useState(EMPTY)
   const [saving, setSaving]     = useState(false)
+  const [showDel, setShowDel]   = useState(false)
+  const [delId, setDelId]       = useState(null)
 
   const load = async () => {
     setLoading(true)
@@ -36,15 +43,28 @@ export default function Payments() {
   const handleSave = async () => {
     setSaving(true)
     try {
-      await createPayment({ ...form, orderId: Number(form.orderId) })
+      await createPayment({ ...form, orderId: Number(form.orderId), paymentStatus: 'Pending' })
       setShowForm(false); setForm(EMPTY); load()
-    } catch { alert('Failed to record payment.') }
+    } catch (err) { alert(err?.response?.data?.message || 'Failed to record payment.') }
     finally { setSaving(false) }
   }
 
   const handleStatusUpdate = async (row, status) => {
     try { await updatePayment(row.paymentId, { ...row, paymentStatus: status }); load() }
     catch { alert('Update failed.') }
+  }
+
+  const handleDelete = async () => {
+    const row = data.find(d => d.paymentId === delId)
+    setShowDel(false)
+    setData(prev => prev.filter(d => d.paymentId !== delId))
+    scheduleDelete({
+      id: delId,
+      label: `Payment #${delId} (Order #${row?.orderId})`,
+      deleteFn: () => deletePayment(delId),
+      onDeleted: () => load(),
+      onUndo: () => load(),
+    })
   }
 
   const filtered = data.filter(d =>
@@ -66,12 +86,24 @@ export default function Payments() {
     )},
     { key: 'paymentStatus', label: 'Status',  render: r => <StatusBadge status={r.paymentStatus} /> },
     { key: 'paymentDate',   label: 'Date',    render: r => r.paymentDate ? new Date(r.paymentDate).toLocaleDateString('en-IN') : '—' },
-    { key: 'actions',       label: 'Actions', render: r => r.paymentStatus === 'Pending' ? (
-      <button className="btn-primary-custom" style={{ padding: '4px 11px', fontSize: 11.5 }}
-        onClick={() => handleStatusUpdate(r, 'Completed')}>
-        <i className="bi bi-check-lg"></i> Mark Paid
-      </button>
-    ) : <span style={{ color: 'var(--text-700)', fontSize: 12 }}>—</span> }
+    { key: 'invoiceNumber', label: 'Invoice', render: r => r.invoiceId
+        ? <span style={{ fontSize: 11.5, color: 'var(--cyan)', fontWeight: 500 }}>#{r.invoiceId} — {r.invoiceNumber}</span>
+        : <span style={{ color: 'var(--text-700)', fontSize: 11 }}>Auto-pending</span> },
+    { key: 'actions',       label: 'Actions', render: r => (
+      <div style={{ display: 'flex', gap: 6 }}>
+        {r.paymentStatus === 'Pending' && (
+          <button className="btn-primary-custom" style={{ padding: '4px 11px', fontSize: 11.5 }}
+            onClick={() => handleStatusUpdate(r, 'Completed')}>
+            <i className="bi bi-check-lg"></i> Mark Paid
+          </button>
+        )}
+        {isAdmin && (
+          <button className="btn-icon danger" title="Delete payment + invoice + receipt" onClick={() => { setDelId(r.paymentId); setShowDel(true) }}>
+            <i className="bi bi-trash"></i>
+          </button>
+        )}
+      </div>
+    ) }
   ]
 
   return (
@@ -100,7 +132,9 @@ export default function Payments() {
           <label className="form-label-custom">Order</label>
           <select className="form-control-custom" value={form.orderId} onChange={set('orderId')}>
             <option value="">— Select Order —</option>
-            {orders.map(o => <option key={o.orderId} value={o.orderId}>Order #{o.orderId} — ₹{Number(o.totalAmount || 0).toLocaleString('en-IN')}</option>)}
+            {orders
+              .filter(o => !data.some(p => p.orderId === o.orderId))
+              .map(o => <option key={o.orderId} value={o.orderId}>Order #{o.orderId} — ₹{Number(o.totalAmount || 0).toLocaleString('en-IN')} ({o.status})</option>)}
           </select>
         </div>
         <div style={{ marginBottom: 14 }}>
@@ -109,13 +143,15 @@ export default function Payments() {
             <option>Card</option><option>Cash</option><option>Bank Transfer</option><option>UPI</option>
           </select>
         </div>
-        <div style={{ marginBottom: 14 }}>
-          <label className="form-label-custom">Status</label>
-          <select className="form-control-custom" value={form.paymentStatus} onChange={set('paymentStatus')}>
-            <option>Pending</option><option>Completed</option><option>Failed</option><option>Refunded</option>
-          </select>
-        </div>
+        <p style={{ fontSize: 12, color: 'var(--text-400)', margin: 0 }}>
+          <i className="bi bi-info-circle" style={{ marginRight: 5 }}></i>
+          Payment starts as <strong>Pending</strong>. An invoice is auto-generated immediately. A receipt is auto-generated when you mark the payment as Completed.
+        </p>
       </FormModal>
+
+      <ConfirmModal show={showDel} onHide={() => setShowDel(false)} onConfirm={handleDelete}
+        title="Delete Payment" message="This will permanently delete the payment AND its linked invoice and receipt. This cannot be undone." confirmLabel="Delete" variant="danger" loading={saving} />
+      {UndoToast}
     </div>
   )
 }

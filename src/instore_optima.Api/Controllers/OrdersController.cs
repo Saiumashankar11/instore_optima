@@ -98,8 +98,8 @@ namespace instore_optima.Api.Controllers
 
             var order = new Orders
             {
-                UserId = dto.UserId,
-                TotalAmount = dto.TotalAmount
+                UserId = dto.UserId
+                // TotalAmount starts at 0, set in repository
             };
             var created = await _orderRepository.CreateOrderAsync(order);
             return CreatedAtAction(nameof(GetOrderById), new { id = created.OrderId },

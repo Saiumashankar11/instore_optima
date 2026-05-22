@@ -2,20 +2,14 @@ import { useEffect, useState } from 'react'
 import PageHeader from '../components/shared/PageHeader'
 import DataTable from '../components/shared/DataTable'
 import SearchBar from '../components/shared/SearchBar'
-import FormModal from '../components/shared/FormModal'
 import StatusBadge from '../components/shared/StatusBadge'
-import { getAllInvoices, createInvoice, updateInvoice } from '../services/invoiceService'
-
-const EMPTY = { invoiceNumber: '', totalAmount: '', taxAmount: '', dueDate: '', status: 'Draft' }
+import { getAllInvoices, updateInvoice } from '../services/invoiceService'
 
 export default function Invoices() {
   const [data, setData]         = useState([])
   const [loading, setLoading]   = useState(true)
   const [error, setError]       = useState('')
   const [search, setSearch]     = useState('')
-  const [showForm, setShowForm] = useState(false)
-  const [form, setForm]         = useState(EMPTY)
-  const [saving, setSaving]     = useState(false)
 
   const load = async () => {
     setLoading(true)
@@ -25,17 +19,6 @@ export default function Invoices() {
   }
 
   useEffect(() => { load() }, [])
-
-  const set = k => e => setForm(f => ({ ...f, [k]: e.target.value }))
-
-  const handleSave = async () => {
-    setSaving(true)
-    try {
-      await createInvoice({ ...form, totalAmount: Number(form.totalAmount), taxAmount: Number(form.taxAmount) })
-      setShowForm(false); setForm(EMPTY); load()
-    } catch { alert('Failed to create invoice.') }
-    finally { setSaving(false) }
-  }
 
   const handleStatusUpdate = async (row, status) => {
     try { await updateInvoice(row.invoiceId, { ...row, status }); load() }
@@ -74,8 +57,7 @@ export default function Invoices() {
     <div className="animate-in">
       <PageHeader
         title="Invoices"
-        subtitle="Manage invoices and payment status"
-        action={<button className="btn-primary-custom" onClick={() => { setForm(EMPTY); setShowForm(true) }}><i className="bi bi-plus-lg"></i> Create Invoice</button>}
+        subtitle="Invoices are automatically generated when a payment is recorded"
       />
 
       <div className="table-card">
@@ -89,34 +71,6 @@ export default function Invoices() {
         </div>
         <DataTable columns={columns} data={filtered} loading={loading} error={error} />
       </div>
-
-      <FormModal show={showForm} onHide={() => setShowForm(false)} onSubmit={handleSave}
-        title="Create Invoice" loading={saving}>
-        <div style={{ marginBottom: 14 }}>
-          <label className="form-label-custom">Invoice Number</label>
-          <input className="form-control-custom" placeholder="INV-2026-001" value={form.invoiceNumber} onChange={set('invoiceNumber')} />
-        </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
-          <div>
-            <label className="form-label-custom">Total Amount (₹)</label>
-            <input className="form-control-custom" type="number" placeholder="0.00" value={form.totalAmount} onChange={set('totalAmount')} />
-          </div>
-          <div>
-            <label className="form-label-custom">Tax Amount (₹)</label>
-            <input className="form-control-custom" type="number" placeholder="0.00" value={form.taxAmount} onChange={set('taxAmount')} />
-          </div>
-        </div>
-        <div style={{ marginBottom: 14 }}>
-          <label className="form-label-custom">Due Date</label>
-          <input className="form-control-custom" type="date" value={form.dueDate} onChange={set('dueDate')} />
-        </div>
-        <div style={{ marginBottom: 14 }}>
-          <label className="form-label-custom">Status</label>
-          <select className="form-control-custom" value={form.status} onChange={set('status')}>
-            <option>Draft</option><option>Issued</option><option>Paid</option><option>Overdue</option>
-          </select>
-        </div>
-      </FormModal>
     </div>
   )
 }

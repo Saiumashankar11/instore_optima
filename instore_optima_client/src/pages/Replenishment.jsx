@@ -5,14 +5,16 @@ import SearchBar from '../components/shared/SearchBar'
 import FormModal from '../components/shared/FormModal'
 import ConfirmModal from '../components/shared/ConfirmModal'
 import StatusBadge from '../components/shared/StatusBadge'
-import { getAllReplenishments, createReplenishment, updateReplenishment } from '../services/replenishmentService'
+import { getAllReplenishments, createReplenishment, updateReplenishment, deleteReplenishment } from '../services/replenishmentService'
 import { getAllProducts } from '../services/productsService'
 import { useAuth } from '../context/AuthContext'
+import { useUndoDelete } from '../hooks/useUndoDelete'
 
 const EMPTY = { productId: '', quantityRequested: '' }
 
 export default function Replenishment() {
   const { user, canManage } = useAuth()
+  const { scheduleDelete, UndoToast } = useUndoDelete()
   const [data, setData]               = useState([])
   const [products, setProducts]       = useState([])
   const [loading, setLoading]         = useState(true)
@@ -52,9 +54,25 @@ export default function Replenishment() {
   const handleConfirm = async () => {
     setSaving(true)
     try {
-      await updateReplenishment(confirmAction.row.replenishmentOrderId, {
-        ...confirmAction.row, status: confirmAction.action, approvedBy: user?.userId
-      })
+      if (confirmAction.action === 'Delete') {
+        const row = confirmAction.row
+        const prod = products.find(p => p.productId === row.productId)
+        setShowConfirm(false)
+        setData(prev => prev.filter(d => d.replenishmentOrderId !== row.replenishmentOrderId))
+        scheduleDelete({
+          id: row.replenishmentOrderId,
+          label: `Replenishment #${row.replenishmentOrderId} (${prod?.name || 'Product'})`,
+          deleteFn: () => deleteReplenishment(row.replenishmentOrderId),
+          onDeleted: () => load(),
+          onUndo: () => load(),
+        })
+        setSaving(false)
+        return
+      } else {
+        await updateReplenishment(confirmAction.row.replenishmentOrderId, {
+          ...confirmAction.row, status: confirmAction.action, approvedBy: user?.userId
+        })
+      }
       setShowConfirm(false); load()
     } catch { alert('Action failed.') }
     finally { setSaving(false) }
@@ -74,7 +92,7 @@ export default function Replenishment() {
     { key: 'generatedAt',          label: 'Generated',render: r => r.generatedAt ? new Date(r.generatedAt).toLocaleDateString('en-IN') : '—' },
     { key: 'actions', label: 'Actions', render: r => {
       if (!canManage) return <span style={{ color: 'var(--text-700)', fontSize: 12 }}>—</span>
-      return r.status === 'Pending' ? (
+      if (r.status === 'Pending') return (
         <div style={{ display: 'flex', gap: 6 }}>
           <button className="btn-primary-custom" style={{ padding: '4px 11px', fontSize: 11.5, background: '#059669' }} onClick={() => triggerAction(r, 'Approved')}>
             <i className="bi bi-check-lg"></i> Approve
@@ -82,8 +100,17 @@ export default function Replenishment() {
           <button className="btn-primary-custom" style={{ padding: '4px 11px', fontSize: 11.5, background: '#dc2626' }} onClick={() => triggerAction(r, 'Rejected')}>
             <i className="bi bi-x-lg"></i> Reject
           </button>
+          <button className="btn-icon danger" title="Delete" onClick={() => triggerAction(r, 'Delete')}>
+            <i className="bi bi-trash"></i>
+          </button>
         </div>
-      ) : <span style={{ color: 'var(--text-700)', fontSize: 12 }}>—</span>
+      )
+      if (r.status === 'Rejected') return (
+        <button className="btn-icon danger" title="Delete" onClick={() => triggerAction(r, 'Delete')}>
+          <i className="bi bi-trash"></i>
+        </button>
+      )
+      return <span style={{ color: 'var(--text-700)', fontSize: 12 }}>—</span>
     }}
   ]
 
@@ -126,11 +153,14 @@ export default function Replenishment() {
       </FormModal>
 
       <ConfirmModal show={showConfirm} onHide={() => setShowConfirm(false)} onConfirm={handleConfirm}
-        title={`${confirmAction?.action} Replenishment`}
-        message={`Are you sure you want to ${confirmAction?.action?.toLowerCase()} this order?`}
+        title={confirmAction?.action === 'Delete' ? 'Delete Replenishment Order' : `${confirmAction?.action} Replenishment`}
+        message={confirmAction?.action === 'Delete'
+          ? 'Are you sure you want to permanently delete this replenishment order?'
+          : `Are you sure you want to ${confirmAction?.action?.toLowerCase()} this order?`}
         confirmLabel={confirmAction?.action}
-        variant={confirmAction?.action === 'Rejected' ? 'danger' : 'success'}
+        variant={confirmAction?.action === 'Rejected' || confirmAction?.action === 'Delete' ? 'danger' : 'success'}
         loading={saving} />
+      {UndoToast}
     </div>
   )
 }

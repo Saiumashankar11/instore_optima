@@ -2,44 +2,26 @@ import { useEffect, useState } from 'react'
 import PageHeader from '../components/shared/PageHeader'
 import DataTable from '../components/shared/DataTable'
 import SearchBar from '../components/shared/SearchBar'
-import FormModal from '../components/shared/FormModal'
-import { getAllReceipts, createReceipt } from '../services/receiptService'
-import { getAllPayments } from '../services/paymentService'
+import { getAllReceipts } from '../services/receiptService'
 
 const EMPTY = { paymentId: '', receiptNumber: '', amountPaid: '' }
 
 export default function Receipts() {
   const [data, setData]         = useState([])
-  const [payments, setPayments] = useState([])
   const [loading, setLoading]   = useState(true)
   const [error, setError]       = useState('')
   const [search, setSearch]     = useState('')
-  const [showForm, setShowForm] = useState(false)
-  const [form, setForm]         = useState(EMPTY)
-  const [saving, setSaving]     = useState(false)
 
   const load = async () => {
     setLoading(true)
     try {
-      const [r, p] = await Promise.all([getAllReceipts(), getAllPayments()])
+      const [r] = await Promise.all([getAllReceipts()])
       setData(r.data || [])
-      setPayments(p.data || [])
     } catch { setError('Failed to load receipts.') }
     finally { setLoading(false) }
   }
 
   useEffect(() => { load() }, [])
-
-  const set = k => e => setForm(f => ({ ...f, [k]: e.target.value }))
-
-  const handleSave = async () => {
-    setSaving(true)
-    try {
-      await createReceipt({ ...form, paymentId: Number(form.paymentId), amountPaid: Number(form.amountPaid) })
-      setShowForm(false); setForm(EMPTY); load()
-    } catch { alert('Failed to create receipt.') }
-    finally { setSaving(false) }
-  }
 
   const handlePrint = row => {
     const win = window.open('', '_blank')
@@ -100,8 +82,7 @@ export default function Receipts() {
     <div className="animate-in">
       <PageHeader
         title="Receipts"
-        subtitle="View and print payment receipts"
-        action={<button className="btn-primary-custom" onClick={() => { setForm(EMPTY); setShowForm(true) }}><i className="bi bi-plus-lg"></i> Generate Receipt</button>}
+        subtitle="Receipts are automatically generated when a payment is marked as Completed"
       />
 
       <div className="table-card">
@@ -115,29 +96,6 @@ export default function Receipts() {
         </div>
         <DataTable columns={columns} data={filtered} loading={loading} error={error} />
       </div>
-
-      <FormModal show={showForm} onHide={() => setShowForm(false)} onSubmit={handleSave}
-        title="Generate Receipt" loading={saving}>
-        <div style={{ marginBottom: 14 }}>
-          <label className="form-label-custom">Payment</label>
-          <select className="form-control-custom" value={form.paymentId} onChange={set('paymentId')}>
-            <option value="">— Select Completed Payment —</option>
-            {payments.filter(p => p.paymentStatus === 'Completed').map(p => (
-              <option key={p.paymentId} value={p.paymentId}>
-                Payment #{p.paymentId} — Order #{p.orderId}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div style={{ marginBottom: 14 }}>
-          <label className="form-label-custom">Receipt Number</label>
-          <input className="form-control-custom" placeholder="RCP-2026-001" value={form.receiptNumber} onChange={set('receiptNumber')} />
-        </div>
-        <div style={{ marginBottom: 14 }}>
-          <label className="form-label-custom">Amount Paid (₹)</label>
-          <input className="form-control-custom" type="number" placeholder="0.00" value={form.amountPaid} onChange={set('amountPaid')} />
-        </div>
-      </FormModal>
     </div>
   )
 }
