@@ -27,19 +27,20 @@ export default function Register() {
       setSuccess('Account created! Redirecting to login...')
       setTimeout(() => navigate('/login'), 1500)
     } catch (err) {
-      setError(err.response?.data?.message || 'Registration failed.')
+      const data = err.response?.data
+      const fieldError = data?.errors ? Object.values(data.errors).flat()[0] : null
+      setError(fieldError || data?.message || 'Registration failed.')
     } finally {
       setLoading(false)
     }
   }
 
   // Add the following styles to ensure text is white in dark mode
-  const labelStyle = { color: dark ? 'white' : 'black' }
 
   return (
     <div className="login-page">
       {/* theme toggle */}
-      <button className="login-theme-toggle" onClick={toggle} title="Toggle theme">
+      <button type="button" className="login-theme-toggle" onClick={toggle} title="Toggle theme">
         <i className={`bi bi-${dark ? 'sun' : 'moon'}`}></i>
       </button>
 
@@ -83,18 +84,18 @@ export default function Register() {
           <p className="login-card-sub">Join InStore Optima</p>
 
           {error && (
-            <div className="alert alert-danger" style={{ marginBottom: 16 }}>
-              <i className="bi bi-exclamation-circle me-2"></i>{error}
+            <div className="login-alert-error">
+              <i className="bi bi-exclamation-circle"></i>{error}
             </div>
           )}
           {success && (
-            <div className="alert alert-success" style={{ marginBottom: 16 }}>
-              <i className="bi bi-check-circle me-2"></i>{success}
+            <div className="login-alert-success">
+              <i className="bi bi-check-circle"></i>{success}
             </div>
           )}
 
           <div className="login-field">
-            <label className="form-label-custom" style={labelStyle}>Full Name</label>
+            <label className="form-label-custom">Full Name</label>
             <div className="login-input-wrap">
               <i className="bi bi-person login-input-icon"></i>
               <input className="form-control-custom login-input"
@@ -103,7 +104,7 @@ export default function Register() {
             </div>
           </div>
           <div className="login-field">
-            <label className="form-label-custom" style={labelStyle}>Email address</label>
+            <label className="form-label-custom">Email address</label>
             <div className="login-input-wrap">
               <i className="bi bi-envelope login-input-icon"></i>
               <input className="form-control-custom login-input"
@@ -112,7 +113,7 @@ export default function Register() {
             </div>
           </div>
           <div className="login-field">
-            <label className="form-label-custom" style={labelStyle}>Password</label>
+            <label className="form-label-custom">Password</label>
             <div className="login-input-wrap">
               <i className="bi bi-lock login-input-icon"></i>
               <input className="form-control-custom login-input"
@@ -121,7 +122,7 @@ export default function Register() {
             </div>
           </div>
           <div className="login-field">
-            <label className="form-label-custom" style={labelStyle}>Role</label>
+            <label className="form-label-custom">Role</label>
             <select className="form-control-custom" value={form.role} onChange={set('role')}>
               <option>Admin</option>
               <option>Manager</option>

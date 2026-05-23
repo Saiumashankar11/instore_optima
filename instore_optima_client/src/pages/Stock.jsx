@@ -99,6 +99,7 @@ export default function Stock() {
   })
 
   const filtered = enriched.filter(d =>
+    String(d.stockId).includes(search) ||
     d._productName.toLowerCase().includes(search.toLowerCase())
   )
 

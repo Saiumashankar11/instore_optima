@@ -70,7 +70,10 @@ export default function StockMovement() {
 
   const filtered = enriched
     .filter(d => filter === 'All' || d.movementType === filter)
-    .filter(d => d._productName.toLowerCase().includes(search.toLowerCase()))
+    .filter(d =>
+      String(d.movementId).includes(search) ||
+      d._productName.toLowerCase().includes(search.toLowerCase())
+    )
 
   const columns = [
     { key: 'movementId',   label: 'ID',      render: r => <span className="text-accent" style={{ fontWeight: 600 }}>#{r.movementId}</span> },

@@ -78,6 +78,10 @@ namespace instore_optima.Api.Controllers
             if (user == null)
                 throw new UnauthorizedAccessException("Invalid email or password");
 
+            // Check if account has been deactivated
+            if (user.Role == "Inactive")
+                throw new UnauthorizedAccessException("This account has been deactivated. Please contact an administrator.");
+
             // Verify password
             var isValid = _authRepository.VerifyPassword(dto.Password, user.Password);
             if (!isValid)

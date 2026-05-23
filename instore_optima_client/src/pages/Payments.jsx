@@ -66,6 +66,7 @@ export default function Payments() {
   }
 
   const filtered = data.filter(d =>
+    String(d.paymentId).includes(search) ||
     String(d.orderId).includes(search) ||
     d.paymentMethod?.toLowerCase().includes(search.toLowerCase()) ||
     d.paymentStatus?.toLowerCase().includes(search.toLowerCase())

@@ -80,7 +80,10 @@ export default function Replenishment() {
 
   const filtered = data
     .map(row => ({ ...row, _productName: getProduct(row.productId)?.name || `Product #${row.productId}` }))
-    .filter(d => d._productName.toLowerCase().includes(search.toLowerCase()))
+    .filter(d =>
+      String(d.replenishmentOrderId).includes(search) ||
+      d._productName.toLowerCase().includes(search.toLowerCase())
+    )
 
   const columns = [
     { key: 'replenishmentOrderId', label: 'ID',       render: r => <span className="text-accent" style={{ fontWeight: 600 }}>#{r.replenishmentOrderId}</span> },
@@ -154,7 +157,7 @@ export default function Replenishment() {
         title={confirmAction?.action === 'Delete' ? 'Delete Replenishment Order' : `${confirmAction?.action} Replenishment`}
         message={confirmAction?.action === 'Delete'
           ? 'Are you sure you want to permanently delete this replenishment order?'
-          : `Are you sure you want to ${confirmAction?.action?.toLowerCase()} this order?`}
+          : `Are you sure you want to ${confirmAction?.action === 'Approved' ? 'approve' : 'reject'} this order?`}
         confirmLabel={confirmAction?.action}
         variant={confirmAction?.action === 'Rejected' || confirmAction?.action === 'Delete' ? 'danger' : 'success'}
         loading={saving} />

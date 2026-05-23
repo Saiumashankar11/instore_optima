@@ -56,6 +56,23 @@
   --border-row:     #e2e8f0;
 }
 
+/* ── instant theme transitions: applied to everything when toggling ── */
+.theme-transitioning * {
+  transition: background-color 0.22s ease, background 0.22s ease,
+              color 0.22s ease, border-color 0.22s ease !important;
+}
+
+/* ── login page light theme overrides ── */
+[data-theme="light"] .login-left       { background: #0f2744; }
+[data-theme="light"] .login-right      { background: #f0f4f8; }
+[data-theme="light"] .login-card       { background: #ffffff; border-color: #e2e8f0; box-shadow: 0 8px 40px rgba(0,0,0,.08); }
+[data-theme="light"] .login-card-title { color: #0f172a; }
+[data-theme="light"] .login-card-sub   { color: #475569; }
+[data-theme="light"] .login-input      { background: #f8fafc !important; border-color: #e2e8f0 !important; color: #0f172a !important; }
+[data-theme="light"] .login-input::placeholder { color: #94a3b8 !important; }
+[data-theme="light"] .login-footer-text { color: #475569; }
+[data-theme="light"] .login-input-icon { color: #64748b; }
+
 /* ── navbar light ── */
 [data-theme="light"] .top-navbar            { background: #ffffff; border-bottom: 1px solid #e2e8f0; }
 [data-theme="light"] .tnav-name             { color: #0f172a; }
@@ -77,6 +94,7 @@
 [data-theme="light"] .isb-link              { color: #334155; }
 [data-theme="light"] .isb-link:hover        { background: #e0f2fe; color: #0e7490; }
 [data-theme="light"] .isb-link.active       { color: #0e7490; background: #bae6fd; border-left-color: #0891b2; }
+[data-theme="light"] .isb-link-locked       { opacity: .45; cursor: not-allowed; }
 
 /* ── inner layout light ── */
 [data-theme="light"] .inner-body             { background: #f4f6f9; }
@@ -396,6 +414,7 @@ body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; back
 .isb-link i  { font-size: 13px; width: 15px; text-align: center; }
 .isb-link:hover  { color: var(--cyan-light); background: rgba(255,255,255,.05); text-decoration: none; }
 .isb-link.active { color: var(--cyan-light); background: rgba(8,145,178,.12); border-left-color: var(--cyan); font-weight: 600; }
+.isb-link-locked { opacity: .35; cursor: not-allowed; pointer-events: none; }
 
 .inner-content { flex: 1; padding: 28px 28px 48px; min-width: 0; }
 

@@ -59,6 +59,7 @@ export default function Suppliers() {
   }
 
   const filtered = data.filter(d =>
+    String(d.supplierId).includes(search) ||
     d.name?.toLowerCase().includes(search.toLowerCase()) ||
     d.email?.toLowerCase().includes(search.toLowerCase())
   )

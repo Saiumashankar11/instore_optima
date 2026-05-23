@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate, useParams } from 'react-router-dom'
 import { AuthProvider, useAuth } from './context/AuthContext'
+import AccessDenied from './components/shared/AccessDenied'
 
 import TopNavLayout from './components/TopNavLayout'
 import InnerLayout from './components/InnerLayout'
@@ -38,10 +39,13 @@ function RoleUrlGuard({ children }) {
   return children
 }
 
-// Redirects to own dashboard if the user's role is not in the allowed list
+// Shows an access-denied panel if the user's role is not in the allowed list
 function RequireRole({ roles, children }) {
   const { role } = useAuth()
-  if (!roles.includes(role)) return <Navigate to={`/${role.toLowerCase()}/dashboard`} replace />
+  if (!roles.includes(role)) {
+    const required = roles.includes('Admin') && !roles.includes('Manager') ? 'Admin' : 'Manager'
+    return <AccessDenied role={role} requiredRole={required} />
+  }
   return children
 }
 

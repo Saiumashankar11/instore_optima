@@ -39,8 +39,10 @@ export default function AuditLogs() {
   const filtered = data
     .filter(d => actionFilter === 'All' || d.action === actionFilter)
     .filter(d =>
+      String(d.auditLogId).includes(search) ||
       d.action?.toLowerCase().includes(search.toLowerCase()) ||
       d.entityType?.toLowerCase().includes(search.toLowerCase()) ||
+      String(d.entityId).includes(search) ||
       String(d.userId).includes(search) ||
       getUser(d.userId)?.name?.toLowerCase().includes(search.toLowerCase()) ||
       d.description?.toLowerCase().includes(search.toLowerCase())
@@ -52,12 +54,12 @@ export default function AuditLogs() {
       const obj = JSON.parse(raw)
       return Object.entries(obj).map(([k, v]) => (
         <div key={k} style={{ display: 'flex', gap: 6, fontSize: 11, marginBottom: 2 }}>
-          <span style={{ color: 'var(--text-400)', minWidth: 110, flexShrink: 0 }}>{k}</span>
-          <span style={{ color: 'var(--text-200)', wordBreak: 'break-all' }}>{v}</span>
+          <span style={{ color: 'var(--text-muted)', minWidth: 110, flexShrink: 0 }}>{k}</span>
+          <span style={{ color: 'var(--text-secondary)', wordBreak: 'break-all' }}>{v}</span>
         </div>
       ))
     } catch {
-      return <span style={{ fontSize: 11, color: 'var(--text-400)' }}>{raw}</span>
+      return <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{raw}</span>
     }
   }
 
@@ -90,10 +92,10 @@ export default function AuditLogs() {
 
   const columns = [
     { key: 'auditLogId', label: '#', render: r => (
-      <span style={{ fontWeight: 600, color: 'var(--text-400)', fontSize: 11 }}>#{r.auditLogId}</span>
+      <span style={{ fontWeight: 600, color: 'var(--text-muted)', fontSize: 11 }}>#{r.auditLogId}</span>
     )},
     { key: 'createdAt', label: 'Timestamp', render: r => (
-      <span style={{ fontSize: 11.5, color: 'var(--text-300)', whiteSpace: 'nowrap' }}>
+      <span style={{ fontSize: 11.5, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
         {r.createdAt ? new Date(r.createdAt).toLocaleString('en-IN', {
           day: '2-digit', month: 'short', year: 'numeric',
           hour: '2-digit', minute: '2-digit', second: '2-digit'
@@ -104,13 +106,13 @@ export default function AuditLogs() {
       const u = getUser(r.userId)
       return (
         <div>
-          <div style={{ fontWeight: 600, fontSize: 12, color: 'var(--text-200)' }}>{u?.name || `User #${r.userId}`}</div>
-          {u && <div style={{ fontSize: 10.5, color: 'var(--text-500)' }}>{u.role}</div>}
+          <div style={{ fontWeight: 600, fontSize: 12, color: 'var(--text-primary)' }}>{u?.name || `User #${r.userId}`}</div>
+          {u && <div style={{ fontSize: 10.5, color: 'var(--text-muted)' }}>{u.role}</div>}
         </div>
       )
     }},
     { key: 'action', label: 'Action', render: r => {
-      const s = ACTION_STYLE[r.action] || { bg: 'rgba(255,255,255,.05)', color: 'var(--text-400)', icon: 'bi-activity' }
+      const s = ACTION_STYLE[r.action] || { bg: 'rgba(255,255,255,.05)', color: 'var(--text-muted)', icon: 'bi-activity' }
       return (
         <span style={{ background: s.bg, color: s.color, padding: '3px 9px', borderRadius: 4, fontSize: 11, fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 5 }}>
           <i className={`bi ${s.icon}`}></i> {r.action}
@@ -118,19 +120,19 @@ export default function AuditLogs() {
       )
     }},
     { key: 'entityType', label: 'Entity', render: r => (
-      <span style={{ fontWeight: 500, color: 'var(--text-200)', fontSize: 12 }}>{r.entityType || '—'}</span>
+      <span style={{ fontWeight: 500, color: 'var(--text-primary)', fontSize: 12 }}>{r.entityType || '—'}</span>
     )},
     { key: 'entityId', label: 'ID', render: r => r.entityId
       ? <span style={{ fontSize: 12, color: 'var(--cyan)' }}>#{r.entityId}</span>
-      : <span style={{ color: 'var(--text-600)' }}>—</span>
+      : <span style={{ color: 'var(--text-muted)' }}>—</span>
     },
     { key: 'description', label: 'Description', render: r => (
-      <span style={{ color: 'var(--text-500)', fontSize: 11.5 }}>{r.description || '—'}</span>
+      <span style={{ color: 'var(--text-secondary)', fontSize: 11.5 }}>{r.description || '—'}</span>
     )},
     { key: 'details', label: 'Changes', render: r => {
       const hasChanges = (r.oldValues && r.oldValues !== '—' && r.oldValues !== 'N/A') ||
                          (r.newValues && r.newValues !== '—' && r.newValues !== 'N/A')
-      if (!hasChanges) return <span style={{ color: 'var(--text-700)', fontSize: 11 }}>—</span>
+      if (!hasChanges) return <span style={{ color: 'var(--text-muted)', fontSize: 11 }}>—</span>
       return (
         <button className="btn-icon" title="View changes"
           onClick={() => setExpanded(expanded === r.auditLogId ? null : r.auditLogId)}>
@@ -170,13 +172,13 @@ export default function AuditLogs() {
         ) : error ? (
           <div style={{ padding: 24, color: 'var(--danger)', textAlign: 'center' }}>{error}</div>
         ) : filtered.length === 0 ? (
-          <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-500)', fontStyle: 'italic' }}>No audit logs found.</div>
+          <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)', fontStyle: 'italic' }}>No audit logs found.</div>
         ) : (
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr style={{ borderBottom: '1px solid var(--border)' }}>
                 {columns.map(c => (
-                  <th key={c.key} style={{ padding: '10px 12px', textAlign: 'left', fontSize: 11, fontWeight: 600, color: 'var(--text-400)', textTransform: 'uppercase', letterSpacing: '.04em' }}>
+                  <th key={c.key} style={{ padding: '10px 12px', textAlign: 'left', fontSize: 11, fontWeight: 600, color: 'var(--text-header)', textTransform: 'uppercase', letterSpacing: '.04em' }}>
                     {c.label}
                   </th>
                 ))}

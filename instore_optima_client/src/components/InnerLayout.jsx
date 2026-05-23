@@ -1,4 +1,4 @@
-import { Outlet, NavLink, useLocation, Navigate } from 'react-router-dom'
+import { Outlet, NavLink, useLocation } from 'react-router-dom'
 import TopNavbar from './TopNavbar'
 import { useAuth } from '../context/AuthContext'
 
@@ -50,22 +50,8 @@ export default function InnerLayout() {
   const { pathname } = useLocation()
   const { role } = useAuth()
   const rolePrefix = `/${role.toLowerCase()}`
-  const currentPage = pathname.split('/').pop()
   const sidebarKey  = getSidebarKey(pathname)
   const sidebar     = SIDEBAR_DEFS[sidebarKey]
-
-  // Block access to pages the current role can't use — redirect to dashboard
-  const adminManagerOnly = ['products', 'suppliers', 'replenishment']
-  const adminOnly        = ['users', 'audit-logs']
-  if (adminOnly.includes(currentPage) && role !== 'Admin') {
-    return <Navigate to={`${rolePrefix}/dashboard`} replace />
-  }
-  if (adminManagerOnly.includes(currentPage) && !['Admin','Manager'].includes(role)) {
-    return <Navigate to={`${rolePrefix}/dashboard`} replace />
-  }
-
-  // Filter links visible for the current role
-  const visibleLinks = sidebar.links.filter(link => link.roles.includes(role))
 
   return (
     <div className="app-root">
@@ -73,16 +59,28 @@ export default function InnerLayout() {
       <div className="inner-body">
         <aside className="inner-sidebar">
           <div className="isb-section">{sidebar.section}</div>
-          {visibleLinks.map(link => (
-            <NavLink
-              key={link.page}
-              to={`${rolePrefix}/${link.page}`}
-              className={({ isActive }) => `isb-link${isActive ? ' active' : ''}`}
-            >
-              <i className={`bi ${link.icon}`}></i>
-              {link.label}
-            </NavLink>
-          ))}
+          {sidebar.links.map(link => {
+            const canAccess = link.roles.includes(role)
+            if (canAccess) {
+              return (
+                <NavLink
+                  key={link.page}
+                  to={`${rolePrefix}/${link.page}`}
+                  className={({ isActive }) => `isb-link${isActive ? ' active' : ''}`}
+                >
+                  <i className={`bi ${link.icon}`}></i>
+                  {link.label}
+                </NavLink>
+              )
+            }
+            return (
+              <div key={link.page} className="isb-link isb-link-locked" title={`Not accessible to ${role}`}>
+                <i className={`bi ${link.icon}`}></i>
+                {link.label}
+                <i className="bi bi-lock-fill" style={{ marginLeft: 'auto', fontSize: 10, opacity: .5 }}></i>
+              </div>
+            )
+          })}
         </aside>
         <main className="inner-content animate-in">
           <Outlet />

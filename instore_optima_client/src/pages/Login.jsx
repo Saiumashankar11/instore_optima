@@ -31,7 +31,9 @@ export default function Login() {
       setSuccess(true)
       setTimeout(() => navigate('/dashboard'), 1400)
     } catch (err) {
-      setError(err.response?.data?.message || 'Invalid credentials. Please try again.')
+      const data = err.response?.data
+      const fieldError = data?.errors ? Object.values(data.errors).flat()[0] : null
+      setError(fieldError || data?.message || 'Invalid credentials. Please try again.')
       setLoading(false)
     }
   }
@@ -52,14 +54,13 @@ export default function Login() {
   )
 
   // Add the following styles to ensure text is white in dark mode
-  const labelStyle = { color: dark ? 'white' : 'black' }
 
   return (
     <div className="login-page">
       {/* Prevent browser autofill on the form */}
       <form autoComplete="off" style={{ display: 'contents' }}>
       {/* theme toggle — top right corner */}
-      <button className="login-theme-toggle" onClick={toggle} title="Toggle theme">
+      <button type="button" className="login-theme-toggle" onClick={toggle} title="Toggle theme">
         <i className={`bi bi-${dark ? 'sun' : 'moon'}`}></i>
       </button>
 
@@ -105,13 +106,13 @@ export default function Login() {
           <p className="login-card-sub">Sign in to your account</p>
 
           {error && (
-            <div className="alert alert-danger" style={{ marginBottom: 16 }}>
-              <i className="bi bi-exclamation-circle me-2"></i>{error}
+            <div className="login-alert-error">
+              <i className="bi bi-exclamation-circle"></i>{error}
             </div>
           )}
 
           <div className="login-field">
-            <label className="form-label-custom" style={labelStyle}>Email address</label>
+            <label className="form-label-custom">Email address</label>
             <div className="login-input-wrap">
               <i className="bi bi-envelope login-input-icon"></i>
               <input
@@ -128,7 +129,7 @@ export default function Login() {
           </div>
 
           <div className="login-field">
-            <label className="form-label-custom" style={labelStyle}>Password</label>
+            <label className="form-label-custom">Password</label>
             <div className="login-input-wrap">
               <i className="bi bi-lock login-input-icon"></i>
               <input
@@ -151,7 +152,7 @@ export default function Login() {
             }
           </button>
 
-          <p className="login-footer-text" style={{ color: dark ? 'white' : 'black' }}>
+          <p className="login-footer-text">
             Don't have an account?{' '}
             <Link to="/register" className="login-link">Create account</Link>
           </p>

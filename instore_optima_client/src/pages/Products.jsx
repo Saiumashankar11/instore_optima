@@ -66,6 +66,7 @@ export default function Products() {
   }
 
   const filtered = data.filter(d =>
+    String(d.productId).includes(search) ||
     d.name?.toLowerCase().includes(search.toLowerCase())
   )
 
