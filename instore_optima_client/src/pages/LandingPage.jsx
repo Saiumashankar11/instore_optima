@@ -54,59 +54,98 @@ function FeatureCard({ num, title, desc, delay }) {
   );
 }
 
-const TERMINAL_LINES = [
-  { type: "cmd", text: "instore status" },
-  { type: "out", items: [
-    { cls: "ok",   label: "[LIVE]",  msg: " 14 modules active · 3 users online" },
-    { cls: "ok",   label: "[DB]",    msg: " SQL Server connected · 0ms latency" },
-    { cls: "ok",   label: "[AUTH]",  msg: " JWT valid · session expires 23:59" },
-  ]},
-  { type: "cmd", text: "inventory.lowStock()" },
-  { type: "out", items: [
-    { cls: "warn", label: "[LOW]",   msg: " Tata Salt 1kg · 12 units  (min 50)" },
-    { cls: "warn", label: "[LOW]",   msg: " Amul Butter 500g · 8 units (min 25)" },
-    { cls: "info", label: "[AUTO]",  msg: " 2 replenishment orders queued" },
-  ]},
-  { type: "cmd", text: "replenishment.approve(REP-204)" },
-  { type: "out", items: [
-    { cls: "ok",   label: "[DONE]",  msg: " REP-204 approved · PO #8821 raised" },
-    { cls: "ok",   label: "[SENT]",  msg: " FreshFoods Ltd notified via system" },
-    { cls: "info", label: "[ETA]",   msg: " Delivery expected in 2 business days" },
-  ]},
-  { type: "cmd", text: "orders.today()" },
-  { type: "out", items: [
-    { cls: "ok",   label: "[NEW]",   msg: " Order #554 · ₹3,200 · Pending" },
-    { cls: "ok",   label: "[PAID]",  msg: " Order #552 · ₹5,400 · Completed" },
-    { cls: "info", label: "[INV]",   msg: " Invoice #INV-552 auto-generated" },
-  ]},
-  { type: "cmd", text: "audit.tail(3)" },
-  { type: "out", items: [
-    { cls: "info", label: "[LOG]",   msg: " Uma · Approved REP-204 · 09:14:22" },
-    { cls: "info", label: "[LOG]",   msg: " Archana · Order #554 created · 09:02" },
-    { cls: "dim",  label: "[SYS]",   msg: " Auto-replenishment check · 08:30:00" },
-  ]},
-];
+function buildTerminalLines(d) {
+  const fmt = n => `₹${Number(n).toLocaleString('en-IN')}`;
+  const low = d.lowStockItems || [];
+  const orders = d.todayOrders || [];
+
+  const lowLines = low.length > 0
+    ? low.map(x => ({ cls: "warn", label: "[LOW]", msg: ` ${x.name} · ${x.currentStock} units (min ${x.minStock})` }))
+    : [{ cls: "ok", label: "[OK]", msg: " All stock levels within threshold" }];
+
+  const orderLines = orders.length > 0
+    ? orders.map(o => ({ cls: o.status === "Completed" ? "ok" : "info", label: `[${o.status.toUpperCase().slice(0,4)}]`, msg: ` Order #${o.orderId} · ${fmt(o.amount)}` }))
+    : [{ cls: "dim", label: "[NONE]", msg: " No orders placed today yet" }];
+
+  const repLine = d.lastApproved
+    ? { cls: "ok", label: "[DONE]", msg: ` ${d.lastApproved.id} approved · ${d.lastApproved.name}` }
+    : { cls: "dim", label: "[NONE]", msg: " No approvals today" };
+
+  return [
+    { type: "cmd", text: "instore status" },
+    { type: "out", items: [
+      { cls: "ok",   label: "[LIVE]", msg: ` ${d.totalProducts} products · ${d.activeUsers} users online` },
+      { cls: "ok",   label: "[DB]",   msg: " SQL Server connected · live data" },
+      { cls: "ok",   label: "[AUTH]", msg: ` JWT active · ${d.timestamp}` },
+    ]},
+    { type: "cmd", text: "inventory.lowStock()" },
+    { type: "out", items: [
+      ...lowLines,
+      { cls: "info", label: "[AUTO]", msg: ` ${d.pendingReplenishment} replenishment order${d.pendingReplenishment !== 1 ? "s" : ""} queued` },
+    ]},
+    { type: "cmd", text: "replenishment.latest()" },
+    { type: "out", items: [
+      repLine,
+      { cls: "info", label: "[ETA]",  msg: " Delivery expected in 2 business days" },
+    ]},
+    { type: "cmd", text: "orders.today()" },
+    { type: "out", items: [
+      ...orderLines,
+      { cls: "info", label: "[REV]",  msg: ` Today's revenue · ${fmt(d.todayRevenue)}` },
+    ]},
+  ];
+}
 
 function Terminal() {
   const tbodyRef = useRef(null);
   const [termRef, termVisible] = useVisible(0.2);
   const startedRef = useRef(false);
+  const [liveData, setLiveData] = useState(null);
+  const [fetchDone, setFetchDone] = useState(false);
 
   useEffect(() => {
-    if (!termVisible || startedRef.current) return;
+    fetch("/api/live/snapshot")
+      .then(r => r.ok ? r.json() : null)
+      .catch(() => null)
+      .then(data => { setLiveData(data); setFetchDone(true); });
+  }, []);
+
+  useEffect(() => {
+    if (!termVisible || !fetchDone || startedRef.current) return;
     startedRef.current = true;
     const tbody = tbodyRef.current;
     if (!tbody) return;
 
+    const LINES = liveData ? buildTerminalLines(liveData) : [
+      { type: "cmd", text: "instore status" },
+      { type: "out", items: [
+        { cls: "ok",   label: "[LIVE]",  msg: " 14 modules active · 3 users online" },
+        { cls: "ok",   label: "[DB]",    msg: " SQL Server connected · 0ms latency" },
+        { cls: "ok",   label: "[AUTH]",  msg: " JWT valid · session expires 23:59" },
+      ]},
+      { type: "cmd", text: "inventory.lowStock()" },
+      { type: "out", items: [
+        { cls: "warn", label: "[LOW]",   msg: " Tata Salt 1kg · 12 units  (min 50)" },
+        { cls: "warn", label: "[LOW]",   msg: " Amul Butter 500g · 8 units (min 25)" },
+        { cls: "info", label: "[AUTO]",  msg: " 2 replenishment orders queued" },
+      ]},
+      { type: "cmd", text: "orders.today()" },
+      { type: "out", items: [
+        { cls: "ok",   label: "[NEW]",   msg: " Order #554 · ₹3,200 · Pending" },
+        { cls: "ok",   label: "[PAID]",  msg: " Order #552 · ₹5,400 · Completed" },
+        { cls: "info", label: "[REV]",   msg: " Today's revenue · ₹8,600" },
+      ]},
+    ];
+
     let li = 0, delay = 700;
     function typeLines() {
-      if (li >= TERMINAL_LINES.length) {
+      if (li >= LINES.length) {
         const cur = document.createElement("span");
         cur.className = "lp-t-cursor";
         tbody.lastElementChild?.appendChild(cur);
         return;
       }
-      const line = TERMINAL_LINES[li++];
+      const line = LINES[li++];
       if (line.type === "cmd") {
         setTimeout(() => {
           const d = document.createElement("div");
@@ -129,7 +168,7 @@ function Terminal() {
       }
     }
     typeLines();
-  }, [termVisible]);
+  }, [termVisible, fetchDone, liveData]);
 
   return (
     <div ref={termRef} className={`lp-terminal ${termVisible ? "lp-in" : ""}`}>
