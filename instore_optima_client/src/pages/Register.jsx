@@ -39,10 +39,16 @@ export default function Register() {
 
   return (
     <div className="login-page">
-      {/* theme toggle */}
-      <button type="button" className="login-theme-toggle" onClick={toggle} title="Toggle theme">
-        <i className={`bi bi-${dark ? 'sun' : 'moon'}`}></i>
-      </button>
+      {/* top-right controls: home + theme toggle */}
+      <div className="login-top-controls">
+        <button type="button" className="login-back-home" onClick={() => navigate('/')} title="Back to home">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M11.5 7H2.5M6 3L2.5 7 6 11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+          Home
+        </button>
+        <button type="button" className="login-theme-toggle" onClick={toggle} title="Toggle theme">
+          {dark ? '☀️' : '🌙'}
+        </button>
+      </div>
 
       <div className="login-left">
         <div className="login-left-glow1"></div>

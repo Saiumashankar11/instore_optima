@@ -231,6 +231,8 @@ body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; back
 .tnav-center     { display: flex; align-items: center; justify-content: center; }
 .tnav-right-wrap { display: flex; align-items: center; justify-content: flex-end; }
 .tnav-brand      { display: flex; align-items: center; gap: 10px; text-decoration: none; }
+.tnav-brand img  { filter: brightness(1.8) contrast(1.1); }
+[data-theme="light"] .tnav-brand img { filter: none; }
 
 .tnav-icon {
   width: 32px; height: 32px;
@@ -513,6 +515,8 @@ table.custom-table tbody tr.row-overdue td   { background: rgba(245,158,11,.08) 
 
 .login-brand      { display: flex; align-items: center; gap: 10px; margin-bottom: 40px; }
 .login-brand-icon { display: flex; align-items: center; }
+.login-brand-icon img { filter: brightness(1.8) contrast(1.1); }
+[data-theme="light"] .login-brand-icon img { filter: none; }
 .login-brand-name { font-size: 15px; font-weight: 700; color: #f1f5f9; letter-spacing: -.02em; }
 
 .login-left-headline      { font-size: 45px; font-weight: 800; color: #f1f5f9; letter-spacing: -.04em; line-height: 1.15; margin-bottom: 16px; }
@@ -525,7 +529,7 @@ table.custom-table tbody tr.row-overdue td   { background: rgba(245,158,11,.08) 
 .login-feature-row span { font-size: 14px; color: #64748b; font-weight: 500; }
 .login-left-footer   { font-size: 11px; color: #64748b; position: relative; z-index: 1; }
 
-.login-right      { background: #060b18; display: flex; align-items: center; justify-content: center; padding: 40px; position: relative; overflow: hidden; }
+.login-right      { background: #060b18; display: flex; align-items: center; justify-content: center; padding: 40px; padding-top: 72px; position: relative; overflow: hidden; }
 .login-right-grid { position: absolute; inset: 0; background-image: linear-gradient(rgba(255,255,255,.025) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.025) 1px,transparent 1px); background-size: 28px 28px; pointer-events: none; }
 .login-right-glow { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); width: 400px; height: 400px; background: radial-gradient(circle, rgba(8,145,178,.1) 0%, transparent 65%); pointer-events: none; }
 
@@ -555,8 +559,13 @@ table.custom-table tbody tr.row-overdue td   { background: rgba(245,158,11,.08) 
 [data-theme="light"] .login-alert-success { background: #f0fdf4; border-color: #bbf7d0; color: #15803d; }
 
 /* ── login theme toggle ── */
-.login-theme-toggle { position: fixed; top: 16px; right: 20px; width: 36px; height: 36px; background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.12); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 15px; color: #94a3b8; cursor: pointer; transition: all .15s; z-index: 10; }
+.login-theme-toggle { width: 36px; height: 36px; background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.12); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 15px; color: #94a3b8; cursor: pointer; transition: all .15s; }
 .login-theme-toggle:hover { background: rgba(255,255,255,.15); color: var(--cyan-light); border-color: rgba(8,145,178,.3); }
+.login-top-controls { position: fixed; top: 16px; right: 20px; display: flex; align-items: center; gap: 8px; z-index: 10; }
+.login-back-home { display: flex; align-items: center; gap: 6px; padding: 0 14px; height: 36px; background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.1); border-radius: 8px; font-size: 12px; font-weight: 600; color: #94a3b8; cursor: pointer; transition: all .15s; font-family: inherit; letter-spacing: -.01em; }
+.login-back-home:hover { background: rgba(255,255,255,.13); color: #e2e8f0; border-color: rgba(8,145,178,.3); }
+[data-theme="light"] .login-back-home { background: rgba(0,0,0,.05); border-color: rgba(0,0,0,.1); color: #475569; }
+[data-theme="light"] .login-back-home:hover { background: rgba(8,145,178,.08); color: #0891b2; border-color: rgba(8,145,178,.25); }
 [data-theme="light"] .login-theme-toggle       { background: rgba(0,0,0,.05); border-color: rgba(0,0,0,.1); color: #475569; }
 [data-theme="light"] .login-theme-toggle:hover { background: rgba(8,145,178,.1); color: var(--cyan-dark); border-color: rgba(8,145,178,.25); }
 

@@ -7,6 +7,7 @@ import InnerLayout from './components/InnerLayout'
 
 import Login        from './pages/Login'
 import Register     from './pages/Register'
+import LandingPage from './pages/LandingPage'
 import Dashboard    from './pages/Dashboard'
 import Products     from './pages/Products'
 import Stock        from './pages/Stock'
@@ -54,6 +55,7 @@ export default function App() {
     <AuthProvider>
       <BrowserRouter>
         <Routes>
+          <Route path="/"         element={<LandingPage />} />
           <Route path="/login"    element={<Login />} />
           <Route path="/register" element={<Register />} />
 
@@ -87,9 +89,9 @@ export default function App() {
             } />
           </Route>
 
-          {/* Legacy / shorthand redirects */}
+          {/* Fallback redirects */}
           <Route path="/dashboard" element={<RoleRedirect page="dashboard" />} />
-          <Route path="*"          element={<RoleRedirect page="dashboard" />} />
+          <Route path="*"          element={<RoleRedirectOrLanding />} />
         </Routes>
       </BrowserRouter>
     </AuthProvider>
@@ -101,4 +103,11 @@ function RoleRedirect({ page }) {
   const { user, role } = useAuth()
   if (!user) return <Navigate to="/login" replace />
   return <Navigate to={`/${role.toLowerCase()}/${page}`} replace />
+}
+
+// Unknown paths: authenticated → dashboard, unauthenticated → landing page
+function RoleRedirectOrLanding() {
+  const { user, role } = useAuth()
+  if (!user) return <Navigate to="/" replace />
+  return <Navigate to={`/${role.toLowerCase()}/dashboard`} replace />
 }

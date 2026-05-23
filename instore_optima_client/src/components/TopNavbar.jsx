@@ -73,7 +73,7 @@ export default function TopNavbar() {
       <div className="tnav-right-wrap">
         <div className="tnav-right">
           <button className="tnav-theme-toggle" onClick={toggle} title="Toggle theme">
-            <i className={`bi bi-${dark ? 'sun' : 'moon'}`}></i>
+            {dark ? '☀️' : '🌙'}
           </button>
           <div className="tnav-status">
             <div className="tnav-dot"></div>
