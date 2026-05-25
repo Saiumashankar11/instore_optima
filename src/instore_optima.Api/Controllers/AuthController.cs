@@ -1,4 +1,4 @@
-﻿// instore_optima.Api/Controllers/AuthController.cs
+// instore_optima.Api/Controllers/AuthController.cs
 
 using instore_optima.Application.DTOs;
 using instore_optima.Domain.Entities;
@@ -59,7 +59,7 @@ namespace instore_optima.Api.Controllers
                 Name = created.Name,
                 Email = created.Email,
                 Role = created.Role,
-                Token = string.Empty   // No token on register — login to get token
+                Token = string.Empty   // No token on register � login to get token
             });
         }
 
@@ -105,3 +105,4 @@ namespace instore_optima.Api.Controllers
         }
     }
 }
+

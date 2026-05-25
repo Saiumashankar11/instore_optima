@@ -58,6 +58,9 @@ namespace instore_optima.Infrastructure.Data
                 if (int.TryParse(sub, out var parsed)) actorId = parsed;
             }
 
+            // Skip audit logging when there is no authenticated user (e.g. during register/login)
+            if (actorId == 0) return;
+
             var entries = context.ChangeTracker.Entries()
                 .Where(e => !_excluded.Contains(e.Entity.GetType()) &&
                             (e.State == EntityState.Added ||
@@ -120,3 +123,4 @@ namespace instore_optima.Infrastructure.Data
         }
     }
 }
+

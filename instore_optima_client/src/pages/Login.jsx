@@ -20,9 +20,12 @@ export default function Login() {
 
   const set = k => e => setForm(f => ({ ...f, [k]: e.target.value }))
 
+  const emailRegex = /^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$/
+
   const handleSubmit = async () => {
     setError('')
     if (!form.email || !form.password) return setError('Email and password are required.')
+    if (!emailRegex.test(form.email)) return setError('Enter a valid email address (e.g. name@example.com).')
     setLoading(true)
     try {
       const res = await loginApi(form)
@@ -57,8 +60,7 @@ export default function Login() {
 
   return (
     <div className="login-page">
-      {/* Prevent browser autofill on the form */}
-      <form autoComplete="off" style={{ display: 'contents' }}>
+
       {/* top-right controls: home + theme toggle */}
       <div className="login-top-controls">
         <button type="button" className="login-back-home" onClick={() => navigate('/')} title="Back to home">
@@ -123,12 +125,12 @@ export default function Login() {
               <i className="bi bi-envelope login-input-icon"></i>
               <input
                 className="form-control-custom login-input"
-                type="email"
+                type="text"
                 name="login_email_2026"
                 placeholder="you@company.com"
                 value={form.email}
                 onChange={set('email')}
-                autoComplete="off"
+                autoComplete="new-password"
                 onKeyDown={e => e.key === 'Enter' && handleSubmit()}
               />
             </div>
@@ -145,7 +147,7 @@ export default function Login() {
                 placeholder="••••••••"
                 value={form.password}
                 onChange={set('password')}
-                autoComplete="off"
+                autoComplete="new-password"
                 onKeyDown={e => e.key === 'Enter' && handleSubmit()}
               />
             </div>
@@ -164,7 +166,6 @@ export default function Login() {
           </p>
         </div>
       </div>
-      </form>
     </div>
   )
 }
