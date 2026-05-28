@@ -8,11 +8,14 @@ import { getAllPOs, createPO, updatePO } from '../services/purchaseOrderService'
 import { getAllSuppliers } from '../services/supplierService'
 import { getAllReplenishments } from '../services/replenishmentService'
 import { useAuth } from '../context/AuthContext'
+import { useToast } from '../hooks/useToast'
+import { parseApiError } from '../utils/validators'
 
 const EMPTY = { replenishmentOrderId: '', supplierId: '', expectedDeliveryDate: '' }
 
 export default function PurchaseOrders() {
   const { canManage } = useAuth()
+  const { show: toast, ToastContainer } = useToast()
   const [data, setData]                     = useState([])
   const [suppliers, setSuppliers]           = useState([])
   const [replenishments, setReplenishments] = useState([])
@@ -22,6 +25,7 @@ export default function PurchaseOrders() {
   const [showForm, setShowForm]             = useState(false)
   const [form, setForm]                     = useState(EMPTY)
   const [saving, setSaving]                 = useState(false)
+  const [formErrors, setFormErrors]         = useState({})
 
   const load = async () => {
     setLoading(true)
@@ -41,17 +45,24 @@ export default function PurchaseOrders() {
   const getReplen   = id => replenishments.find(r => r.replenishmentOrderId === id)
 
   const handleSave = async () => {
+    const errors = {}
+    if (!form.replenishmentOrderId) errors.replenishmentOrderId = 'Please select a replenishment order.'
+    if (!form.supplierId) errors.supplierId = 'Please select a supplier.'
+    if (!form.expectedDeliveryDate) errors.expectedDeliveryDate = 'Expected delivery date is required.'
+    setFormErrors(errors)
+    if (Object.keys(errors).length) { toast(Object.values(errors)[0], 'warning'); return }
     setSaving(true)
     try {
       await createPO({ ...form, supplierId: Number(form.supplierId), replenishmentOrderId: Number(form.replenishmentOrderId) })
       setShowForm(false); setForm(EMPTY); load()
-    } catch { alert('Failed to create purchase order.') }
+      toast('Purchase order created!', 'success')
+    } catch (err) { toast(parseApiError(err)) }
     finally { setSaving(false) }
   }
 
   const handleStatusUpdate = async (row, status) => {
-    try { await updatePO(row.purchaseOrderId, { ...row, status }); load() }
-    catch { alert('Status update failed.') }
+    try { await updatePO(row.purchaseOrderId, { ...row, status }); load(); toast('Status updated!', 'success') }
+    catch (err) { toast(parseApiError(err)) }
   }
 
   const printGrn = (po, supplier, replen) => {
@@ -166,7 +177,7 @@ export default function PurchaseOrders() {
         title="Create Purchase Order" loading={saving}>
         <div style={{ marginBottom: 14 }}>
           <label className="form-label-custom">Replenishment Order</label>
-          <select className="form-control-custom" value={form.replenishmentOrderId} onChange={set('replenishmentOrderId')}>
+          <select className={`form-control-custom${formErrors.replenishmentOrderId ? ' input-error' : ''}`} value={form.replenishmentOrderId} onChange={e => { set('replenishmentOrderId')(e); setFormErrors(f => ({ ...f, replenishmentOrderId: undefined })) }}>
             <option value="">— Select Replenishment Order —</option>
             {replenishments.filter(r => r.status === 'Approved').map(r => (
               <option key={r.replenishmentOrderId} value={r.replenishmentOrderId}>
@@ -174,19 +185,23 @@ export default function PurchaseOrders() {
               </option>
             ))}
           </select>
+          {formErrors.replenishmentOrderId && <span className="field-error-text">{formErrors.replenishmentOrderId}</span>}
         </div>
         <div style={{ marginBottom: 14 }}>
           <label className="form-label-custom">Supplier</label>
-          <select className="form-control-custom" value={form.supplierId} onChange={set('supplierId')}>
+          <select className={`form-control-custom${formErrors.supplierId ? ' input-error' : ''}`} value={form.supplierId} onChange={e => { set('supplierId')(e); setFormErrors(f => ({ ...f, supplierId: undefined })) }}>
             <option value="">— Select Supplier —</option>
             {suppliers.map(s => <option key={s.supplierId} value={s.supplierId}>{s.name}</option>)}
           </select>
+          {formErrors.supplierId && <span className="field-error-text">{formErrors.supplierId}</span>}
         </div>
         <div style={{ marginBottom: 14 }}>
           <label className="form-label-custom">Expected Delivery Date</label>
-          <input className="form-control-custom" type="date" value={form.expectedDeliveryDate} onChange={set('expectedDeliveryDate')} />
+          <input className={`form-control-custom${formErrors.expectedDeliveryDate ? ' input-error' : ''}`} type="date" value={form.expectedDeliveryDate} onChange={e => { set('expectedDeliveryDate')(e); setFormErrors(f => ({ ...f, expectedDeliveryDate: undefined })) }} />
+          {formErrors.expectedDeliveryDate && <span className="field-error-text">{formErrors.expectedDeliveryDate}</span>}
         </div>
       </FormModal>
+      {ToastContainer}
     </div>
   )
 }

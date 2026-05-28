@@ -7,6 +7,8 @@ import ConfirmModal from '../components/shared/ConfirmModal'
 import { getAllProducts, createProduct, updateProduct, deleteProduct } from '../services/productsService'
 import { getAllSuppliers } from '../services/supplierService'
 import { useUndoDelete } from '../hooks/useUndoDelete'
+import { useToast } from '../hooks/useToast'
+import { validateField, parseApiError } from '../utils/validators'
 
 const EMPTY = { name: '', description: '', price: '', minStock: '', maxStock: '', supplierId: '' }
 
@@ -24,6 +26,8 @@ export default function Products() {
   const [delId, setDelId]         = useState(null)
 
   const { scheduleDelete, UndoToast } = useUndoDelete()
+  const { show: toast, ToastContainer } = useToast()
+  const [formErrors, setFormErrors] = useState({})
 
   const load = async () => {
     setLoading(true)
@@ -43,12 +47,30 @@ export default function Products() {
   const openDel  = id  => { setDelId(id); setShowDel(true) }
 
   const handleSave = async () => {
+    const errors = {}
+    const nameErr = validateField('productName', form.name)
+    const priceErr = validateField('price', form.price)
+    const supplierErr = validateField('supplierId', form.supplierId)
+    const minErr = validateField('minStock', form.minStock)
+    const maxErr = validateField('maxStock', form.maxStock, { minStock: form.minStock })
+    if (nameErr) errors.name = nameErr
+    if (priceErr) errors.price = priceErr
+    if (supplierErr) errors.supplierId = supplierErr
+    if (minErr) errors.minStock = minErr
+    if (maxErr) errors.maxStock = maxErr
+    setFormErrors(errors)
+    if (Object.keys(errors).length) {
+      toast(Object.values(errors)[0], 'error')
+      return
+    }
+
     setSaving(true)
     try {
       if (editing) await updateProduct(editing.productId, form)
       else await createProduct(form)
-      setShowForm(false); load()
-    } catch { alert('Save failed.') }
+      setShowForm(false); setFormErrors({}); load()
+      toast(editing ? 'Product updated successfully!' : 'Product created successfully!', 'success')
+    } catch (err) { toast(parseApiError(err)) }
     finally { setSaving(false) }
   }
 
@@ -106,36 +128,41 @@ export default function Products() {
         <DataTable columns={columns} data={filtered} loading={loading} error={error} />
       </div>
 
-      <FormModal show={showForm} onHide={() => setShowForm(false)} onSubmit={handleSave}
+      <FormModal show={showForm} onHide={() => { setShowForm(false); setFormErrors({}) }} onSubmit={handleSave}
         title={editing ? 'Edit Product' : 'Add Product'} loading={saving}>
         <div style={{ marginBottom: 14 }}>
-          <label className="form-label-custom">Product Name</label>
-          <input className="form-control-custom" placeholder="e.g. Rice 5kg" value={form.name} onChange={set('name')} />
+          <label className="form-label-custom">Product Name *</label>
+          <input className={`form-control-custom ${formErrors.name ? 'input-error' : ''}`} placeholder="e.g. Rice 5kg" value={form.name} onChange={set('name')} />
+          {formErrors.name && <span className="field-error-text">{formErrors.name}</span>}
         </div>
         <div style={{ marginBottom: 14 }}>
           <label className="form-label-custom">Description</label>
           <input className="form-control-custom" placeholder="Optional description" value={form.description} onChange={set('description')} />
         </div>
         <div style={{ marginBottom: 14 }}>
-          <label className="form-label-custom">Price (₹)</label>
-          <input className="form-control-custom" type="number" placeholder="0.00" value={form.price} onChange={set('price')} />
+          <label className="form-label-custom">Price (₹) *</label>
+          <input className={`form-control-custom ${formErrors.price ? 'input-error' : ''}`} type="number" placeholder="0.00" value={form.price} onChange={set('price')} />
+          {formErrors.price && <span className="field-error-text">{formErrors.price}</span>}
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
           <div>
             <label className="form-label-custom">Min Stock</label>
-            <input className="form-control-custom" type="number" placeholder="10" value={form.minStock} onChange={set('minStock')} />
+            <input className={`form-control-custom ${formErrors.minStock ? 'input-error' : ''}`} type="number" placeholder="10" value={form.minStock} onChange={set('minStock')} />
+            {formErrors.minStock && <span className="field-error-text">{formErrors.minStock}</span>}
           </div>
           <div>
             <label className="form-label-custom">Max Stock</label>
-            <input className="form-control-custom" type="number" placeholder="100" value={form.maxStock} onChange={set('maxStock')} />
+            <input className={`form-control-custom ${formErrors.maxStock ? 'input-error' : ''}`} type="number" placeholder="100" value={form.maxStock} onChange={set('maxStock')} />
+            {formErrors.maxStock && <span className="field-error-text">{formErrors.maxStock}</span>}
           </div>
         </div>
         <div style={{ marginBottom: 14 }}>
-          <label className="form-label-custom">Supplier</label>
-          <select className="form-control-custom" value={form.supplierId} onChange={set('supplierId')}>
+          <label className="form-label-custom">Supplier *</label>
+          <select className={`form-control-custom ${formErrors.supplierId ? 'input-error' : ''}`} value={form.supplierId} onChange={set('supplierId')}>
             <option value="">— Select Supplier —</option>
             {suppliers.map(s => <option key={s.supplierId} value={s.supplierId}>{s.name}</option>)}
           </select>
+          {formErrors.supplierId && <span className="field-error-text">{formErrors.supplierId}</span>}
         </div>
       </FormModal>
 
@@ -143,6 +170,7 @@ export default function Products() {
         title="Delete Product" message="Are you sure you want to delete this product? This cannot be undone."
         confirmLabel="Delete" loading={saving} />
       {UndoToast}
+      {ToastContainer}
     </div>
   )
 }

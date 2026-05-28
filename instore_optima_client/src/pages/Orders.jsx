@@ -9,6 +9,8 @@ import { getItemsByOrderId, createOrderItem, updateOrderItem, deleteOrderItem } 
 import { getAllProducts } from '../services/productsService'
 import { useAuth } from '../context/AuthContext'
 import { useUndoDelete } from '../hooks/useUndoDelete'
+import { useToast } from '../hooks/useToast'
+import { parseApiError } from '../utils/validators'
 
 const ORDER_STATUSES = ['Pending', 'Processing', 'Completed', 'Cancelled']
 
@@ -24,6 +26,7 @@ const isTerminal = (status) => status === 'Completed' || status === 'Cancelled'
 export default function Orders() {
   const { user } = useAuth()
   const { scheduleDelete, UndoToast } = useUndoDelete()
+  const { show: toast, ToastContainer } = useToast()
 
   const [orders, setOrders]           = useState([])
   const [loading, setLoading]         = useState(true)
@@ -92,7 +95,7 @@ export default function Orders() {
       else await createOrder({ userId: user?.userId })
       setShowOrderForm(false)
       await loadOrders(selectedOrder)
-    } catch (err) { alert(err?.response?.data?.message || 'Save failed.') }
+    } catch (err) { toast(parseApiError(err)) }
     finally { setSavingOrder(false) }
   }
 
@@ -115,8 +118,8 @@ export default function Orders() {
   const openDelItem  = (id) => { setDelItemId(id); setShowDelItem(true) }
 
   const handleSaveItem = async () => {
-    if (!itemForm.quantity || Number(itemForm.quantity) < 1) return alert('Enter a valid quantity.')
-    if (!editItem && !itemForm.productId) return alert('Select a product.')
+    if (!itemForm.quantity || Number(itemForm.quantity) < 1) return toast('Enter a valid quantity (≥ 1).', 'warning')
+    if (!editItem && !itemForm.productId) return toast('Please select a product.', 'warning')
     setSavingItem(true)
     try {
       if (editItem) {
@@ -126,8 +129,9 @@ export default function Orders() {
       }
       setShowItemForm(false)
       await loadItems(selectedOrder.orderId)
-      await loadOrders(selectedOrder)   // refresh total on left panel
-    } catch (err) { alert(err?.response?.data?.message || 'Failed to save item.') }
+      await loadOrders(selectedOrder)
+      toast(editItem ? 'Item updated!' : 'Item added!', 'success')
+    } catch (err) { toast(parseApiError(err)) }
     finally { setSavingItem(false) }
   }
 
@@ -346,6 +350,7 @@ export default function Orders() {
         title="Remove Item" message="Remove this item? Stock will be restored automatically." confirmLabel="Remove" loading={savingItem} />
 
       {UndoToast}
+      {ToastContainer}
     </div>
   )
 }

@@ -3,29 +3,52 @@ import { useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useTheme } from '../context/ThemeContext'
 import { loginApi } from '../services/authService'
+import { validateField, parseApiError } from '../utils/validators'
 
 export default function Login() {
   const { login } = useAuth()
   const { dark, toggle } = useTheme()
   const navigate = useNavigate()
   const [form, setForm] = useState({ email: '', password: '' })
+  const [fieldErrors, setFieldErrors] = useState({})
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [success, setSuccess] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
+  const [touched, setTouched] = useState({})
 
   useEffect(() => {
     setForm({ email: '', password: '' })
     setError('')
+    setFieldErrors({})
   }, [])
 
-  const set = k => e => setForm(f => ({ ...f, [k]: e.target.value }))
+  const handleChange = (field) => (e) => {
+    const value = e.target.value
+    setForm(f => ({ ...f, [field]: value }))
+    if (touched[field]) {
+      const err = validateField(field, value)
+      setFieldErrors(prev => ({ ...prev, [field]: err }))
+    }
+    if (error) setError('')
+  }
 
-  const emailRegex = /^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$/
+  const handleBlur = (field) => () => {
+    setTouched(prev => ({ ...prev, [field]: true }))
+    const err = validateField(field, form[field])
+    setFieldErrors(prev => ({ ...prev, [field]: err }))
+  }
 
   const handleSubmit = async () => {
     setError('')
-    if (!form.email || !form.password) return setError('Email and password are required.')
-    if (!emailRegex.test(form.email)) return setError('Enter a valid email address (e.g. name@example.com).')
+    const emailErr = validateField('email', form.email)
+    const passErr = form.password ? '' : 'Password is required.'
+    const errors = { email: emailErr, password: passErr }
+    setFieldErrors(errors)
+    setTouched({ email: true, password: true })
+
+    if (emailErr || passErr) return
+
     setLoading(true)
     try {
       const res = await loginApi(form)
@@ -34,9 +57,7 @@ export default function Login() {
       setSuccess(true)
       setTimeout(() => navigate('/dashboard'), 1400)
     } catch (err) {
-      const data = err.response?.data
-      const fieldError = data?.errors ? Object.values(data.errors).flat()[0] : null
-      setError(fieldError || data?.message || 'Invalid credentials. Please try again.')
+      setError(parseApiError(err))
       setLoading(false)
     }
   }
@@ -56,12 +77,8 @@ export default function Login() {
     </div>
   )
 
-  // Add the following styles to ensure text is white in dark mode
-
   return (
     <div className="login-page">
-
-      {/* top-right controls: home + theme toggle */}
       <div className="login-top-controls">
         <button type="button" className="login-back-home" onClick={() => navigate('/')} title="Back to home">
           <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M11.5 7H2.5M6 3L2.5 7 6 11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
@@ -72,7 +89,6 @@ export default function Login() {
         </button>
       </div>
 
-      {/* LEFT */}
       <div className="login-left">
         <div className="login-left-glow1"></div>
         <div className="login-left-glow2"></div>
@@ -89,12 +105,7 @@ export default function Login() {
           </div>
         </div>
         <div className="login-features">
-          {[
-            'Real-time stock tracking',
-            'Auto replenishment rules',
-            'Complete order pipeline',
-            'Finance & invoice management',
-          ].map(f => (
+          {['Real-time stock tracking', 'Auto replenishment rules', 'Complete order pipeline', 'Finance & invoice management'].map(f => (
             <div key={f} className="login-feature-row">
               <div className="login-feature-check"><i className="bi bi-check-lg"></i></div>
               <span>{f}</span>
@@ -104,7 +115,6 @@ export default function Login() {
         <div className="login-left-footer">© 2026 InStore Optima</div>
       </div>
 
-      {/* RIGHT */}
       <div className="login-right">
         <div className="login-right-grid"></div>
         <div className="login-right-glow"></div>
@@ -121,36 +131,47 @@ export default function Login() {
 
           <div className="login-field">
             <label className="form-label-custom">Email address</label>
-            <div className="login-input-wrap">
+            <div className={`login-input-wrap ${fieldErrors.email ? 'input-error' : ''}`}>
               <i className="bi bi-envelope login-input-icon"></i>
               <input
                 className="form-control-custom login-input"
                 type="text"
-                name="login_email_2026"
                 placeholder="you@company.com"
                 value={form.email}
-                onChange={set('email')}
+                onChange={handleChange('email')}
+                onBlur={handleBlur('email')}
                 autoComplete="new-password"
                 onKeyDown={e => e.key === 'Enter' && handleSubmit()}
               />
             </div>
+            {fieldErrors.email && <span className="field-error-text">{fieldErrors.email}</span>}
           </div>
 
           <div className="login-field">
             <label className="form-label-custom">Password</label>
-            <div className="login-input-wrap">
+            <div className={`login-input-wrap ${fieldErrors.password ? 'input-error' : ''}`}>
               <i className="bi bi-lock login-input-icon"></i>
               <input
                 className="form-control-custom login-input"
-                type="password"
-                name="login_password_2026"
+                type={showPassword ? 'text' : 'password'}
                 placeholder="••••••••"
                 value={form.password}
-                onChange={set('password')}
+                onChange={handleChange('password')}
+                onBlur={handleBlur('password')}
                 autoComplete="new-password"
                 onKeyDown={e => e.key === 'Enter' && handleSubmit()}
               />
+              <button
+                type="button"
+                className="password-toggle-btn"
+                onClick={() => setShowPassword(p => !p)}
+                tabIndex={-1}
+                title={showPassword ? 'Hide password' : 'Show password'}
+              >
+                <i className={`bi ${showPassword ? 'bi-eye-slash' : 'bi-eye'}`}></i>
+              </button>
             </div>
+            {fieldErrors.password && <span className="field-error-text">{fieldErrors.password}</span>}
           </div>
 
           <button className="login-submit" type="button" onClick={handleSubmit} disabled={loading}>

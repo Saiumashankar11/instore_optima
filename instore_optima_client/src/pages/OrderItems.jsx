@@ -6,10 +6,13 @@ import ConfirmModal from '../components/shared/ConfirmModal'
 import { getItemsByOrderId, createOrderItem, updateOrderItem, deleteOrderItem } from '../services/orderItemsService'
 import { getAllOrders } from '../services/ordersService'
 import { getAllProducts } from '../services/productsService'
+import { useToast } from '../hooks/useToast'
+import { parseApiError } from '../utils/validators'
 
 const EMPTY = { orderId: '', productId: '', quantity: '' }
 
 export default function OrderItems() {
+  const { show: toast, ToastContainer } = useToast()
   const [data, setData]                   = useState([])
   const [orders, setOrders]               = useState([])
   const [products, setProducts]           = useState([])
@@ -22,6 +25,7 @@ export default function OrderItems() {
   const [form, setForm]                   = useState(EMPTY)
   const [saving, setSaving]               = useState(false)
   const [delId, setDelId]                 = useState(null)
+  const [formErrors, setFormErrors]       = useState({})
 
   useEffect(() => {
     Promise.all([getAllOrders(), getAllProducts()]).then(([o, p]) => {
@@ -44,6 +48,11 @@ export default function OrderItems() {
   const openDel  = id  => { setDelId(id); setShowDel(true) }
 
   const handleSave = async () => {
+    const errors = {}
+    if (!form.quantity || Number(form.quantity) < 1) errors.quantity = 'Quantity must be at least 1.'
+    if (!editing && !form.productId) errors.productId = 'Please select a product.'
+    setFormErrors(errors)
+    if (Object.keys(errors).length) { toast(Object.values(errors)[0], 'warning'); return }
     setSaving(true)
     try {
       if (editing) {
@@ -52,17 +61,17 @@ export default function OrderItems() {
         await createOrderItem({ orderId: Number(form.orderId), productId: Number(form.productId), quantity: Number(form.quantity) })
       }
       setShowForm(false); loadItems(selectedOrder)
+      toast(editing ? 'Item updated!' : 'Item added!', 'success')
     } catch (err) {
-      const msg = err?.response?.data?.message || 'Save failed.'
-      alert(msg)
+      toast(parseApiError(err))
     }
     finally { setSaving(false) }
   }
 
   const handleDelete = async () => {
     setSaving(true)
-    try { await deleteOrderItem(delId); setShowDel(false); loadItems(selectedOrder) }
-    catch { alert('Delete failed.') }
+    try { await deleteOrderItem(delId); setShowDel(false); loadItems(selectedOrder); toast('Item deleted.', 'success') }
+    catch (err) { toast(parseApiError(err)) }
     finally { setSaving(false) }
   }
 
@@ -120,10 +129,11 @@ export default function OrderItems() {
         {!editing && (
           <div style={{ marginBottom: 14 }}>
             <label className="form-label-custom">Product</label>
-            <select className="form-control-custom" value={form.productId} onChange={set('productId')}>
+            <select className={`form-control-custom${formErrors.productId ? ' input-error' : ''}`} value={form.productId} onChange={e => { set('productId')(e); setFormErrors(f => ({ ...f, productId: undefined })) }}>
               <option value="">— Select Product —</option>
               {products.map(p => <option key={p.productId} value={p.productId}>{p.name} — ₹{p.price}</option>)}
             </select>
+            {formErrors.productId && <span className="field-error-text">{formErrors.productId}</span>}
             {form.productId && (
               <small style={{ color: 'var(--text-400)', fontSize: 11 }}>Price auto-fetched from product (₹{products.find(p => p.productId === Number(form.productId))?.price ?? '—'})</small>
             )}
@@ -138,12 +148,14 @@ export default function OrderItems() {
         )}
         <div style={{ marginBottom: 14 }}>
           <label className="form-label-custom">Quantity</label>
-          <input className="form-control-custom" type="number" placeholder="1" min="1" value={form.quantity} onChange={set('quantity')} />
+          <input className={`form-control-custom${formErrors.quantity ? ' input-error' : ''}`} type="number" placeholder="1" min="1" value={form.quantity} onChange={e => { set('quantity')(e); setFormErrors(f => ({ ...f, quantity: undefined })) }} />
+          {formErrors.quantity && <span className="field-error-text">{formErrors.quantity}</span>}
         </div>
       </FormModal>
 
       <ConfirmModal show={showDel} onHide={() => setShowDel(false)} onConfirm={handleDelete}
         title="Remove Item" message="Remove this item from the order?" confirmLabel="Remove" loading={saving} />
+      {ToastContainer}
     </div>
   )
 }

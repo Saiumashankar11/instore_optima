@@ -8,6 +8,8 @@ import { getAllStock, updateStock, createStock, deleteStock } from '../services/
 import { getAllProducts } from '../services/productsService'
 import { useAuth } from '../context/AuthContext'
 import { useUndoDelete } from '../hooks/useUndoDelete'
+import { useToast } from '../hooks/useToast'
+import { validateField, parseApiError } from '../utils/validators'
 
 export default function Stock() {
   const { isAdmin } = useAuth()
@@ -26,6 +28,8 @@ export default function Stock() {
   const [delId, setDelId]       = useState(null)
 
   const { scheduleDelete, UndoToast } = useUndoDelete()
+  const { show: toast, ToastContainer } = useToast()
+  const [formErrors, setFormErrors] = useState({})
 
   const load = async () => {
     setLoading(true)
@@ -46,11 +50,15 @@ export default function Stock() {
   }
 
   const handleSave = async () => {
+    const err = validateField('currentStock', form.currentStock)
+    if (err) { setFormErrors({ currentStock: err }); toast(err, 'error'); return }
+    setFormErrors({})
     setSaving(true)
     try {
       await updateStock(editing.stockId, { ...editing, currentStock: Number(form.currentStock) })
       setShowForm(false); load()
-    } catch { alert('Update failed.') }
+      toast('Stock updated successfully!', 'success')
+    } catch (e) { toast(parseApiError(e)) }
     finally { setSaving(false) }
   }
 
@@ -67,19 +75,27 @@ export default function Stock() {
   }
 
   const handleCreateStock = async () => {
+    const errors = {}
+    const prodErr = validateField('productId', createForm.productId)
+    const stockErr = validateField('currentStock', createForm.currentStock || '0')
+    if (prodErr) errors.productId = prodErr
+    if (stockErr) errors.currentStock = stockErr
+    setFormErrors(errors)
+    if (Object.keys(errors).length) {
+      toast(Object.values(errors)[0], 'error')
+      return
+    }
+
     setSaving(true)
     try {
-      if (!createForm.productId) {
-        alert('Please select a product')
-        setSaving(false)
-        return
-      }
       await createStock({ productId: Number(createForm.productId), currentStock: Number(createForm.currentStock) || 0 })
       setShowCreateForm(false)
       setCreateForm({ productId: '', currentStock: '' })
+      setFormErrors({})
       load()
+      toast('Stock record created!', 'success')
     } catch (err) {
-      alert(err.response?.data?.message || 'Failed to create stock.')
+      toast(parseApiError(err))
     } finally {
       setSaving(false)
     }
@@ -180,9 +196,10 @@ export default function Stock() {
         </div>
         <div style={{ marginBottom: 14 }}>
           <label className="form-label-custom">Current Stock</label>
-          <input className="form-control-custom" type="number"
+          <input className={`form-control-custom${formErrors.currentStock ? ' input-error' : ''}`} type="number"
             value={form.currentStock}
-            onChange={e => setForm(f => ({ ...f, currentStock: e.target.value }))} />
+            onChange={e => { setForm(f => ({ ...f, currentStock: e.target.value })); setFormErrors({}) }} />
+          {formErrors.currentStock && <span className="field-error-text">{formErrors.currentStock}</span>}
         </div>
       </FormModal>
 
@@ -190,13 +207,14 @@ export default function Stock() {
         title="Create Stock for Product" loading={saving}>
         <div style={{ marginBottom: 14 }}>
           <label className="form-label-custom">Product *</label>
-          <select className="form-control-custom" value={createForm.productId}
-            onChange={e => setCreateForm(f => ({ ...f, productId: e.target.value }))}>
+          <select className={`form-control-custom${formErrors.productId ? ' input-error' : ''}`} value={createForm.productId}
+            onChange={e => { setCreateForm(f => ({ ...f, productId: e.target.value })); setFormErrors(fe => ({ ...fe, productId: undefined })) }}>
             <option value="">— Select a product —</option>
             {getProductsWithoutStock().map(p => (
               <option key={p.productId} value={p.productId}>{p.name}</option>
             ))}
           </select>
+          {formErrors.productId && <span className="field-error-text">{formErrors.productId}</span>}
         </div>
         <div style={{ marginBottom: 14 }}>
           <label className="form-label-custom">Initial Stock</label>
@@ -210,6 +228,7 @@ export default function Stock() {
       <ConfirmModal show={showDel} onHide={() => setShowDel(false)} onConfirm={handleDelete}
         title="Delete Stock Record" message="Are you sure you want to delete this stock record?" confirmLabel="Delete" loading={saving} />
       {UndoToast}
+      {ToastContainer}
     </div>
   )
 }

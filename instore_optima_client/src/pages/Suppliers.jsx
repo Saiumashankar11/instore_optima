@@ -6,6 +6,8 @@ import FormModal from '../components/shared/FormModal'
 import ConfirmModal from '../components/shared/ConfirmModal'
 import { getAllSuppliers, createSupplier, updateSupplier, deleteSupplier } from '../services/supplierService'
 import { useUndoDelete } from '../hooks/useUndoDelete'
+import { useToast } from '../hooks/useToast'
+import { validateField, parseApiError } from '../utils/validators'
 
 const EMPTY = { name: '', contact: '', email: '', address: '' }
 
@@ -22,6 +24,8 @@ export default function Suppliers() {
   const [delId, setDelId]       = useState(null)
 
   const { scheduleDelete, UndoToast } = useUndoDelete()
+  const { show: toast, ToastContainer } = useToast()
+  const [formErrors, setFormErrors] = useState({})
 
   const load = async () => {
     setLoading(true)
@@ -38,12 +42,27 @@ export default function Suppliers() {
   const openDel  = id  => { setDelId(id); setShowDel(true) }
 
   const handleSave = async () => {
+    const errors = {}
+    const nameErr = validateField('supplierName', form.name)
+    const contactErr = validateField('contact', form.contact)
+    const emailErr = validateField('supplierEmail', form.email)
+    if (nameErr) errors.name = nameErr
+    if (contactErr) errors.contact = contactErr
+    if (emailErr) errors.email = emailErr
+    if (!form.address?.trim()) errors.address = 'Address is required.'
+    setFormErrors(errors)
+    if (Object.keys(errors).length) {
+      toast(Object.values(errors)[0], 'error')
+      return
+    }
+
     setSaving(true)
     try {
       if (editing) await updateSupplier(editing.supplierId, form)
       else await createSupplier(form)
-      setShowForm(false); load()
-    } catch { alert('Save failed.') }
+      setShowForm(false); setFormErrors({}); load()
+      toast(editing ? 'Supplier updated!' : 'Supplier added!', 'success')
+    } catch (err) { toast(parseApiError(err)) }
     finally { setSaving(false) }
   }
 
@@ -105,23 +124,27 @@ export default function Suppliers() {
         <DataTable columns={columns} data={filtered} loading={loading} error={error} />
       </div>
 
-      <FormModal show={showForm} onHide={() => setShowForm(false)} onSubmit={handleSave}
+      <FormModal show={showForm} onHide={() => { setShowForm(false); setFormErrors({}) }} onSubmit={handleSave}
         title={editing ? 'Edit Supplier' : 'Add Supplier'} loading={saving}>
         <div style={{ marginBottom: 14 }}>
-          <label className="form-label-custom">Company Name</label>
-          <input className="form-control-custom" placeholder="e.g. ABC Distributors" value={form.name} onChange={set('name')} />
+          <label className="form-label-custom">Company Name *</label>
+          <input className={`form-control-custom ${formErrors.name ? 'input-error' : ''}`} placeholder="e.g. ABC Distributors" value={form.name} onChange={set('name')} />
+          {formErrors.name && <span className="field-error-text">{formErrors.name}</span>}
         </div>
         <div style={{ marginBottom: 14 }}>
-          <label className="form-label-custom">Contact Person</label>
-          <input className="form-control-custom" placeholder="e.g. Ravi Kumar" value={form.contact} onChange={set('contact')} />
+          <label className="form-label-custom">Contact Person *</label>
+          <input className={`form-control-custom ${formErrors.contact ? 'input-error' : ''}`} placeholder="e.g. Ravi Kumar" value={form.contact} onChange={set('contact')} />
+          {formErrors.contact && <span className="field-error-text">{formErrors.contact}</span>}
         </div>
         <div style={{ marginBottom: 14 }}>
-          <label className="form-label-custom">Email</label>
-          <input className="form-control-custom" type="email" placeholder="supplier@company.com" value={form.email} onChange={set('email')} />
+          <label className="form-label-custom">Email *</label>
+          <input className={`form-control-custom ${formErrors.email ? 'input-error' : ''}`} type="email" placeholder="supplier@company.com" value={form.email} onChange={set('email')} />
+          {formErrors.email && <span className="field-error-text">{formErrors.email}</span>}
         </div>
         <div style={{ marginBottom: 14 }}>
-          <label className="form-label-custom">Address</label>
-          <input className="form-control-custom" placeholder="Full address" value={form.address} onChange={set('address')} />
+          <label className="form-label-custom">Address *</label>
+          <input className={`form-control-custom ${formErrors.address ? 'input-error' : ''}`} placeholder="Full address" value={form.address} onChange={set('address')} />
+          {formErrors.address && <span className="field-error-text">{formErrors.address}</span>}
         </div>
       </FormModal>
 
@@ -129,6 +152,7 @@ export default function Suppliers() {
         title="Delete Supplier" message="Are you sure you want to delete this supplier?"
         confirmLabel="Delete" loading={saving} />
       {UndoToast}
+      {ToastContainer}
     </div>
   )
 }

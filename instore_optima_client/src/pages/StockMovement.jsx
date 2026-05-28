@@ -9,12 +9,15 @@ import { getAllMovements, recordMovement, deleteMovement } from '../services/sto
 import { getAllProducts } from '../services/productsService'
 import { useAuth } from '../context/AuthContext'
 import { useUndoDelete } from '../hooks/useUndoDelete'
+import { useToast } from '../hooks/useToast'
+import { parseApiError } from '../utils/validators'
 
 const EMPTY = { productId: '', quantity: '', movementType: 'IN', reason: '' }
 
 export default function StockMovement() {
   const { user, isAdmin } = useAuth()
   const { scheduleDelete, UndoToast } = useUndoDelete()
+  const { show: toast, ToastContainer } = useToast()
   const [data, setData]         = useState([])
   const [products, setProducts] = useState([])
   const [loading, setLoading]   = useState(true)
@@ -26,6 +29,7 @@ export default function StockMovement() {
   const [saving, setSaving]     = useState(false)
   const [showDel, setShowDel]   = useState(false)
   const [delId, setDelId]       = useState(null)
+  const [formErrors, setFormErrors] = useState({})
 
   const load = async () => {
     setLoading(true)
@@ -42,11 +46,18 @@ export default function StockMovement() {
   const set = k => e => setForm(f => ({ ...f, [k]: e.target.value }))
 
   const handleSave = async () => {
+    const errors = {}
+    if (!form.productId) errors.productId = 'Please select a product.'
+    if (!form.quantity || Number(form.quantity) < 1) errors.quantity = 'Quantity must be at least 1.'
+    if (!form.reason?.trim()) errors.reason = 'Please provide a reason.'
+    setFormErrors(errors)
+    if (Object.keys(errors).length) { toast(Object.values(errors)[0], 'warning'); return }
     setSaving(true)
     try {
       await recordMovement({ ...form, productId: Number(form.productId), quantity: Number(form.quantity), performedBy: user?.userId })
       setShowForm(false); setForm(EMPTY); load()
-    } catch { alert('Failed to record movement.') }
+      toast('Movement recorded!', 'success')
+    } catch (err) { toast(parseApiError(err)) }
     finally { setSaving(false) }
   }
 
@@ -119,10 +130,11 @@ export default function StockMovement() {
         title="Record Stock Movement" loading={saving}>
         <div style={{ marginBottom: 14 }}>
           <label className="form-label-custom">Product</label>
-          <select className="form-control-custom" value={form.productId} onChange={set('productId')}>
+          <select className={`form-control-custom${formErrors.productId ? ' input-error' : ''}`} value={form.productId} onChange={e => { set('productId')(e); setFormErrors(f => ({ ...f, productId: undefined })) }}>
             <option value="">— Select Product —</option>
             {products.map(p => <option key={p.productId} value={p.productId}>{p.name}</option>)}
           </select>
+          {formErrors.productId && <span className="field-error-text">{formErrors.productId}</span>}
         </div>
         <div style={{ marginBottom: 14 }}>
           <label className="form-label-custom">Movement Type</label>
@@ -134,17 +146,20 @@ export default function StockMovement() {
         </div>
         <div style={{ marginBottom: 14 }}>
           <label className="form-label-custom">Quantity</label>
-          <input className="form-control-custom" type="number" placeholder="0" value={form.quantity} onChange={set('quantity')} />
+          <input className={`form-control-custom${formErrors.quantity ? ' input-error' : ''}`} type="number" placeholder="0" value={form.quantity} onChange={e => { set('quantity')(e); setFormErrors(f => ({ ...f, quantity: undefined })) }} />
+          {formErrors.quantity && <span className="field-error-text">{formErrors.quantity}</span>}
         </div>
         <div style={{ marginBottom: 14 }}>
           <label className="form-label-custom">Reason</label>
-          <input className="form-control-custom" placeholder="e.g. Supplier delivery..." value={form.reason} onChange={set('reason')} />
+          <input className={`form-control-custom${formErrors.reason ? ' input-error' : ''}`} placeholder="e.g. Supplier delivery..." value={form.reason} onChange={e => { set('reason')(e); setFormErrors(f => ({ ...f, reason: undefined })) }} />
+          {formErrors.reason && <span className="field-error-text">{formErrors.reason}</span>}
         </div>
       </FormModal>
 
       <ConfirmModal show={showDel} onHide={() => setShowDel(false)} onConfirm={handleDelete}
         title="Delete Movement" message="Are you sure you want to delete this stock movement record?" confirmLabel="Delete" loading={saving} />
       {UndoToast}
+      {ToastContainer}
     </div>
   )
 }

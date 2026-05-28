@@ -1,3 +1,4 @@
+using Serilog;
 using instore_optima.Infrastructure.Data;
 
 using instore_optima.Infrastructure.Interfaces;
@@ -12,6 +13,16 @@ using instore_optima.Api.Repositories.Implementations;
 using instore_optima.Api.Middleware;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// --- Serilog Configuration ------------------------------------
+builder.Host.UseSerilog((context, loggerConfig) =>
+{
+    loggerConfig
+        .ReadFrom.Configuration(context.Configuration)
+        .Enrich.FromLogContext()
+        .WriteTo.Console()
+        .WriteTo.File("Logs/log-.txt", rollingInterval: RollingInterval.Day, retainedFileCountLimit: 30);
+});
 
 // Add services to the container.
 // --- Team Database: Archana ---
@@ -170,3 +181,4 @@ record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary)
 {
     public int TemperatureF => 32 + (int)(TemperatureC / 0.5556);
 }
+

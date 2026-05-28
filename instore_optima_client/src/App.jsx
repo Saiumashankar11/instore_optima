@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate, useParams } from 'react-router-dom'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import AccessDenied from './components/shared/AccessDenied'
+import ErrorBoundary from './components/shared/ErrorBoundary'
 
 import TopNavLayout from './components/TopNavLayout'
 import InnerLayout from './components/InnerLayout'
@@ -52,6 +53,7 @@ function RequireRole({ roles, children }) {
 
 export default function App() {
   return (
+    <ErrorBoundary>
     <AuthProvider>
       <BrowserRouter>
         <Routes>
@@ -95,6 +97,7 @@ export default function App() {
         </Routes>
       </BrowserRouter>
     </AuthProvider>
+    </ErrorBoundary>
   )
 }
 

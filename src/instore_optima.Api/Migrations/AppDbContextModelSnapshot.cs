@@ -63,7 +63,7 @@ namespace instore_optima.Api.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("AuditLogs");
+                    b.ToTable("AuditLogs", (string)null);
                 });
 
             modelBuilder.Entity("instore_optima.Domain.Entities.Invoice", b =>
@@ -104,7 +104,7 @@ namespace instore_optima.Api.Migrations
                     b.HasIndex("OrderId")
                         .IsUnique();
 
-                    b.ToTable("Invoices");
+                    b.ToTable("Invoices", (string)null);
                 });
 
             modelBuilder.Entity("instore_optima.Domain.Entities.Notification", b =>
@@ -143,7 +143,7 @@ namespace instore_optima.Api.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("Notifications");
+                    b.ToTable("Notifications", (string)null);
                 });
 
             modelBuilder.Entity("instore_optima.Domain.Entities.Order_Items", b =>
@@ -173,7 +173,7 @@ namespace instore_optima.Api.Migrations
 
                     b.HasIndex("ProductId");
 
-                    b.ToTable("OrderItems");
+                    b.ToTable("OrderItems", (string)null);
                 });
 
             modelBuilder.Entity("instore_optima.Domain.Entities.Orders", b =>
@@ -202,7 +202,7 @@ namespace instore_optima.Api.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("Orders");
+                    b.ToTable("Orders", (string)null);
                 });
 
             modelBuilder.Entity("instore_optima.Domain.Entities.Payment", b =>
@@ -232,7 +232,7 @@ namespace instore_optima.Api.Migrations
                     b.HasIndex("OrderId")
                         .IsUnique();
 
-                    b.ToTable("Payments");
+                    b.ToTable("Payments", (string)null);
                 });
 
             modelBuilder.Entity("instore_optima.Domain.Entities.Products", b =>
@@ -268,7 +268,7 @@ namespace instore_optima.Api.Migrations
 
                     b.HasIndex("SupplierId");
 
-                    b.ToTable("Products");
+                    b.ToTable("Products", (string)null);
                 });
 
             modelBuilder.Entity("instore_optima.Domain.Entities.PurchaseOrder", b =>
@@ -308,7 +308,7 @@ namespace instore_optima.Api.Migrations
 
                     b.HasIndex("SupplierId");
 
-                    b.ToTable("PurchaseOrders");
+                    b.ToTable("PurchaseOrders", (string)null);
                 });
 
             modelBuilder.Entity("instore_optima.Domain.Entities.Receipt", b =>
@@ -341,7 +341,7 @@ namespace instore_optima.Api.Migrations
                     b.HasIndex("PaymentId")
                         .IsUnique();
 
-                    b.ToTable("Receipts");
+                    b.ToTable("Receipts", (string)null);
                 });
 
             modelBuilder.Entity("instore_optima.Domain.Entities.ReplenishmentOrder", b =>
@@ -377,7 +377,7 @@ namespace instore_optima.Api.Migrations
 
                     b.HasIndex("ProductId");
 
-                    b.ToTable("ReplenishmentOrders");
+                    b.ToTable("ReplenishmentOrders", (string)null);
                 });
 
             modelBuilder.Entity("instore_optima.Domain.Entities.ReplenishmentRule", b =>
@@ -411,7 +411,7 @@ namespace instore_optima.Api.Migrations
 
                     b.HasIndex("ProductId");
 
-                    b.ToTable("ReplenishmentRules");
+                    b.ToTable("ReplenishmentRules", (string)null);
                 });
 
             modelBuilder.Entity("instore_optima.Domain.Entities.Replenishment_Log", b =>
@@ -455,7 +455,7 @@ namespace instore_optima.Api.Migrations
 
                     b.HasIndex("SupplierId");
 
-                    b.ToTable("ReplenishmentLogs");
+                    b.ToTable("ReplenishmentLogs", (string)null);
                 });
 
             modelBuilder.Entity("instore_optima.Domain.Entities.Stock", b =>
@@ -480,7 +480,7 @@ namespace instore_optima.Api.Migrations
                     b.HasIndex("ProductId")
                         .IsUnique();
 
-                    b.ToTable("Stocks");
+                    b.ToTable("Stocks", (string)null);
                 });
 
             modelBuilder.Entity("instore_optima.Domain.Entities.StockMovement", b =>
@@ -517,7 +517,7 @@ namespace instore_optima.Api.Migrations
 
                     b.HasIndex("ProductId");
 
-                    b.ToTable("StockMovements");
+                    b.ToTable("StockMovements", (string)null);
                 });
 
             modelBuilder.Entity("instore_optima.Domain.Entities.Supplier", b =>
@@ -546,7 +546,7 @@ namespace instore_optima.Api.Migrations
 
                     b.HasKey("SupplierId");
 
-                    b.ToTable("Suppliers");
+                    b.ToTable("Suppliers", (string)null);
                 });
 
             modelBuilder.Entity("instore_optima.Domain.Entities.TaskItem", b =>
@@ -586,7 +586,7 @@ namespace instore_optima.Api.Migrations
 
                     b.HasIndex("AssignedTo");
 
-                    b.ToTable("Tasks");
+                    b.ToTable("Tasks", (string)null);
                 });
 
             modelBuilder.Entity("instore_optima.Domain.Entities.User", b =>
@@ -621,7 +621,7 @@ namespace instore_optima.Api.Migrations
                     b.HasIndex("Email")
                         .IsUnique();
 
-                    b.ToTable("Users");
+                    b.ToTable("Users", (string)null);
                 });
 
             modelBuilder.Entity("instore_optima.Domain.Entities.AuditLog", b =>

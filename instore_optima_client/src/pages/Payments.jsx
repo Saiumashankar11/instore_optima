@@ -9,12 +9,16 @@ import { getAllPayments, createPayment, updatePayment, deletePayment } from '../
 import { getAllOrders } from '../services/ordersService'
 import { useAuth } from '../context/AuthContext'
 import { useUndoDelete } from '../hooks/useUndoDelete'
+import { useToast } from '../hooks/useToast'
+import { validateField, parseApiError } from '../utils/validators'
 
 const EMPTY = { orderId: '', paymentMethod: 'Card' }
 
 export default function Payments() {
   const { isAdmin } = useAuth()
   const { scheduleDelete, UndoToast } = useUndoDelete()
+  const { show: toast, ToastContainer } = useToast()
+  const [formErrors, setFormErrors] = useState({})
   const [data, setData]         = useState([])
   const [orders, setOrders]     = useState([])
   const [loading, setLoading]   = useState(true)
@@ -41,17 +45,21 @@ export default function Payments() {
   const set = k => e => setForm(f => ({ ...f, [k]: e.target.value }))
 
   const handleSave = async () => {
+    const err = validateField('orderId', form.orderId)
+    if (err) { setFormErrors({ orderId: err }); toast(err, 'error'); return }
+    setFormErrors({})
     setSaving(true)
     try {
       await createPayment({ ...form, orderId: Number(form.orderId), paymentStatus: 'Pending' })
       setShowForm(false); setForm(EMPTY); load()
-    } catch (err) { alert(err?.response?.data?.message || 'Failed to record payment.') }
+      toast('Payment recorded successfully!', 'success')
+    } catch (err) { toast(parseApiError(err)) }
     finally { setSaving(false) }
   }
 
   const handleStatusUpdate = async (row, status) => {
-    try { await updatePayment(row.paymentId, { ...row, paymentStatus: status }); load() }
-    catch { alert('Update failed.') }
+    try { await updatePayment(row.paymentId, { ...row, paymentStatus: status }); load(); toast('Payment status updated!', 'success') }
+    catch (err) { toast(parseApiError(err)) }
   }
 
   const handleDelete = async () => {
@@ -129,12 +137,13 @@ export default function Payments() {
         title="Record Payment" loading={saving}>
         <div style={{ marginBottom: 14 }}>
           <label className="form-label-custom">Order</label>
-          <select className="form-control-custom" value={form.orderId} onChange={set('orderId')}>
+          <select className={`form-control-custom${formErrors.orderId ? ' input-error' : ''}`} value={form.orderId} onChange={e => { set('orderId')(e); setFormErrors({}) }}>
             <option value="">— Select Order —</option>
             {orders
               .filter(o => !data.some(p => p.orderId === o.orderId))
               .map(o => <option key={o.orderId} value={o.orderId}>Order #{o.orderId} — ₹{Number(o.totalAmount || 0).toLocaleString('en-IN')} ({o.status})</option>)}
           </select>
+          {formErrors.orderId && <span className="field-error-text">{formErrors.orderId}</span>}
         </div>
         <div style={{ marginBottom: 14 }}>
           <label className="form-label-custom">Payment Method</label>
@@ -151,6 +160,7 @@ export default function Payments() {
       <ConfirmModal show={showDel} onHide={() => setShowDel(false)} onConfirm={handleDelete}
         title="Delete Payment" message="This will permanently delete the payment AND its linked invoice and receipt. This cannot be undone." confirmLabel="Delete" variant="danger" loading={saving} />
       {UndoToast}
+      {ToastContainer}
     </div>
   )
 }

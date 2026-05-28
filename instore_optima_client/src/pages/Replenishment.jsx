@@ -9,12 +9,15 @@ import { getAllReplenishments, createReplenishment, updateReplenishment, deleteR
 import { getAllProducts } from '../services/productsService'
 import { useAuth } from '../context/AuthContext'
 import { useUndoDelete } from '../hooks/useUndoDelete'
+import { useToast } from '../hooks/useToast'
+import { parseApiError } from '../utils/validators'
 
 const EMPTY = { productId: '', quantityRequested: '' }
 
 export default function Replenishment() {
   const { user, canManage } = useAuth()
   const { scheduleDelete, UndoToast } = useUndoDelete()
+  const { show: toast, ToastContainer } = useToast()
   const [data, setData]               = useState([])
   const [products, setProducts]       = useState([])
   const [loading, setLoading]         = useState(true)
@@ -25,6 +28,7 @@ export default function Replenishment() {
   const [confirmAction, setConfirmAction] = useState(null)
   const [form, setForm]               = useState(EMPTY)
   const [saving, setSaving]           = useState(false)
+  const [formErrors, setFormErrors]   = useState({})
 
   const load = async () => {
     setLoading(true)
@@ -41,11 +45,17 @@ export default function Replenishment() {
   const set = k => e => setForm(f => ({ ...f, [k]: e.target.value }))
 
   const handleSave = async () => {
+    const errors = {}
+    if (!form.productId) errors.productId = 'Please select a product.'
+    if (!form.quantityRequested || Number(form.quantityRequested) < 1) errors.quantityRequested = 'Quantity must be at least 1.'
+    setFormErrors(errors)
+    if (Object.keys(errors).length) { toast(Object.values(errors)[0], 'warning'); return }
     setSaving(true)
     try {
       await createReplenishment({ ...form, productId: Number(form.productId), quantityRequested: Number(form.quantityRequested) })
       setShowForm(false); setForm(EMPTY); load()
-    } catch { alert('Failed to create replenishment order.') }
+      toast('Replenishment order created!', 'success')
+    } catch (err) { toast(parseApiError(err)) }
     finally { setSaving(false) }
   }
 
@@ -72,7 +82,8 @@ export default function Replenishment() {
         })
       }
       setShowConfirm(false); load()
-    } catch { alert('Action failed.') }
+      toast('Action completed!', 'success')
+    } catch (err) { toast(parseApiError(err)) }
     finally { setSaving(false) }
   }
 
@@ -142,14 +153,16 @@ export default function Replenishment() {
         title="New Replenishment Order" loading={saving}>
         <div style={{ marginBottom: 14 }}>
           <label className="form-label-custom">Product</label>
-          <select className="form-control-custom" value={form.productId} onChange={set('productId')}>
+          <select className={`form-control-custom${formErrors.productId ? ' input-error' : ''}`} value={form.productId} onChange={e => { set('productId')(e); setFormErrors(f => ({ ...f, productId: undefined })) }}>
             <option value="">— Select Product —</option>
             {products.map(p => <option key={p.productId} value={p.productId}>{p.name}</option>)}
           </select>
+          {formErrors.productId && <span className="field-error-text">{formErrors.productId}</span>}
         </div>
         <div style={{ marginBottom: 14 }}>
           <label className="form-label-custom">Quantity Requested</label>
-          <input className="form-control-custom" type="number" placeholder="0" value={form.quantityRequested} onChange={set('quantityRequested')} />
+          <input className={`form-control-custom${formErrors.quantityRequested ? ' input-error' : ''}`} type="number" placeholder="0" value={form.quantityRequested} onChange={e => { set('quantityRequested')(e); setFormErrors(f => ({ ...f, quantityRequested: undefined })) }} />
+          {formErrors.quantityRequested && <span className="field-error-text">{formErrors.quantityRequested}</span>}
         </div>
       </FormModal>
 
@@ -162,6 +175,7 @@ export default function Replenishment() {
         variant={confirmAction?.action === 'Rejected' || confirmAction?.action === 'Delete' ? 'danger' : 'success'}
         loading={saving} />
       {UndoToast}
+      {ToastContainer}
     </div>
   )
 }
