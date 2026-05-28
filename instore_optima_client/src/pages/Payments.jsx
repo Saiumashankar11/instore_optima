@@ -11,6 +11,7 @@ import { useAuth } from '../context/AuthContext'
 import { useUndoDelete } from '../hooks/useUndoDelete'
 import { useToast } from '../hooks/useToast'
 import { validateField, parseApiError } from '../utils/validators'
+import { fmtDate } from '../utils/validators'
 
 const EMPTY = { orderId: '', paymentMethod: 'Card' }
 
@@ -92,7 +93,7 @@ export default function Payments() {
       </span>
     )},
     { key: 'paymentStatus', label: 'Status',  render: r => <StatusBadge status={r.paymentStatus} /> },
-    { key: 'paymentDate',   label: 'Date',    render: r => r.paymentDate ? new Date(r.paymentDate).toLocaleDateString('en-IN') : '—' },
+    { key: 'paymentDate',   label: 'Date',    render: r => fmtDate(r.paymentDate) },
     { key: 'invoiceNumber', label: 'Invoice', render: r => r.invoiceId
         ? <span style={{ fontSize: 11.5, color: 'var(--cyan)', fontWeight: 500 }}>#{r.invoiceId} — {r.invoiceNumber}</span>
         : <span style={{ color: 'var(--text-700)', fontSize: 11 }}>Auto-pending</span> },

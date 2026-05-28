@@ -8,6 +8,7 @@ import { getAllOrders } from '../services/ordersService'
 import { getAllSuppliers } from '../services/supplierService'
 import { getAllReplenishments } from '../services/replenishmentService'
 import { getAllPayments } from '../services/paymentService'
+import { fmtDate } from '../utils/validators'
 import { useAuth } from '../context/AuthContext'
 
 export default function Dashboard() {
@@ -78,7 +79,7 @@ export default function Dashboard() {
 
   const orderColumns = [
     { key: 'orderId',     label: 'Order ID',  render: r => <span className="text-accent" style={{ fontWeight: 600 }}>#{r.orderId}</span> },
-    { key: 'orderDate',   label: 'Date',      render: r => r.orderDate ? new Date(r.orderDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—' },
+    { key: 'orderDate',   label: 'Date',      render: r => fmtDate(r.orderDate) },
     { key: 'totalAmount', label: 'Amount',    render: r => <span style={{ fontWeight: 600, color: 'var(--text-950)' }}>₹{Number(r.totalAmount || 0).toLocaleString('en-IN')}</span> },
     { key: 'status',      label: 'Status',    render: r => <StatusBadge status={r.status} /> },
   ]

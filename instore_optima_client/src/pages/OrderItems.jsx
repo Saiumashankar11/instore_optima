@@ -6,6 +6,7 @@ import ConfirmModal from '../components/shared/ConfirmModal'
 import { getItemsByOrderId, createOrderItem, updateOrderItem, deleteOrderItem } from '../services/orderItemsService'
 import { getAllOrders } from '../services/ordersService'
 import { getAllProducts } from '../services/productsService'
+import { getAllStock } from '../services/stockService'
 import { useToast } from '../hooks/useToast'
 import { parseApiError } from '../utils/validators'
 
@@ -16,6 +17,7 @@ export default function OrderItems() {
   const [data, setData]                   = useState([])
   const [orders, setOrders]               = useState([])
   const [products, setProducts]           = useState([])
+  const [stock, setStock]                 = useState([])
   const [loading, setLoading]             = useState(false)
   const [error, setError]                 = useState('')
   const [selectedOrder, setSelectedOrder] = useState('')
@@ -28,9 +30,10 @@ export default function OrderItems() {
   const [formErrors, setFormErrors]       = useState({})
 
   useEffect(() => {
-    Promise.all([getAllOrders(), getAllProducts()]).then(([o, p]) => {
+    Promise.all([getAllOrders(), getAllProducts(), getAllStock()]).then(([o, p, s]) => {
       setOrders(o.data || [])
       setProducts(p.data || [])
+      setStock(s.data || [])
     })
   }, [])
 
@@ -131,7 +134,15 @@ export default function OrderItems() {
             <label className="form-label-custom">Product</label>
             <select className={`form-control-custom${formErrors.productId ? ' input-error' : ''}`} value={form.productId} onChange={e => { set('productId')(e); setFormErrors(f => ({ ...f, productId: undefined })) }}>
               <option value="">— Select Product —</option>
-              {products.map(p => <option key={p.productId} value={p.productId}>{p.name} — ₹{p.price}</option>)}
+              {products
+                .filter(p => {
+                  const s = stock.find(st => st.productId === p.productId)
+                  return s && s.currentStock > 0
+                })
+                .map(p => {
+                  const s = stock.find(st => st.productId === p.productId)
+                  return <option key={p.productId} value={p.productId}>{p.name} — ₹{p.price} (Stock: {s?.currentStock ?? 0})</option>
+                })}
             </select>
             {formErrors.productId && <span className="field-error-text">{formErrors.productId}</span>}
             {form.productId && (

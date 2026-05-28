@@ -3,6 +3,7 @@ import PageHeader from '../components/shared/PageHeader'
 import DataTable from '../components/shared/DataTable'
 import SearchBar from '../components/shared/SearchBar'
 import { getAllAuditLogs, getAllUsers } from '../services/userService'
+import { fmtDateTime } from '../utils/validators'
 
 export default function AuditLogs() {
   const [data, setData]       = useState([])
@@ -71,7 +72,7 @@ export default function AuditLogs() {
       const u = getUser(r.userId)
       return [
         r.auditLogId,
-        r.createdAt ? new Date(r.createdAt).toLocaleString('en-IN') : '',
+        r.createdAt ? fmtDateTime(r.createdAt) : '',
         u?.name || `User #${r.userId}`,
         u?.role || '',
         r.action || '',
@@ -96,10 +97,7 @@ export default function AuditLogs() {
     )},
     { key: 'createdAt', label: 'Timestamp', render: r => (
       <span style={{ fontSize: 11.5, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
-        {r.createdAt ? new Date(r.createdAt).toLocaleString('en-IN', {
-          day: '2-digit', month: 'short', year: 'numeric',
-          hour: '2-digit', minute: '2-digit', second: '2-digit'
-        }) : '—'}
+        {fmtDateTime(r.createdAt)}
       </span>
     )},
     { key: 'userId', label: 'User', render: r => {

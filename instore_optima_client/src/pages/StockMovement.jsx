@@ -11,6 +11,7 @@ import { useAuth } from '../context/AuthContext'
 import { useUndoDelete } from '../hooks/useUndoDelete'
 import { useToast } from '../hooks/useToast'
 import { parseApiError } from '../utils/validators'
+import { fmtDateTime } from '../utils/validators'
 
 const EMPTY = { productId: '', quantity: '', movementType: 'IN', reason: '' }
 
@@ -92,7 +93,7 @@ export default function StockMovement() {
     { key: 'quantity',     label: 'Qty',     render: r => <span style={{ fontWeight: 700, color: 'var(--text-200)' }}>{r.quantity}</span> },
     { key: 'movementType', label: 'Type',    render: r => <StatusBadge status={r.movementType} /> },
     { key: 'reason',       label: 'Reason',  render: r => <span style={{ color: 'var(--text-600)' }}>{r.reason || '—'}</span> },
-    { key: 'performedAt',  label: 'Date',    render: r => r.performedAt ? new Date(r.performedAt).toLocaleString('en-IN') : '—' },
+    { key: 'performedAt',  label: 'Date',    render: r => fmtDateTime(r.performedAt) },
     { key: 'actions', label: 'Actions', render: r => isAdmin ? (
       <button className="btn-icon danger" title="Delete" onClick={() => { setDelId(r.movementId); setShowDel(true) }}>
         <i className="bi bi-trash"></i>

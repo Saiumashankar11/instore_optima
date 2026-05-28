@@ -11,6 +11,7 @@ import { useAuth } from '../context/AuthContext'
 import { useUndoDelete } from '../hooks/useUndoDelete'
 import { useToast } from '../hooks/useToast'
 import { parseApiError } from '../utils/validators'
+import { fmtDate } from '../utils/validators'
 
 const EMPTY = { productId: '', quantityRequested: '' }
 
@@ -101,7 +102,7 @@ export default function Replenishment() {
     { key: '_productName',         label: 'Product',  render: r => <span style={{ fontWeight: 500, color: 'var(--text-200)' }}>{r._productName}</span> },
     { key: 'quantityRequested',    label: 'Qty',      render: r => <span style={{ fontWeight: 700, color: 'var(--text-200)' }}>{r.quantityRequested}</span> },
     { key: 'status',               label: 'Status',   render: r => <StatusBadge status={r.status} /> },
-    { key: 'generatedAt',          label: 'Generated',render: r => r.generatedAt ? new Date(r.generatedAt).toLocaleDateString('en-IN') : '—' },
+    { key: 'generatedAt',          label: 'Generated',render: r => fmtDate(r.generatedAt) },
     { key: 'actions', label: 'Actions', render: r => {
       if (!canManage) return <span style={{ color: 'var(--text-700)', fontSize: 12 }}>—</span>
       if (r.status === 'Pending') return (

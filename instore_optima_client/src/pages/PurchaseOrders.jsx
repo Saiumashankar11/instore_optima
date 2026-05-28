@@ -10,6 +10,7 @@ import { getAllReplenishments } from '../services/replenishmentService'
 import { useAuth } from '../context/AuthContext'
 import { useToast } from '../hooks/useToast'
 import { parseApiError } from '../utils/validators'
+import { fmtDate } from '../utils/validators'
 
 const EMPTY = { replenishmentOrderId: '', supplierId: '', expectedDeliveryDate: '' }
 
@@ -48,7 +49,13 @@ export default function PurchaseOrders() {
     const errors = {}
     if (!form.replenishmentOrderId) errors.replenishmentOrderId = 'Please select a replenishment order.'
     if (!form.supplierId) errors.supplierId = 'Please select a supplier.'
-    if (!form.expectedDeliveryDate) errors.expectedDeliveryDate = 'Expected delivery date is required.'
+    if (!form.expectedDeliveryDate) {
+      errors.expectedDeliveryDate = 'Expected delivery date is required.'
+    } else {
+      const today = new Date(); today.setHours(0,0,0,0)
+      const chosen = new Date(form.expectedDeliveryDate)
+      if (chosen < today) errors.expectedDeliveryDate = 'Delivery date cannot be in the past.'
+    }
     setFormErrors(errors)
     if (Object.keys(errors).length) { toast(Object.values(errors)[0], 'warning'); return }
     setSaving(true)
@@ -120,14 +127,12 @@ export default function PurchaseOrders() {
     { key: 'purchaseOrderId',      label: 'PO ID',    render: r => <span className="text-accent" style={{ fontWeight: 600 }}>#{r.purchaseOrderId}</span> },
     { key: 'replenishmentOrderId', label: 'Replen.',  render: r => <span>#{r.replenishmentOrderId}</span> },
     { key: 'supplierId',           label: 'Supplier', render: r => <span style={{ fontWeight: 500, color: 'var(--text-200)' }}>{getSupplier(r.supplierId)?.name || `#${r.supplierId}`}</span> },
-    { key: 'issuedAt',             label: 'Issued',   render: r => r.issuedAt ? new Date(r.issuedAt).toLocaleDateString('en-IN') : '—' },
-    { key: 'expectedDeliveryDate', label: 'Expected', render: r => r.expectedDeliveryDate ? new Date(r.expectedDeliveryDate).toLocaleDateString('en-IN') : '—' },
+    { key: 'issuedAt',             label: 'Issued',   render: r => fmtDate(r.issuedAt) },
+    { key: 'expectedDeliveryDate', label: 'Expected', render: r => fmtDate(r.expectedDeliveryDate) },
     { key: 'grnNumber',            label: 'GRN',      render: r => r.grnNumber
         ? <span style={{ fontWeight: 600, color: 'var(--cyan)', fontSize: 12 }}>{r.grnNumber}</span>
         : <span style={{ color: 'var(--text-700)', fontSize: 12 }}>—</span> },
-    { key: 'deliveredAt',          label: 'Delivered', render: r => r.deliveredAt
-        ? new Date(r.deliveredAt).toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'numeric' })
-        : '—' },
+    { key: 'deliveredAt',          label: 'Delivered', render: r => fmtDate(r.deliveredAt) },
     { key: 'status',               label: 'Status',   render: r => <StatusBadge status={r.status} /> },
     { key: 'actions', label: 'Actions', render: r => {
       if (r.status === 'Delivered') return (
@@ -179,7 +184,9 @@ export default function PurchaseOrders() {
           <label className="form-label-custom">Replenishment Order</label>
           <select className={`form-control-custom${formErrors.replenishmentOrderId ? ' input-error' : ''}`} value={form.replenishmentOrderId} onChange={e => { set('replenishmentOrderId')(e); setFormErrors(f => ({ ...f, replenishmentOrderId: undefined })) }}>
             <option value="">— Select Replenishment Order —</option>
-            {replenishments.filter(r => r.status === 'Approved').map(r => (
+            {replenishments
+              .filter(r => r.status === 'Approved' && !data.some(po => po.replenishmentOrderId === r.replenishmentOrderId))
+              .map(r => (
               <option key={r.replenishmentOrderId} value={r.replenishmentOrderId}>
                 #{r.replenishmentOrderId} — Qty: {r.quantityRequested}
               </option>
@@ -197,7 +204,9 @@ export default function PurchaseOrders() {
         </div>
         <div style={{ marginBottom: 14 }}>
           <label className="form-label-custom">Expected Delivery Date</label>
-          <input className={`form-control-custom${formErrors.expectedDeliveryDate ? ' input-error' : ''}`} type="date" value={form.expectedDeliveryDate} onChange={e => { set('expectedDeliveryDate')(e); setFormErrors(f => ({ ...f, expectedDeliveryDate: undefined })) }} />
+          <input className={`form-control-custom${formErrors.expectedDeliveryDate ? ' input-error' : ''}`} type="date"
+            min={new Date().toISOString().split('T')[0]}
+            value={form.expectedDeliveryDate} onChange={e => { set('expectedDeliveryDate')(e); setFormErrors(f => ({ ...f, expectedDeliveryDate: undefined })) }} />
           {formErrors.expectedDeliveryDate && <span className="field-error-text">{formErrors.expectedDeliveryDate}</span>}
         </div>
       </FormModal>

@@ -1,5 +1,23 @@
 // ─── Shared Validation Utilities ─────────────────────────────────────────────
 
+const IST = { timeZone: 'Asia/Kolkata' }
+
+/** Format a date string/object as IST date only: "28 May 2026" */
+export const fmtDate = (d) => {
+  if (!d) return '—'
+  return new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', ...IST })
+}
+
+/** Format a date string/object as IST date + time: "28 May 2026, 03:45:10 pm" */
+export const fmtDateTime = (d) => {
+  if (!d) return '—'
+  return new Date(d).toLocaleString('en-IN', {
+    day: '2-digit', month: 'short', year: 'numeric',
+    hour: '2-digit', minute: '2-digit', second: '2-digit',
+    ...IST
+  })
+}
+
 export const emailRegex = /^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$/
 export const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{6,}$/
 

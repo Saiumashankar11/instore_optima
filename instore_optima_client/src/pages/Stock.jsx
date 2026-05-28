@@ -6,10 +6,12 @@ import FormModal from '../components/shared/FormModal'
 import ConfirmModal from '../components/shared/ConfirmModal'
 import { getAllStock, updateStock, createStock, deleteStock } from '../services/stockService'
 import { getAllProducts } from '../services/productsService'
+import { createReplenishment } from '../services/replenishmentService'
 import { useAuth } from '../context/AuthContext'
 import { useUndoDelete } from '../hooks/useUndoDelete'
 import { useToast } from '../hooks/useToast'
 import { validateField, parseApiError } from '../utils/validators'
+import { fmtDate } from '../utils/validators'
 
 export default function Stock() {
   const { isAdmin } = useAuth()
@@ -56,8 +58,22 @@ export default function Stock() {
     setSaving(true)
     try {
       await updateStock(editing.stockId, { ...editing, currentStock: Number(form.currentStock) })
-      setShowForm(false); load()
-      toast('Stock updated successfully!', 'success')
+      setShowForm(false)
+      // Auto replenishment: if new stock is between 0 and half of minStock
+      const prod = products.find(p => p.productId === editing.productId)
+      const newStock = Number(form.currentStock)
+      const minStock = prod?.minStock || 0
+      if (minStock > 0 && newStock >= 0 && newStock <= Math.floor(minStock / 2)) {
+        try {
+          await createReplenishment({ productId: editing.productId, quantityRequested: minStock * 2 })
+          toast(`Stock updated! Auto-replenishment order created (stock critically low: ${newStock} ≤ ${Math.floor(minStock / 2)}).`, 'warning')
+        } catch {
+          toast('Stock updated! (Auto-replenishment failed — create manually.)', 'warning')
+        }
+      } else {
+        toast('Stock updated successfully!', 'success')
+      }
+      load()
     } catch (e) { toast(parseApiError(e)) }
     finally { setSaving(false) }
   }
@@ -88,12 +104,25 @@ export default function Stock() {
 
     setSaving(true)
     try {
-      await createStock({ productId: Number(createForm.productId), currentStock: Number(createForm.currentStock) || 0 })
+      const newStockQty = Number(createForm.currentStock) || 0
+      await createStock({ productId: Number(createForm.productId), currentStock: newStockQty })
       setShowCreateForm(false)
       setCreateForm({ productId: '', currentStock: '' })
       setFormErrors({})
+      // Auto replenishment check
+      const prod = products.find(p => p.productId === Number(createForm.productId))
+      const minStock = prod?.minStock || 0
+      if (minStock > 0 && newStockQty >= 0 && newStockQty <= Math.floor(minStock / 2)) {
+        try {
+          await createReplenishment({ productId: Number(createForm.productId), quantityRequested: minStock * 2 })
+          toast(`Stock created! Auto-replenishment order created (stock critically low: ${newStockQty} ≤ ${Math.floor(minStock / 2)}).`, 'warning')
+        } catch {
+          toast('Stock created! (Auto-replenishment failed — create manually.)', 'warning')
+        }
+      } else {
+        toast('Stock record created!', 'success')
+      }
       load()
-      toast('Stock record created!', 'success')
     } catch (err) {
       toast(parseApiError(err))
     } finally {
@@ -133,7 +162,7 @@ export default function Stock() {
       ? <span className="badge-custom badge-danger">Low Stock</span>
       : <span className="badge-custom badge-success">OK</span>
     },
-    { key: 'lastUpdated', label: 'Last Updated',   render: r => r.lastUpdated ? new Date(r.lastUpdated).toLocaleDateString('en-IN') : '—' },
+    { key: 'lastUpdated', label: 'Last Updated',   render: r => fmtDate(r.lastUpdated) },
     { key: 'actions',     label: 'Actions',        render: r => (
       <div style={{ display: 'flex', gap: 6 }}>
         <button className="btn-icon" onClick={() => openEdit(r)} title="Update Stock">
