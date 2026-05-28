@@ -151,9 +151,16 @@ namespace instore_optima.Api.Controllers
         [Authorize(Roles = "Admin,Manager")]
         public async Task<IActionResult> DeleteOrder(int id)
         {
-            var result = await _repo.DeleteOrderAsync(id);
-            if (!result) return NotFound(new { message = $"Replenishment order {id} not found." });
-            return Ok(new { message = $"Replenishment order {id} deleted." });
+            try
+            {
+                var result = await _repo.DeleteOrderAsync(id);
+                if (!result) return NotFound(new { message = $"Replenishment order {id} not found." });
+                return Ok(new { message = $"Replenishment order {id} deleted." });
+            }
+            catch (InvalidOperationException ex)
+            {
+                throw new ConflictException(ex.Message);
+            }
         }
 
         // POST api/replenishment/trigger

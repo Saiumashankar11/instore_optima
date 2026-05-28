@@ -1,5 +1,6 @@
 ﻿using instore_optima.Application.DTOs;
 using instore_optima.Api.Exceptions;
+using Microsoft.EntityFrameworkCore;
 using System.Net;
 using System.Text.Json;
 
@@ -50,6 +51,14 @@ namespace instore_optima.Api.Middleware
 
                 ConflictException ex =>
                     ErrorResponseDto.Create(ex.Message, ex.ErrorCode, (int)HttpStatusCode.Conflict, traceId),
+
+                DbUpdateException ex when ex.InnerException?.Message.Contains("FOREIGN KEY", StringComparison.OrdinalIgnoreCase) == true ||
+                                         ex.InnerException?.Message.Contains("FK_", StringComparison.OrdinalIgnoreCase) == true =>
+                    ErrorResponseDto.Create(
+                        "This record cannot be deleted because it is still referenced by other data (e.g. orders, payments, or stock records). Remove those first.",
+                        "FK_CONSTRAINT_VIOLATION",
+                        (int)HttpStatusCode.Conflict,
+                        traceId),
 
                 Exceptions.ApplicationException ex =>
                     ErrorResponseDto.Create(ex.Message, ex.ErrorCode, (int)HttpStatusCode.InternalServerError, traceId),

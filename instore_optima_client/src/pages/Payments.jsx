@@ -70,7 +70,9 @@ export default function Payments() {
     scheduleDelete({
       id: delId,
       label: `Payment #${delId} (Order #${row?.orderId})`,
-      deleteFn: () => deletePayment(delId),      onUndo: () => load(),
+      deleteFn: () => deletePayment(delId),
+      onUndo: () => load(),
+      onError: (err) => { toast(parseApiError(err), 'error'); load() },
     })
   }
 
@@ -159,7 +161,9 @@ export default function Payments() {
       </FormModal>
 
       <ConfirmModal show={showDel} onHide={() => setShowDel(false)} onConfirm={handleDelete}
-        title="Delete Payment" message="This will permanently delete the payment AND its linked invoice and receipt. This cannot be undone." confirmLabel="Delete" variant="danger" loading={saving} />
+        title="Delete Payment"
+        message="⚠️ This will permanently delete the payment AND its linked invoice and receipt. This cannot be undone. Delete anyway?"
+        confirmLabel="Delete Anyway" variant="danger" loading={saving} />
       {UndoToast}
       {ToastContainer}
     </div>

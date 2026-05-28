@@ -14,6 +14,7 @@ namespace instore_optima.Domain.Interfaces
         Task<PurchaseOrder?> GetPOByIdAsync(int poId);
         Task<PurchaseOrder> CreatePurchaseOrderAsync(PurchaseOrder po);
         Task<PurchaseOrder> UpdatePOStatusAsync(int poId, string status);
+        Task<bool> DeletePurchaseOrderAsync(int poId);
         // Status: Pending | Delivered | Cancelled
     }
 }

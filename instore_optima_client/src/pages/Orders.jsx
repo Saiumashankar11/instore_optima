@@ -112,6 +112,7 @@ export default function Orders() {
       label: `Order #${id}`,
       deleteFn: () => deleteOrder(id),
       onUndo: () => loadOrders(null),
+      onError: (err) => { toast(parseApiError(err), 'error'); loadOrders(null) },
     })
   }
 
@@ -148,6 +149,7 @@ export default function Orders() {
       label: `Order Item #${id}`,
       deleteFn: () => deleteOrderItem(id),
       onUndo: () => { loadItems(orderId); loadOrders(selectedOrder) },
+      onError: (err) => { toast(parseApiError(err), 'error'); loadItems(orderId); loadOrders(selectedOrder) },
     })
   }
 
@@ -330,7 +332,7 @@ export default function Orders() {
       </FormModal>
 
       <ConfirmModal show={showDelOrder} onHide={() => setShowDelOrder(false)} onConfirm={handleDeleteOrder}
-        title="Delete Order" message="Delete this order and all its items permanently?" confirmLabel="Delete" loading={savingOrder} />
+        title="Delete Order" message="⚠️ This will permanently delete the order and all its items. If payments or invoices are linked, deletion will be blocked. Continue?" confirmLabel="Delete Anyway" loading={savingOrder} />
 
       {/* ── Item modals ── */}
       <FormModal show={showItemForm} onHide={() => setShowItemForm(false)} onSubmit={handleSaveItem}

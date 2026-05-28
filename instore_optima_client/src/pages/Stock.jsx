@@ -86,7 +86,9 @@ export default function Stock() {
     scheduleDelete({
       id: delId,
       label: `Stock for "${prod?.name || '#' + delId}"`,
-      deleteFn: () => deleteStock(delId),      onUndo: () => load(),
+      deleteFn: () => deleteStock(delId),
+      onUndo: () => load(),
+      onError: (err) => { toast(parseApiError(err), 'error'); load() },
     })
   }
 
@@ -255,7 +257,9 @@ export default function Stock() {
       </FormModal>
 
       <ConfirmModal show={showDel} onHide={() => setShowDel(false)} onConfirm={handleDelete}
-        title="Delete Stock Record" message="Are you sure you want to delete this stock record?" confirmLabel="Delete" loading={saving} />
+        title="Delete Stock Record"
+        message="⚠️ This will permanently delete the stock record for this product. The product will no longer appear in stock tracking. Delete anyway?"
+        confirmLabel="Delete Anyway" loading={saving} />
       {UndoToast}
       {ToastContainer}
     </div>

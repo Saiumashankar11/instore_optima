@@ -39,17 +39,28 @@ namespace instore_optima.Infrastructure.Repositories
             var stock = await _context.Stocks
                 .FirstOrDefaultAsync(s => s.ProductId == movement.ProductId);
 
-            if (stock != null)
+            if (stock == null)
             {
-                stock.CurrentStock = movement.MovementType.ToUpper() switch
+                // Auto-create stock record if it doesn't exist (e.g. after manual restore)
+                stock = new Stock
                 {
-                    "IN" => stock.CurrentStock + movement.Quantity,
-                    "OUT" => stock.CurrentStock - movement.Quantity,
-                    "ADJUSTMENT" => movement.Quantity,
-                    _ => stock.CurrentStock
+                    ProductId    = movement.ProductId,
+                    CurrentStock = 0,
+                    LastUpdated  = DateTime.UtcNow
                 };
-                stock.LastUpdated = DateTime.UtcNow;
+                _context.Stocks.Add(stock);
+                await _context.SaveChangesAsync();
             }
+
+            stock.CurrentStock = movement.MovementType.ToUpper() switch
+            {
+                "IN"         => stock.CurrentStock + movement.Quantity,
+                "OUT"        => Math.Max(0, stock.CurrentStock - movement.Quantity),
+                "WRITE_OFF"  => Math.Max(0, stock.CurrentStock - movement.Quantity),
+                "ADJUSTMENT" => movement.Quantity, // absolute correction
+                _            => stock.CurrentStock
+            };
+            stock.LastUpdated = DateTime.UtcNow;
 
             _context.StockMovements.Add(movement);
             await _context.SaveChangesAsync();

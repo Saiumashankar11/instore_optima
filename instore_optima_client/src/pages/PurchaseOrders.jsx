@@ -3,20 +3,23 @@ import PageHeader from '../components/shared/PageHeader'
 import DataTable from '../components/shared/DataTable'
 import SearchBar from '../components/shared/SearchBar'
 import FormModal from '../components/shared/FormModal'
+import ConfirmModal from '../components/shared/ConfirmModal'
 import StatusBadge from '../components/shared/StatusBadge'
-import { getAllPOs, createPO, updatePO } from '../services/purchaseOrderService'
+import { getAllPOs, createPO, updatePO, deletePO } from '../services/purchaseOrderService'
 import { getAllSuppliers } from '../services/supplierService'
 import { getAllReplenishments } from '../services/replenishmentService'
 import { useAuth } from '../context/AuthContext'
 import { useToast } from '../hooks/useToast'
+import { useUndoDelete } from '../hooks/useUndoDelete'
 import { parseApiError } from '../utils/validators'
 import { fmtDate } from '../utils/validators'
 
 const EMPTY = { replenishmentOrderId: '', supplierId: '', expectedDeliveryDate: '' }
 
 export default function PurchaseOrders() {
-  const { canManage } = useAuth()
+  const { canManage, isAdmin } = useAuth()
   const { show: toast, ToastContainer } = useToast()
+  const { scheduleDelete, UndoToast } = useUndoDelete()
   const [data, setData]                     = useState([])
   const [suppliers, setSuppliers]           = useState([])
   const [replenishments, setReplenishments] = useState([])
@@ -27,6 +30,8 @@ export default function PurchaseOrders() {
   const [form, setForm]                     = useState(EMPTY)
   const [saving, setSaving]                 = useState(false)
   const [formErrors, setFormErrors]         = useState({})
+  const [showDel, setShowDel]               = useState(false)
+  const [delId, setDelId]                   = useState(null)
 
   const load = async () => {
     setLoading(true)
@@ -70,6 +75,19 @@ export default function PurchaseOrders() {
   const handleStatusUpdate = async (row, status) => {
     try { await updatePO(row.purchaseOrderId, { ...row, status }); load(); toast('Status updated!', 'success') }
     catch (err) { toast(parseApiError(err)) }
+  }
+
+  const handleDelete = () => {
+    const row = data.find(d => d.purchaseOrderId === delId)
+    setShowDel(false)
+    setData(prev => prev.filter(d => d.purchaseOrderId !== delId))
+    scheduleDelete({
+      id: delId,
+      label: `Purchase Order #${delId}`,
+      deleteFn: () => deletePO(delId),
+      onUndo: () => load(),
+      onError: (err) => { toast(parseApiError(err), 'error'); load() },
+    })
   }
 
   const printGrn = (po, supplier, replen) => {
@@ -145,13 +163,22 @@ export default function PurchaseOrders() {
           </button>
         </div>
       )
-      if (!canManage) return <span style={{ color: 'var(--text-700)', fontSize: 12 }}>—</span>
-      return r.status === 'Pending' ? (
-        <button className="btn-primary-custom" style={{ padding: '4px 11px', fontSize: 11.5 }}
-          onClick={() => handleStatusUpdate(r, 'Delivered')}>
-          <i className="bi bi-check-lg"></i> Mark Delivered
-        </button>
-      ) : <span style={{ color: 'var(--text-700)', fontSize: 12 }}>—</span>
+      return (
+        <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+          {canManage && r.status === 'Pending' && (
+            <button className="btn-primary-custom" style={{ padding: '4px 11px', fontSize: 11.5 }}
+              onClick={() => handleStatusUpdate(r, 'Delivered')}>
+              <i className="bi bi-check-lg"></i> Mark Delivered
+            </button>
+          )}
+          {isAdmin && r.status !== 'Delivered' && (
+            <button className="btn-icon danger" title="Delete PO" onClick={() => { setDelId(r.purchaseOrderId); setShowDel(true) }}>
+              <i className="bi bi-trash"></i>
+            </button>
+          )}
+          {!canManage && !isAdmin && <span style={{ color: 'var(--text-700)', fontSize: 12 }}>—</span>}
+        </div>
+      )
     }}
   ]
 
@@ -210,6 +237,12 @@ export default function PurchaseOrders() {
           {formErrors.expectedDeliveryDate && <span className="field-error-text">{formErrors.expectedDeliveryDate}</span>}
         </div>
       </FormModal>
+
+      <ConfirmModal show={showDel} onHide={() => setShowDel(false)} onConfirm={handleDelete}
+        title="Delete Purchase Order"
+        message="⚠️ This purchase order will be permanently deleted. Only Pending or Cancelled POs can be deleted. Delivered POs are permanent records."
+        confirmLabel="Delete Anyway" loading={saving} />
+      {UndoToast}
       {ToastContainer}
     </div>
   )

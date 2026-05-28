@@ -49,11 +49,13 @@ export default function Products() {
   const handleSave = async () => {
     const errors = {}
     const nameErr = validateField('productName', form.name)
+    const descErr = validateField('description', form.description)
     const priceErr = validateField('price', form.price)
     const supplierErr = validateField('supplierId', form.supplierId)
     const minErr = validateField('minStock', form.minStock)
     const maxErr = validateField('maxStock', form.maxStock, { minStock: form.minStock })
     if (nameErr) errors.name = nameErr
+    if (descErr) errors.description = descErr
     if (priceErr) errors.price = priceErr
     if (supplierErr) errors.supplierId = supplierErr
     if (minErr) errors.minStock = minErr
@@ -84,6 +86,7 @@ export default function Products() {
       label: `Product "${row?.name || '#' + delId}"`,
       deleteFn: () => deleteProduct(delId),
       onUndo: () => load(),
+      onError: (err) => { toast(parseApiError(err), 'error'); load() },
     })
   }
 
@@ -137,7 +140,8 @@ export default function Products() {
         </div>
         <div style={{ marginBottom: 14 }}>
           <label className="form-label-custom">Description</label>
-          <input className="form-control-custom" placeholder="Optional description" value={form.description} onChange={set('description')} />
+          <input className={`form-control-custom ${formErrors.description ? 'input-error' : ''}`} placeholder="Optional description" value={form.description} onChange={set('description')} />
+          {formErrors.description && <span className="field-error-text">{formErrors.description}</span>}
         </div>
         <div style={{ marginBottom: 14 }}>
           <label className="form-label-custom">Price (₹) *</label>
@@ -167,8 +171,9 @@ export default function Products() {
       </FormModal>
 
       <ConfirmModal show={showDel} onHide={() => setShowDel(false)} onConfirm={handleDelete}
-        title="Delete Product" message="Are you sure you want to delete this product? This cannot be undone."
-        confirmLabel="Delete" loading={saving} />
+        title="Delete Product"
+        message="⚠️ This product will be permanently deleted. If it is referenced by any orders, stock movements, or replenishment records, deletion will be blocked."
+        confirmLabel="Delete Anyway" loading={saving} />
       {UndoToast}
       {ToastContainer}
     </div>

@@ -168,6 +168,10 @@ namespace instore_optima.Api.Controllers
             {
                 throw new ResourceNotFoundException("Order", id);
             }
+            catch (InvalidOperationException ex)
+            {
+                throw new ConflictException(ex.Message);
+            }
         }
     }
 }

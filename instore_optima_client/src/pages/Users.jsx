@@ -5,8 +5,9 @@ import SearchBar from '../components/shared/SearchBar'
 import ConfirmModal from '../components/shared/ConfirmModal'
 import { getAllUsers, deleteUser } from '../services/userService'
 import { useAuth } from '../context/AuthContext'
-import { fmtDate } from '../utils/validators'
+import { fmtDate, parseApiError } from '../utils/validators'
 import { useUndoDelete } from '../hooks/useUndoDelete'
+import { useToast } from '../hooks/useToast'
 
 export default function Users() {
   const { isAdmin } = useAuth()
@@ -19,6 +20,7 @@ export default function Users() {
   const [saving, setSaving]   = useState(false)
 
   const { scheduleDelete, UndoToast } = useUndoDelete()
+  const { show: toast, ToastContainer } = useToast()
 
   const load = async () => {
     setLoading(true)
@@ -36,7 +38,9 @@ export default function Users() {
     scheduleDelete({
       id: delId,
       label: `User "${row?.name || '#' + delId}"`,
-      deleteFn: () => deleteUser(delId),      onUndo: () => load(),
+      deleteFn: () => deleteUser(delId),
+      onUndo: () => load(),
+      onError: (err) => { toast(parseApiError(err), 'error'); load() },
     })
   }
 
@@ -95,8 +99,11 @@ export default function Users() {
       </div>
 
       <ConfirmModal show={showDel} onHide={() => setShowDel(false)} onConfirm={handleDelete}
-        title="Delete User" message="Are you sure you want to delete this user?" confirmLabel="Delete" loading={saving} />
+        title="Deactivate User"
+        message="⚠️ This user account will be deactivated (set to Inactive). They will be immediately logged out and blocked from signing in. Proceed?"
+        confirmLabel="Deactivate" loading={saving} />
       {UndoToast}
+      {ToastContainer}
     </div>
   )
 }

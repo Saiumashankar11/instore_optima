@@ -73,7 +73,9 @@ export default function Suppliers() {
     scheduleDelete({
       id: delId,
       label: `Supplier "${row?.name || '#' + delId}"`,
-      deleteFn: () => deleteSupplier(delId),      onUndo: () => load(),
+      deleteFn: () => deleteSupplier(delId),
+      onUndo: () => load(),
+      onError: (err) => { toast(parseApiError(err), 'error'); load() },
     })
   }
 
@@ -149,8 +151,9 @@ export default function Suppliers() {
       </FormModal>
 
       <ConfirmModal show={showDel} onHide={() => setShowDel(false)} onConfirm={handleDelete}
-        title="Delete Supplier" message="Are you sure you want to delete this supplier?"
-        confirmLabel="Delete" loading={saving} />
+        title="Delete Supplier"
+        message="⚠️ This supplier will be permanently deleted. If they have linked products, purchase orders, or replenishment logs, deletion will be blocked."
+        confirmLabel="Delete Anyway" loading={saving} />
       {UndoToast}
       {ToastContainer}
     </div>

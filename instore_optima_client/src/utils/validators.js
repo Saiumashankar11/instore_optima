@@ -30,6 +30,8 @@ export const fmtDateTime = (d) => {
 
 export const emailRegex = /^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$/
 export const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{6,}$/
+const lettersOnlyRegex = /^[a-zA-Z\s'\-.]+$/
+const hasLetterRegex = /[a-zA-Z]/
 
 /**
  * Validate a single field and return error string or ''
@@ -42,6 +44,7 @@ export function validateField(field, value, extra = {}) {
       if (!v) return 'Name is required.'
       if (v.length < 2) return 'Name must be at least 2 characters.'
       if (v.length > 100) return 'Name must be under 100 characters.'
+      if (!lettersOnlyRegex.test(v)) return 'Name must only contain letters, spaces, or hyphens.'
       return ''
 
     case 'email':
@@ -64,6 +67,13 @@ export function validateField(field, value, extra = {}) {
     case 'productName':
       if (!v) return 'Product name is required.'
       if (v.length < 2) return 'Name must be at least 2 characters.'
+      if (!hasLetterRegex.test(v)) return 'Product name must contain at least one letter.'
+      if (/^[\d\s]+$/.test(v)) return 'Product name cannot be numbers only.'
+      return ''
+
+    case 'description':
+      if (v && !hasLetterRegex.test(v)) return 'Description must contain at least one letter.'
+      if (v && /^[\d\s]+$/.test(v)) return 'Description cannot be numbers only.'
       return ''
 
     case 'price':
@@ -72,12 +82,14 @@ export function validateField(field, value, extra = {}) {
       return ''
 
     case 'minStock':
-      if (v !== '' && (isNaN(Number(v)) || Number(v) < 0)) return 'Min stock must be 0 or more.'
+      if (!v) return 'Min stock is required.'
+      if (isNaN(Number(v)) || Number(v) < 1) return 'Min stock must be at least 1.'
       return ''
 
     case 'maxStock':
-      if (v !== '' && (isNaN(Number(v)) || Number(v) < 0)) return 'Max stock must be 0 or more.'
-      if (v !== '' && extra.minStock !== undefined && Number(v) < Number(extra.minStock)) return 'Max stock must be ≥ min stock.'
+      if (!v) return 'Max stock is required.'
+      if (isNaN(Number(v)) || Number(v) < 1) return 'Max stock must be at least 1.'
+      if (extra.minStock !== undefined && Number(v) < Number(extra.minStock)) return 'Max stock must be ≥ min stock.'
       return ''
 
     case 'supplierId':
@@ -98,10 +110,17 @@ export function validateField(field, value, extra = {}) {
     case 'supplierName':
       if (!v) return 'Company name is required.'
       if (v.length < 2) return 'Name must be at least 2 characters.'
+      if (!lettersOnlyRegex.test(v)) return 'Company name must only contain letters, spaces, or hyphens.'
       return ''
 
     case 'contact':
       if (!v) return 'Contact person is required.'
+      if (!lettersOnlyRegex.test(v)) return 'Contact name must only contain letters, spaces, or hyphens.'
+      return ''
+
+    case 'reason':
+      if (!v) return 'Please provide a reason.'
+      if (/\d/.test(v)) return 'Reason must not contain numbers.'
       return ''
 
     case 'supplierEmail':
@@ -150,7 +169,7 @@ export function parseApiError(err) {
   if (status === 400) return 'Invalid data submitted. Please check your inputs.'
   if (status === 403) return 'You do not have permission to perform this action.'
   if (status === 404) return 'The requested resource was not found.'
-  if (status === 409) return 'A conflict occurred. The data may have been modified.'
+  if (status === 409) return data?.message || 'This item cannot be deleted — it is currently referenced by existing records.'
   if (status >= 500) return 'Server error — please try again later or contact support.'
 
   if (!data) return err.message || 'Something went wrong. Please try again.'

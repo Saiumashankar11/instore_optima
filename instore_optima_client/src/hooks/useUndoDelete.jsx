@@ -1,4 +1,5 @@
 import { useRef, useState, useCallback, useMemo } from 'react'
+import { createPortal } from 'react-dom'
 
 const DELAY = 6000 // ms before real delete fires
 
@@ -38,13 +39,18 @@ export function useUndoDelete() {
     const cb = callbackRef.current
     callbackRef.current = null
     if (cb) {
-      try { await cb.deleteFn() } catch { /* ignore */ }
-      cb.onDeleted?.()
+      try {
+        await cb.deleteFn()
+        cb.onDeleted?.()
+      } catch (e) {
+        cb.onError?.(e)
+        cb.onUndo?.()
+      }
     }
     setPending(null)
   }, [clear])
 
-  const scheduleDelete = useCallback(({ id, label, deleteFn, onDeleted, onUndo }) => {
+  const scheduleDelete = useCallback(({ id, label, deleteFn, onDeleted, onUndo, onError }) => {
     // Cancel any existing pending delete first (fire it immediately)
     if (callbackRef.current) {
       clear()
@@ -52,7 +58,7 @@ export function useUndoDelete() {
       callbackRef.current.onDeleted?.()
     }
 
-    callbackRef.current = { id, deleteFn, onDeleted, onUndo }
+    callbackRef.current = { id, deleteFn, onDeleted, onUndo, onError }
 
     const start = Date.now()
     setPending({ label, countdown: DELAY / 1000 })
@@ -84,7 +90,7 @@ export function useUndoDelete() {
   // Return a JSX element (not a component) — so React updates in-place, no remount
   const UndoToast = useMemo(() => {
     if (!pending) return null
-    return (
+    return createPortal(
       <div style={{
         position: 'fixed', bottom: 28, left: '50%', transform: 'translateX(-50%)',
         zIndex: 9999, display: 'flex', alignItems: 'center', gap: 14,
@@ -118,7 +124,8 @@ export function useUndoDelete() {
         >
           <i className="bi bi-trash" style={{ marginRight: 5 }}></i>Delete Now
         </button>
-      </div>
+      </div>,
+      document.body
     )
   }, [pending, undoDelete, fireNow])
 

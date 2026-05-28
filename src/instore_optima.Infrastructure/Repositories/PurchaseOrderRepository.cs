@@ -52,15 +52,14 @@ namespace instore_optima.Infrastructure.Repositories
             // When delivered: update stock, mark replenishment fulfilled, issue GRN
             if (status == "Delivered")
             {
-                // Stamp GRN number and delivery time on the PO itself
                 po.GrnNumber = $"GRN-{DateTime.UtcNow.Year}-{poId:D4}";
                 po.DeliveredAt = DateTime.UtcNow;
                 await _context.SaveChangesAsync();
+
                 var replenOrder = await _context.ReplenishmentOrders
                     .FirstOrDefaultAsync(r => r.ReplenishmentOrderId == po.ReplenishmentOrderId);
                 if (replenOrder != null)
                 {
-                    // Update stock level
                     var stock = await _context.Stocks
                         .FirstOrDefaultAsync(s => s.ProductId == replenOrder.ProductId);
                     if (stock != null)
@@ -69,26 +68,59 @@ namespace instore_optima.Infrastructure.Repositories
                         stock.LastUpdated = DateTime.UtcNow;
                     }
 
-                    // Mark replenishment order as Fulfilled
                     replenOrder.Status = "Fulfilled";
                     replenOrder.ApprovedAt = DateTime.UtcNow;
 
-                    // Record StockMovement IN for audit trail
                     _context.StockMovements.Add(new StockMovement
                     {
-                        ProductId = replenOrder.ProductId,
-                        Quantity = replenOrder.QuantityRequested,
+                        ProductId    = replenOrder.ProductId,
+                        Quantity     = replenOrder.QuantityRequested,
                         MovementType = "IN",
-                        PerformedBy = 1,
-                        Reason = $"PO #{poId} delivered from supplier",
-                        PerformedAt = DateTime.UtcNow
+                        PerformedBy  = replenOrder.ApprovedBy ?? po.SupplierId, // use approver if set
+                        Reason       = $"PO #{poId} delivered from supplier",
+                        PerformedAt  = DateTime.UtcNow
                     });
 
                     await _context.SaveChangesAsync();
                 }
             }
 
+            // When cancelled: revert linked ReplenishmentOrder back to Approved
+            // so it can be re-linked to a new PO
+            if (status == "Cancelled")
+            {
+                var replenOrder = await _context.ReplenishmentOrders
+                    .FirstOrDefaultAsync(r => r.ReplenishmentOrderId == po.ReplenishmentOrderId);
+                if (replenOrder != null && replenOrder.Status != "Fulfilled")
+                {
+                    replenOrder.Status = "Approved";
+                    await _context.SaveChangesAsync();
+                }
+            }
+
             return po;
+        }
+
+        public async Task<bool> DeletePurchaseOrderAsync(int poId)
+        {
+            var po = await _context.PurchaseOrders.FindAsync(poId);
+            if (po == null) return false;
+
+            if (po.Status == "Delivered")
+                throw new InvalidOperationException(
+                    $"Purchase order #{poId} has already been delivered and cannot be deleted. Delivered POs are permanent records.");
+
+            // Revert linked ReplenishmentOrder back to Approved so it can get a new PO
+            var replenOrder = await _context.ReplenishmentOrders
+                .FirstOrDefaultAsync(r => r.ReplenishmentOrderId == po.ReplenishmentOrderId);
+            if (replenOrder != null && replenOrder.Status != "Fulfilled")
+            {
+                replenOrder.Status = "Approved";
+            }
+
+            _context.PurchaseOrders.Remove(po);
+            await _context.SaveChangesAsync();
+            return true;
         }
     }
 }

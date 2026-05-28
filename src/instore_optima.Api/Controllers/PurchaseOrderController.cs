@@ -98,5 +98,22 @@ namespace instore_optima.Api.Controllers
             var updated = await _purchaseOrderRepository.UpdatePOStatusAsync(id, dto.Status);
             return Ok(updated);
         }
+
+        // DELETE api/purchaseorder/{id}
+        [HttpDelete("{id}")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> Delete(int id)
+        {
+            try
+            {
+                var result = await _purchaseOrderRepository.DeletePurchaseOrderAsync(id);
+                if (!result) throw new ResourceNotFoundException("PurchaseOrder", id);
+                return Ok(new { message = $"Purchase order #{id} deleted successfully." });
+            }
+            catch (InvalidOperationException ex)
+            {
+                throw new ConflictException(ex.Message);
+            }
+        }
     }
 }

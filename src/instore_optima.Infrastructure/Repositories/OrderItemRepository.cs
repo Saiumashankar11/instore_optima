@@ -173,11 +173,20 @@ namespace instore_optima.Api.Repositories.Implementations
 
             // Restore stock
             var stock = await _context.Stocks.FirstOrDefaultAsync(s => s.ProductId == productId);
-            if (stock != null)
+            if (stock == null)
             {
-                stock.CurrentStock += qty;
-                stock.LastUpdated = DateTime.UtcNow;
+                // Stock record was deleted separately — recreate it
+                stock = new Stock
+                {
+                    ProductId    = productId,
+                    CurrentStock = 0,
+                    LastUpdated  = DateTime.UtcNow
+                };
+                _context.Stocks.Add(stock);
+                await _context.SaveChangesAsync();
             }
+            stock.CurrentStock += qty;
+            stock.LastUpdated = DateTime.UtcNow;
 
             var order = await _context.Orders.FindAsync(orderId);
 

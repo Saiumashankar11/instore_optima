@@ -116,6 +116,12 @@ namespace instore_optima.Infrastructure.Repositories
         {
             var order = await _context.ReplenishmentOrders.FindAsync(replenishmentOrderId);
             if (order == null) return false;
+
+            bool hasPurchaseOrders = await _context.PurchaseOrders.AnyAsync(po => po.ReplenishmentOrderId == replenishmentOrderId);
+            if (hasPurchaseOrders)
+                throw new InvalidOperationException(
+                    $"Replenishment order #{replenishmentOrderId} cannot be deleted because it has a linked purchase order.");
+
             _context.ReplenishmentOrders.Remove(order);
             await _context.SaveChangesAsync();
             return true;

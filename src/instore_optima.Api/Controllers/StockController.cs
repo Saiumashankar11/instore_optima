@@ -2,6 +2,7 @@ using instore_optima.Application.DTOs;
 using instore_optima.Domain.Entities;
 using instore_optima.Api.Exceptions;
 using instore_optima.Infrastructure.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace instore_optima.Api.Controllers
@@ -14,10 +15,12 @@ namespace instore_optima.Api.Controllers
     public class StockController : ControllerBase
     {
         private readonly IStockRepository _repo;
+        private readonly IStockMovementRepository _movementRepo;
 
-        public StockController(IStockRepository repo)
+        public StockController(IStockRepository repo, IStockMovementRepository movementRepo)
         {
             _repo = repo;
+            _movementRepo = movementRepo;
         }
 
         /// <summary>
@@ -102,13 +105,37 @@ namespace instore_optima.Api.Controllers
 
         // DELETE api/stock/{id}
         [HttpDelete("{id}")]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> Delete(int id)
         {
+            var stock = await _repo.GetByIdAsync(id);
+            if (stock == null)
+                throw new ResourceNotFoundException("Stock", id);
+
+            // Read the calling admin's userId from the JWT claim
+            var userIdClaim = User.FindFirst("userId")?.Value
+                           ?? User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            int performedBy = int.TryParse(userIdClaim, out int uid) ? uid : 1;
+
+            // Auto-record a WRITE_OFF movement so the audit trail is preserved
+            if (stock.CurrentStock > 0)
+            {
+                await _movementRepo.CreateAsync(new StockMovement
+                {
+                    ProductId    = stock.ProductId,
+                    Quantity     = stock.CurrentStock,
+                    MovementType = "WRITE_OFF",
+                    PerformedBy  = performedBy,
+                    Reason       = "Stock record deleted — remaining units written off",
+                    PerformedAt  = DateTime.UtcNow
+                });
+            }
+
             var result = await _repo.DeleteAsync(id);
             if (!result)
                 throw new ResourceNotFoundException("Stock", id);
 
-            return Ok(new { message = $"Stock {id} deleted successfully." });
+            return Ok(new { message = $"Stock {id} deleted and {stock.CurrentStock} units written off." });
         }
 
         // ── Mapping ──────────────────────────────────────────────────

@@ -10,8 +10,7 @@ import { getAllProducts } from '../services/productsService'
 import { useAuth } from '../context/AuthContext'
 import { useUndoDelete } from '../hooks/useUndoDelete'
 import { useToast } from '../hooks/useToast'
-import { parseApiError } from '../utils/validators'
-import { fmtDateTime } from '../utils/validators'
+import { parseApiError, validateField, fmtDateTime } from '../utils/validators'
 
 const EMPTY = { productId: '', quantity: '', movementType: 'IN', reason: '' }
 
@@ -50,7 +49,8 @@ export default function StockMovement() {
     const errors = {}
     if (!form.productId) errors.productId = 'Please select a product.'
     if (!form.quantity || Number(form.quantity) < 1) errors.quantity = 'Quantity must be at least 1.'
-    if (!form.reason?.trim()) errors.reason = 'Please provide a reason.'
+    const reasonErr = validateField('reason', form.reason)
+    if (reasonErr) errors.reason = reasonErr
     setFormErrors(errors)
     if (Object.keys(errors).length) { toast(Object.values(errors)[0], 'warning'); return }
     setSaving(true)
@@ -70,7 +70,9 @@ export default function StockMovement() {
     scheduleDelete({
       id: delId,
       label: `Movement #${delId} (${prod?.name || 'Product'})`,
-      deleteFn: () => deleteMovement(delId),      onUndo: () => load(),
+      deleteFn: () => deleteMovement(delId),
+      onUndo: () => load(),
+      onError: (err) => { toast(parseApiError(err), 'error'); load() },
     })
   }
 
@@ -141,8 +143,9 @@ export default function StockMovement() {
           <label className="form-label-custom">Movement Type</label>
           <select className="form-control-custom" value={form.movementType} onChange={set('movementType')}>
             <option value="IN">IN — Stock received</option>
-            <option value="OUT">OUT — Stock removed</option>
-            <option value="ADJUSTMENT">ADJUSTMENT — Manual correction</option>
+            <option value="OUT">OUT — Stock removed / sold</option>
+            <option value="ADJUSTMENT">ADJUSTMENT — Manual count correction</option>
+            <option value="WRITE_OFF">WRITE_OFF — Expiry, damage or loss</option>
           </select>
         </div>
         <div style={{ marginBottom: 14 }}>
@@ -158,7 +161,7 @@ export default function StockMovement() {
       </FormModal>
 
       <ConfirmModal show={showDel} onHide={() => setShowDel(false)} onConfirm={handleDelete}
-        title="Delete Movement" message="Are you sure you want to delete this stock movement record?" confirmLabel="Delete" loading={saving} />
+        title="Delete Movement" message="⚠️ This stock movement record will be permanently deleted. This action cannot be undone. Delete anyway?" confirmLabel="Delete Anyway" loading={saving} />
       {UndoToast}
       {ToastContainer}
     </div>
