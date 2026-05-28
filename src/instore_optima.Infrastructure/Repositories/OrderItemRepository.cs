@@ -208,18 +208,44 @@ namespace instore_optima.Api.Repositories.Implementations
         // ── Auto-replenishment trigger ────────────────────────────────
         private async Task TriggerReplenishmentIfNeededAsync(int productId, int currentStock)
         {
-            var rule = await _context.ReplenishmentRules
-                .FirstOrDefaultAsync(r => r.ProductId == productId && r.Status == "Active");
-            if (rule == null || currentStock > rule.ReorderPoint) return;
-
+            // Check if there's already a pending replenishment order for this product
             bool alreadyPending = await _context.ReplenishmentOrders
                 .AnyAsync(o => o.ProductId == productId && o.Status == "Pending");
             if (alreadyPending) return;
 
+            // Try rule-based replenishment first
+            var rule = await _context.ReplenishmentRules
+                .FirstOrDefaultAsync(r => r.ProductId == productId && r.Status == "Active");
+
+            if (rule != null)
+            {
+                if (currentStock > rule.ReorderPoint) return;
+
+                _context.ReplenishmentOrders.Add(new ReplenishmentOrder
+                {
+                    ProductId = productId,
+                    QuantityRequested = rule.MaxLevel - currentStock,
+                    GeneratedAt = DateTime.UtcNow,
+                    Status = "Pending"
+                });
+                await _context.SaveChangesAsync();
+                return;
+            }
+
+            // Fallback: use product MinStock as reorder point (midpoint trigger)
+            var product = await _context.Products.FirstOrDefaultAsync(p => p.ProductId == productId);
+            if (product == null || product.MinStock <= 0) return;
+
+            int reorderPoint = product.MinStock; // trigger at or below MinStock
+            if (currentStock > reorderPoint) return;
+
+            int quantityToOrder = product.MaxStock - currentStock;
+            if (quantityToOrder <= 0) quantityToOrder = product.MinStock * 2;
+
             _context.ReplenishmentOrders.Add(new ReplenishmentOrder
             {
                 ProductId = productId,
-                QuantityRequested = rule.MaxLevel - currentStock,
+                QuantityRequested = quantityToOrder,
                 GeneratedAt = DateTime.UtcNow,
                 Status = "Pending"
             });

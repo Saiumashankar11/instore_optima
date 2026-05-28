@@ -4,6 +4,7 @@ import DataTable from '../components/shared/DataTable'
 import SearchBar from '../components/shared/SearchBar'
 import StatusBadge from '../components/shared/StatusBadge'
 import { getAllInvoices, updateInvoice } from '../services/invoiceService'
+import { fmtDate } from '../utils/validators'
 
 export default function Invoices() {
   const [data, setData]         = useState([])
@@ -40,7 +41,7 @@ export default function Invoices() {
     { key: 'taxAmount',     label: 'Tax',         render: r => <span>₹{Number(r.taxAmount || 0).toLocaleString('en-IN')}</span> },
     { key: 'dueDate',       label: 'Due Date',    render: r => (
       <span style={{ color: isOverdue(r) ? '#f87171' : 'inherit', fontWeight: isOverdue(r) ? 600 : 400 }}>
-        {r.dueDate ? new Date(r.dueDate).toLocaleDateString('en-IN') : '—'}
+        {fmtDate(r.dueDate)}
         {isOverdue(r) && <span className="badge-custom badge-danger" style={{ marginLeft: 6 }}>Overdue</span>}
       </span>
     )},

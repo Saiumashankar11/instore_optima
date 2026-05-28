@@ -3,6 +3,7 @@ import PageHeader from '../components/shared/PageHeader'
 import DataTable from '../components/shared/DataTable'
 import SearchBar from '../components/shared/SearchBar'
 import { getAllReceipts } from '../services/receiptService'
+import { fmtDate, fmtDateTime } from '../utils/validators'
 
 const EMPTY = { paymentId: '', receiptNumber: '', amountPaid: '' }
 
@@ -69,8 +70,8 @@ export default function Receipts() {
     { key: 'receiptNumber', label: 'Receipt No.',  render: r => <span style={{ fontWeight: 500, color: 'var(--text-200)' }}>{r.receiptNumber || '—'}</span> },
     { key: 'paymentId',     label: 'Payment',      render: r => <span>#{r.paymentId}</span> },
     { key: 'amountPaid',    label: 'Amount Paid',  render: r => <span style={{ fontWeight: 600, color: 'var(--text-200)' }}>₹{Number(r.amountPaid || 0).toLocaleString('en-IN')}</span> },
-    { key: 'paymentDate',   label: 'Payment Date', render: r => r.paymentDate ? new Date(r.paymentDate).toLocaleDateString('en-IN') : '—' },
-    { key: 'generatedAt',   label: 'Generated',    render: r => r.generatedAt ? new Date(r.generatedAt).toLocaleString('en-IN') : '—' },
+    { key: 'paymentDate',   label: 'Payment Date', render: r => fmtDate(r.paymentDate) },
+    { key: 'generatedAt',   label: 'Generated',    render: r => fmtDateTime(r.generatedAt) },
     { key: 'actions',       label: 'Actions',      render: r => (
       <button className="btn-icon" onClick={() => handlePrint(r)} title="Print Receipt">
         <i className="bi bi-printer"></i>

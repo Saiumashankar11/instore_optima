@@ -7,10 +7,11 @@ import StatusBadge from '../components/shared/StatusBadge'
 import { getAllOrders, createOrder, updateOrder, deleteOrder } from '../services/ordersService'
 import { getItemsByOrderId, createOrderItem, updateOrderItem, deleteOrderItem } from '../services/orderItemsService'
 import { getAllProducts } from '../services/productsService'
+import { getAllStock } from '../services/stockService'
 import { useAuth } from '../context/AuthContext'
 import { useUndoDelete } from '../hooks/useUndoDelete'
 import { useToast } from '../hooks/useToast'
-import { parseApiError } from '../utils/validators'
+import { parseApiError, fmtDate } from '../utils/validators'
 
 const ORDER_STATUSES = ['Pending', 'Processing', 'Completed', 'Cancelled']
 
@@ -36,6 +37,7 @@ export default function Orders() {
   const [items, setItems]             = useState([])
   const [itemsLoading, setItemsLoading] = useState(false)
   const [products, setProducts]       = useState([])
+  const [stock, setStock]             = useState([])
 
   const [showOrderForm, setShowOrderForm] = useState(false)
   const [editOrder, setEditOrder]     = useState(null)
@@ -72,9 +74,10 @@ export default function Orders() {
 
   useEffect(() => {
     setLoading(true)
-    Promise.all([getAllOrders(), getAllProducts()]).then(([o, p]) => {
+    Promise.all([getAllOrders(), getAllProducts(), getAllStock()]).then(([o, p, s]) => {
       setOrders(o.data || [])
       setProducts(p.data || [])
+      setStock(s.data || [])
     }).catch(() => setError('Failed to load.')).finally(() => setLoading(false))
   }, [])
 
@@ -113,7 +116,7 @@ export default function Orders() {
   }
 
   // ── Item handlers ────────────────────────────────
-  const openAddItem  = () => { setEditItem(null); setItemForm({ productId: '', quantity: '' }); setShowItemForm(true) }
+  const openAddItem  = async () => { setEditItem(null); setItemForm({ productId: '', quantity: '' }); try { setStock((await getAllStock()).data || []) } catch {} setShowItemForm(true) }
   const openEditItem = (item) => { setEditItem(item); setItemForm({ productId: item.productId, quantity: String(item.quantity) }); setShowItemForm(true) }
   const openDelItem  = (id) => { setDelItemId(id); setShowDelItem(true) }
 
@@ -203,7 +206,7 @@ export default function Orders() {
                         {active && <span style={{ marginLeft: 6, fontSize: 10, background: 'var(--cyan)', color: '#fff', borderRadius: 4, padding: '1px 6px' }}>open</span>}
                       </td>
                       <td style={{ padding: '10px 14px', fontSize: 12, color: 'var(--text-secondary)' }}>
-                        {o.orderDate ? new Date(o.orderDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}
+                        {fmtDate(o.orderDate)}
                       </td>
                       <td style={{ padding: '10px 14px', fontSize: 12, color: 'var(--text-secondary)' }}>
                         {o.orderItems?.length ?? 0}
@@ -324,7 +327,15 @@ export default function Orders() {
             <label className="form-label-custom">Product</label>
             <select className="form-control-custom" value={itemForm.productId} onChange={e => setItemForm(f => ({ ...f, productId: e.target.value }))}>
               <option value="">— Select Product —</option>
-              {products.map(p => <option key={p.productId} value={p.productId}>{p.name} — ₹{p.price}</option>)}
+              {products
+                .filter(p => {
+                  const s = stock.find(st => Number(st.productId) === Number(p.productId))
+                  return s && Number(s.currentStock) > 0
+                })
+                .map(p => {
+                  const s = stock.find(st => Number(st.productId) === Number(p.productId))
+                  return <option key={p.productId} value={p.productId}>{p.name} — ₹{p.price} (Stock: {s?.currentStock ?? 0})</option>
+                })}
             </select>
             {itemForm.productId && (
               <small style={{ color: 'var(--text-muted)', fontSize: 11 }}>

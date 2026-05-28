@@ -30,10 +30,10 @@ export default function OrderItems() {
   const [formErrors, setFormErrors]       = useState({})
 
   useEffect(() => {
-    Promise.all([getAllOrders(), getAllProducts(), getAllStock()]).then(([o, p, s]) => {
-      setOrders(o.data || [])
-      setProducts(p.data || [])
-      setStock(s.data || [])
+    Promise.allSettled([getAllOrders(), getAllProducts(), getAllStock()]).then(([o, p, s]) => {
+      setOrders(o.value?.data || [])
+      setProducts(p.value?.data || [])
+      setStock(s.value?.data || [])
     })
   }, [])
 
@@ -46,7 +46,14 @@ export default function OrderItems() {
   }
 
   const set      = k => e => setForm(f => ({ ...f, [k]: e.target.value }))
-  const openAdd  = () => { setEditing(null); setForm({ ...EMPTY, orderId: selectedOrder }); setShowForm(true) }
+  const openAdd  = async () => {
+    setEditing(null); setForm({ ...EMPTY, orderId: selectedOrder })
+    try {
+      const freshStock = (await getAllStock()).data || []
+      setStock(freshStock)
+    } catch {}
+    setShowForm(true)
+  }
   const openEdit = row => { setEditing(row); setForm({ ...row }); setShowForm(true) }
   const openDel  = id  => { setDelId(id); setShowDel(true) }
 
@@ -60,11 +67,18 @@ export default function OrderItems() {
     try {
       if (editing) {
         await updateOrderItem(editing.orderItemId, { quantity: Number(form.quantity) })
+        setShowForm(false); loadItems(selectedOrder)
+        toast('Item updated!', 'success')
       } else {
         await createOrderItem({ orderId: Number(form.orderId), productId: Number(form.productId), quantity: Number(form.quantity) })
+        setShowForm(false); loadItems(selectedOrder)
+        // Refresh stock so the dropdown reflects updated availability
+        try {
+          const freshStock = (await getAllStock()).data || []
+          setStock(freshStock)
+        } catch {}
+        toast('Item added!', 'success')
       }
-      setShowForm(false); loadItems(selectedOrder)
-      toast(editing ? 'Item updated!' : 'Item added!', 'success')
     } catch (err) {
       toast(parseApiError(err))
     }
@@ -134,13 +148,15 @@ export default function OrderItems() {
             <label className="form-label-custom">Product</label>
             <select className={`form-control-custom${formErrors.productId ? ' input-error' : ''}`} value={form.productId} onChange={e => { set('productId')(e); setFormErrors(f => ({ ...f, productId: undefined })) }}>
               <option value="">— Select Product —</option>
+              {stock.length === 0 && <option disabled>Loading stock data...</option>}
               {products
                 .filter(p => {
-                  const s = stock.find(st => st.productId === p.productId)
-                  return s && s.currentStock > 0
+                  if (stock.length === 0) return false
+                  const s = stock.find(st => Number(st.productId) === Number(p.productId))
+                  return s && Number(s.currentStock) > 0
                 })
                 .map(p => {
-                  const s = stock.find(st => st.productId === p.productId)
+                  const s = stock.find(st => Number(st.productId) === Number(p.productId))
                   return <option key={p.productId} value={p.productId}>{p.name} — ₹{p.price} (Stock: {s?.currentStock ?? 0})</option>
                 })}
             </select>

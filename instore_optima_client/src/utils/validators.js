@@ -2,16 +2,26 @@
 
 const IST = { timeZone: 'Asia/Kolkata' }
 
+/** Ensure UTC parsing — backend may omit the Z suffix */
+const toUTC = (d) => {
+  if (!d) return null
+  const s = String(d)
+  // If no timezone info, assume UTC by appending Z
+  return new Date(s.endsWith('Z') || s.includes('+') || s.includes('-', 10) ? s : s + 'Z')
+}
+
 /** Format a date string/object as IST date only: "28 May 2026" */
 export const fmtDate = (d) => {
-  if (!d) return '—'
-  return new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', ...IST })
+  const dt = toUTC(d)
+  if (!dt || isNaN(dt)) return '—'
+  return dt.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', ...IST })
 }
 
 /** Format a date string/object as IST date + time: "28 May 2026, 03:45:10 pm" */
 export const fmtDateTime = (d) => {
-  if (!d) return '—'
-  return new Date(d).toLocaleString('en-IN', {
+  const dt = toUTC(d)
+  if (!dt || isNaN(dt)) return '—'
+  return dt.toLocaleString('en-IN', {
     day: '2-digit', month: 'short', year: 'numeric',
     hour: '2-digit', minute: '2-digit', second: '2-digit',
     ...IST

@@ -5,6 +5,7 @@ import SearchBar from '../components/shared/SearchBar'
 import ConfirmModal from '../components/shared/ConfirmModal'
 import { getAllUsers, deleteUser } from '../services/userService'
 import { useAuth } from '../context/AuthContext'
+import { fmtDate } from '../utils/validators'
 import { useUndoDelete } from '../hooks/useUndoDelete'
 
 export default function Users() {
@@ -69,7 +70,7 @@ export default function Users() {
       const s = ROLE_STYLE[r.role] || { bg: 'rgba(255,255,255,.06)', color: 'var(--text-500)' }
       return <span style={{ background: s.bg, color: s.color, padding: '2px 8px', borderRadius: 4, fontSize: 11, fontWeight: 600 }}>{r.role}</span>
     }},
-    { key: 'createdAt', label: 'Joined', render: r => r.createdAt ? new Date(r.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—' },
+    { key: 'createdAt', label: 'Joined', render: r => fmtDate(r.createdAt) },
     { key: 'actions',   label: 'Actions', render: r => isAdmin ? (
       <button className="btn-icon danger" onClick={() => { setDelId(r.userId); setShowDel(true) }}>
         <i className="bi bi-trash"></i>
