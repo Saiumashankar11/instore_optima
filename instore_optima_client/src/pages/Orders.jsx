@@ -249,7 +249,20 @@ export default function Orders() {
                 </p>
               </div>
               <div className="table-toolbar-right">
-                <button className="btn-primary-custom" onClick={openAddItem}><i className="bi bi-plus-lg"></i> Add Item</button>
+                <span
+                  title={isTerminal(selectedOrder?.status) ? `Cannot add items — order is ${selectedOrder?.status}` : ''}
+                  style={{ display: 'inline-block', cursor: isTerminal(selectedOrder?.status) ? 'not-allowed' : 'default' }}
+                >
+                  <button
+                    className="btn-primary-custom"
+                    onClick={isTerminal(selectedOrder?.status)
+                      ? () => toast(`Cannot add items — order is ${selectedOrder?.status} 🚫`, 'warning')
+                      : openAddItem}
+                    style={isTerminal(selectedOrder?.status) ? { pointerEvents: 'none', opacity: 0.45 } : {}}
+                  >
+                    <i className="bi bi-plus-lg"></i> Add Item
+                  </button>
+                </span>
                 <button className="btn-icon" title="Close" onClick={() => setSelected(null)}><i className="bi bi-x-lg"></i></button>
               </div>
             </div>
@@ -275,8 +288,8 @@ export default function Orders() {
                       <td style={{ padding: '10px 14px', fontWeight: 600, color: 'var(--text-primary)' }}>₹{Number((item.price||0)*(item.quantity||0)).toLocaleString('en-IN')}</td>
                       <td style={{ padding: '10px 14px' }}>
                         <div style={{ display: 'flex', gap: 4 }}>
-                          <button className="btn-icon" onClick={() => openEditItem(item)}><i className="bi bi-pencil"></i></button>
-                          <button className="btn-icon danger" onClick={() => openDelItem(item.orderItemId)}><i className="bi bi-trash"></i></button>
+                          <button className="btn-icon" onClick={() => openEditItem(item)} disabled={isTerminal(selectedOrder?.status)} title={isTerminal(selectedOrder?.status) ? `Order is ${selectedOrder?.status} — editing locked 🚫` : 'Edit quantity'}><i className="bi bi-pencil"></i></button>
+                          <button className="btn-icon danger" onClick={() => openDelItem(item.orderItemId)} disabled={isTerminal(selectedOrder?.status)} title={isTerminal(selectedOrder?.status) ? `Order is ${selectedOrder?.status} — deletion locked 🚫` : 'Remove item'}><i className="bi bi-trash"></i></button>
                         </div>
                       </td>
                     </tr>

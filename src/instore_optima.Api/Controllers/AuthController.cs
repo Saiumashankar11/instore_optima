@@ -59,7 +59,7 @@ namespace instore_optima.Api.Controllers
                 Name = created.Name,
                 Email = created.Email,
                 Role = created.Role,
-                Token = string.Empty   // No token on register — login to get token
+                Token = string.Empty   // No token on register ï¿½ login to get token
             });
         }
 
@@ -103,6 +103,14 @@ namespace instore_optima.Api.Controllers
                 Token = token
             });
         }
+
+        /// <summary>
+        /// Heartbeat endpoint â€” returns 200 if the session is still valid.
+        /// The InactiveUserMiddleware will intercept and return 401 if the account is deactivated.
+        /// </summary>
+        [HttpGet("ping")]
+        [Microsoft.AspNetCore.Authorization.Authorize]
+        public IActionResult Ping() => Ok(new { ok = true });
     }
 }
 

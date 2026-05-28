@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useTheme } from "../context/ThemeContext";
 
 function useVisible(threshold = 0.15) {
   const ref = useRef(null);
@@ -209,10 +210,12 @@ export default function LandingPage() {
   const canvasRef = useRef(null);
   const [heroIn, setHeroIn] = useState(false);
   const [statsRef, statsVisible] = useVisible(0.3);
-  const [lpTheme, setLpTheme] = useState(() => localStorage.getItem('lp-theme') || 'dark');
-  const themeRef = useRef('dark');
+  const { dark, toggle: toggleTheme } = useTheme();
+  const themeRef = useRef(dark);
 
-  useEffect(() => { themeRef.current = lpTheme; localStorage.setItem('lp-theme', lpTheme); }, [lpTheme]);
+  useEffect(() => {
+    themeRef.current = dark;
+  }, [dark]);
   useEffect(() => { setTimeout(() => setHeroIn(true), 80); }, []);
 
   useEffect(() => {
@@ -233,7 +236,7 @@ export default function LandingPage() {
     let t = 0;
     function draw() {
       ctx.clearRect(0, 0, W, H); t += .004;
-      const light = themeRef.current === 'light';
+      const light = !themeRef.current;
       pts.forEach(p => { p.x = p.ox + Math.sin(t * p.sp + p.ph) * p.am; p.y = p.oy + Math.cos(t * p.sp * .7 + p.ph) * p.am * .6; });
       const thr = (W / COLS) * 1.8;
       for (let i = 0; i < pts.length; i++)
@@ -452,15 +455,15 @@ export default function LandingPage() {
         @media(max-width:560px){.lp-feat-grid{grid-template-columns:1fr}.lp-stats{grid-template-columns:repeat(2,1fr)}.lp-nav{padding:14px 20px}.lp-hero-l{padding:50px 20px}.lp-feats{padding:50px 20px 60px}}
       `}</style>
 
-      <div className={`lp-root${lpTheme === 'light' ? ' lp-light' : ''}`}>
+      <div className={`lp-root${!dark ? ' lp-light' : ''}`}>
         <nav className="lp-nav">
           <div className="lp-logo">
             <div className="lp-logo-box"><img src="/logo-1.png" alt="InStore Optima" style={{height:32,objectFit:'contain'}} /></div>
             <span className="lp-logo-text">InStore Optima</span>
           </div>
           <div className="lp-nav-r">
-            <button type="button" className="lp-theme-toggle" onClick={() => setLpTheme(t => t === 'dark' ? 'light' : 'dark')} title="Toggle theme">
-              {lpTheme === 'dark' ? '☀️' : '🌙'}
+            <button type="button" className="lp-theme-toggle" onClick={toggleTheme} title="Toggle theme">
+              {dark ? '☀️' : '🌙'}
             </button>
             <button className="lp-btn-ghost" onClick={() => navigate("/login")}>Sign in</button>
             <button className="lp-btn-solid" onClick={() => navigate("/register")}>Get started</button>

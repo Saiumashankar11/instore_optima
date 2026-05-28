@@ -1,4 +1,5 @@
-import { createContext, useContext, useState } from 'react'
+import { createContext, useContext, useState, useEffect, useRef } from 'react'
+import axiosClient from '../api/axiosClient'
 
 const AuthContext = createContext(null)
 
@@ -18,6 +19,17 @@ export function AuthProvider({ children }) {
     localStorage.removeItem('user')
     setUser(null)
   }
+
+  // Heartbeat — poll every 8s while logged in.
+  // If the account is deleted/deactivated the backend returns 401,
+  // which the axios interceptor catches and redirects to /login immediately.
+  useEffect(() => {
+    if (!user) return
+    const id = setInterval(() => {
+      axiosClient.get('/api/auth/ping').catch(() => {})
+    }, 2000)
+    return () => clearInterval(id)
+  }, [user])
 
   // Role helpers — use these throughout the app for consistent access control
   const role       = user?.role || ''
