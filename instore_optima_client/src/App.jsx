@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate, useParams } from 'react-router-dom'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import { MessagesProvider } from './context/MessagesContext'
+import { AlertBadgesProvider } from './context/AlertBadgesContext'
 import AccessDenied from './components/shared/AccessDenied'
 import ErrorBoundary from './components/shared/ErrorBoundary'
 import { useState, useEffect } from 'react'
@@ -91,6 +92,7 @@ export default function App() {
     <ErrorBoundary>
     <AuthProvider>
       <MessagesProvider>
+      <AlertBadgesProvider>
       <BrowserRouter>
         <div id="app-content-wrapper">
         <Routes>
@@ -135,6 +137,7 @@ export default function App() {
         </Routes>
         </div>
       </BrowserRouter>
+      </AlertBadgesProvider>
       </MessagesProvider>
     </AuthProvider>
     </ErrorBoundary>

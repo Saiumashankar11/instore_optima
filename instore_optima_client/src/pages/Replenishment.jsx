@@ -10,6 +10,7 @@ import { getAllProducts } from '../services/productsService'
 import { getAllSuppliers } from '../services/supplierService'
 import { createPO } from '../services/purchaseOrderService'
 import { useAuth } from '../context/AuthContext'
+import { useAlertBadges } from '../context/AlertBadgesContext'
 import { useUndoDelete } from '../hooks/useUndoDelete'
 import { useToast } from '../hooks/useToast'
 import { parseApiError } from '../utils/validators'
@@ -20,6 +21,7 @@ const EMPTY_PO = { supplierId: '', expectedDeliveryDate: '' }
 
 export default function Replenishment() {
   const { user, canManage } = useAuth()
+  const { fetchBadges } = useAlertBadges()
   const { scheduleDelete, UndoToast } = useUndoDelete()
   const { show: toast, ToastContainer } = useToast()
   const [data, setData]               = useState([])
@@ -87,6 +89,7 @@ export default function Replenishment() {
     const errors = {}
     if (!poForm.supplierId) errors.supplierId = 'Please select a supplier.'
     if (!poForm.expectedDeliveryDate) errors.expectedDeliveryDate = 'Please set an expected delivery date.'
+    else if (poForm.expectedDeliveryDate < new Date().toLocaleDateString('en-CA')) errors.expectedDeliveryDate = 'Delivery date must be today or in the future.'
     setPoFormErrors(errors)
     if (Object.keys(errors).length) { toast(Object.values(errors)[0], 'warning'); return }
     setPoSaving(true)
@@ -129,7 +132,7 @@ export default function Replenishment() {
           ...confirmAction.row, status: confirmAction.action, approvedBy: user?.userId
         })
       }
-      setShowConfirm(false); load()
+      setShowConfirm(false); load(); fetchBadges()
       toast('Action completed!', 'success')
       // Show PO prompt only after Approved
       if (confirmAction.action === 'Approved') {
@@ -262,7 +265,7 @@ export default function Replenishment() {
           <label className="form-label-custom">Expected Delivery Date *</label>
           <input className={`form-control-custom${poFormErrors.expectedDeliveryDate ? ' input-error' : ''}`}
             type="date"
-            min={new Date().toISOString().split('T')[0]}
+            min={new Date().toLocaleDateString('en-CA')}
             value={poForm.expectedDeliveryDate}
             onChange={e => { setPoForm(f => ({ ...f, expectedDeliveryDate: e.target.value })); setPoFormErrors(fe => ({ ...fe, expectedDeliveryDate: undefined })) }} />
           {poFormErrors.expectedDeliveryDate && <span className="field-error-text">{poFormErrors.expectedDeliveryDate}</span>}

@@ -8,6 +8,7 @@ import StatusBadge from '../components/shared/StatusBadge'
 import { getAllPayments, createPayment, updatePayment, deletePayment } from '../services/paymentService'
 import { getAllOrders } from '../services/ordersService'
 import { useAuth } from '../context/AuthContext'
+import { useAlertBadges } from '../context/AlertBadgesContext'
 import { useUndoDelete } from '../hooks/useUndoDelete'
 import { useToast } from '../hooks/useToast'
 import { validateField, parseApiError } from '../utils/validators'
@@ -17,6 +18,7 @@ const EMPTY = { orderId: '', paymentMethod: 'Card' }
 
 export default function Payments() {
   const { isAdmin } = useAuth()
+  const { fetchBadges } = useAlertBadges()
   const { scheduleDelete, UndoToast } = useUndoDelete()
   const { show: toast, ToastContainer } = useToast()
   const [formErrors, setFormErrors] = useState({})
@@ -59,7 +61,7 @@ export default function Payments() {
   }
 
   const handleStatusUpdate = async (row, status) => {
-    try { await updatePayment(row.paymentId, { ...row, paymentStatus: status }); load(); toast('Payment status updated!', 'success') }
+    try { await updatePayment(row.paymentId, { ...row, paymentStatus: status }); load(); fetchBadges(); toast('Payment status updated!', 'success') }
     catch (err) { toast(parseApiError(err)) }
   }
 

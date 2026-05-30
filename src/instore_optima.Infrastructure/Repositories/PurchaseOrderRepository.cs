@@ -46,6 +46,9 @@ namespace instore_optima.Infrastructure.Repositories
             if (po == null)
                 throw new Exception($"PurchaseOrder with ID {poId} not found");
 
+            if (po.Status == "Delivered")
+                throw new InvalidOperationException($"Purchase order #{poId} is already marked as delivered.");
+
             po.Status = status;
             await _context.SaveChangesAsync();
 
@@ -66,6 +69,15 @@ namespace instore_optima.Infrastructure.Repositories
                     {
                         stock.CurrentStock += replenOrder.QuantityRequested;
                         stock.LastUpdated = DateTime.UtcNow;
+                    }
+                    else
+                    {
+                        _context.Stocks.Add(new Stock
+                        {
+                            ProductId    = replenOrder.ProductId,
+                            CurrentStock = replenOrder.QuantityRequested,
+                            LastUpdated  = DateTime.UtcNow
+                        });
                     }
 
                     replenOrder.Status = "Fulfilled";

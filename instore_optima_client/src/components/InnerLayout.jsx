@@ -1,6 +1,7 @@
 import { Outlet, NavLink, useLocation } from 'react-router-dom'
 import TopNavbar from './TopNavbar'
 import { useAuth } from '../context/AuthContext'
+import { useAlertBadges } from '../context/AlertBadgesContext'
 
 const SIDEBAR_DEFS = {
   inventory: {
@@ -46,19 +47,42 @@ function getSidebarKey(pathname) {
   return 'inventory'
 }
 
+function SidebarBadge({ count }) {
+  if (!count) return null
+  return (
+    <span className="isb-badge">{count > 99 ? '99+' : count}</span>
+  )
+}
+
 export default function InnerLayout({ zoom = 100, setZoom = () => {}, browserZoomDetected = false }) {
   const { pathname } = useLocation()
   const { role } = useAuth()
+  const { badges, inventory, procurement, finance, glowing } = useAlertBadges()
+
   const rolePrefix = `/${role.toLowerCase()}`
   const sidebarKey  = getSidebarKey(pathname)
   const sidebar     = SIDEBAR_DEFS[sidebarKey]
+
+  const sectionBadge = { inventory, procurement, finance, admin: 0 }
+  const sectionGlow  = { inventory: glowing.inventory, procurement: glowing.procurement, finance: glowing.finance, admin: false }
+
+  const linkBadge = {
+    'stock':           badges.lowStock,
+    'replenishment':   badges.pendingReplenishment,
+    'purchase-orders': badges.pendingPurchaseOrders,
+    'orders':          badges.pendingOrders,
+    'payments':        badges.pendingPayments,
+  }
 
   return (
     <div className="app-root">
       <TopNavbar zoom={zoom} setZoom={setZoom} browserZoomDetected={browserZoomDetected} />
       <div className="inner-body">
         <aside className="inner-sidebar">
-          <div className="isb-section">{sidebar.section}</div>
+          <div className={`isb-section${sectionGlow[sidebarKey] ? ' isb-section-glow' : ''}`}>
+            {sidebar.section}
+            <SidebarBadge count={sectionBadge[sidebarKey]} />
+          </div>
           {sidebar.links.map(link => {
             const canAccess = link.roles.includes(role)
             if (canAccess) {
@@ -70,6 +94,7 @@ export default function InnerLayout({ zoom = 100, setZoom = () => {}, browserZoo
                 >
                   <i className={`bi ${link.icon}`}></i>
                   {link.label}
+                  <SidebarBadge count={linkBadge[link.page]} />
                 </NavLink>
               )
             }

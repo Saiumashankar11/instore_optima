@@ -8,6 +8,7 @@ import { getAllStock, updateStock, createStock, deleteStock } from '../services/
 import { getAllProducts } from '../services/productsService'
 import { createReplenishment } from '../services/replenishmentService'
 import { useAuth } from '../context/AuthContext'
+import { useAlertBadges } from '../context/AlertBadgesContext'
 import { useUndoDelete } from '../hooks/useUndoDelete'
 import { useToast } from '../hooks/useToast'
 import { validateField, parseApiError } from '../utils/validators'
@@ -15,6 +16,7 @@ import { fmtDate } from '../utils/validators'
 
 export default function Stock() {
   const { isAdmin } = useAuth()
+  const { fetchBadges } = useAlertBadges()
   const [data, setData]         = useState([])
   const [products, setProducts] = useState([])
   const [loading, setLoading]   = useState(true)
@@ -74,6 +76,7 @@ export default function Stock() {
         toast('Stock updated successfully!', 'success')
       }
       load()
+      fetchBadges()
     } catch (e) { toast(parseApiError(e)) }
     finally { setSaving(false) }
   }
@@ -125,6 +128,7 @@ export default function Stock() {
         toast('Stock record created!', 'success')
       }
       load()
+      fetchBadges()
     } catch (err) {
       toast(parseApiError(err))
     } finally {

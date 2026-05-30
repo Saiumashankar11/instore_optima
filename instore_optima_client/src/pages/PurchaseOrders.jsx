@@ -9,6 +9,7 @@ import { getAllPOs, createPO, updatePO, deletePO } from '../services/purchaseOrd
 import { getAllSuppliers } from '../services/supplierService'
 import { getAllReplenishments } from '../services/replenishmentService'
 import { useAuth } from '../context/AuthContext'
+import { useAlertBadges } from '../context/AlertBadgesContext'
 import { useToast } from '../hooks/useToast'
 import { useUndoDelete } from '../hooks/useUndoDelete'
 import { parseApiError } from '../utils/validators'
@@ -18,6 +19,7 @@ const EMPTY = { replenishmentOrderId: '', supplierId: '', expectedDeliveryDate: 
 
 export default function PurchaseOrders() {
   const { canManage, isAdmin } = useAuth()
+  const { fetchBadges } = useAlertBadges()
   const { show: toast, ToastContainer } = useToast()
   const { scheduleDelete, UndoToast } = useUndoDelete()
   const [data, setData]                     = useState([])
@@ -57,9 +59,8 @@ export default function PurchaseOrders() {
     if (!form.expectedDeliveryDate) {
       errors.expectedDeliveryDate = 'Expected delivery date is required.'
     } else {
-      const today = new Date(); today.setHours(0,0,0,0)
-      const chosen = new Date(form.expectedDeliveryDate)
-      if (chosen < today) errors.expectedDeliveryDate = 'Delivery date cannot be in the past.'
+      const todayStr = new Date().toLocaleDateString('en-CA')
+      if (form.expectedDeliveryDate < todayStr) errors.expectedDeliveryDate = 'Delivery date must be today or in the future.'
     }
     setFormErrors(errors)
     if (Object.keys(errors).length) { toast(Object.values(errors)[0], 'warning'); return }
@@ -73,7 +74,7 @@ export default function PurchaseOrders() {
   }
 
   const handleStatusUpdate = async (row, status) => {
-    try { await updatePO(row.purchaseOrderId, { ...row, status }); load(); toast('Status updated!', 'success') }
+    try { await updatePO(row.purchaseOrderId, { ...row, status }); load(); fetchBadges(); toast('Status updated!', 'success') }
     catch (err) { toast(parseApiError(err)) }
   }
 
@@ -232,7 +233,7 @@ export default function PurchaseOrders() {
         <div style={{ marginBottom: 14 }}>
           <label className="form-label-custom">Expected Delivery Date</label>
           <input className={`form-control-custom${formErrors.expectedDeliveryDate ? ' input-error' : ''}`} type="date"
-            min={new Date().toISOString().split('T')[0]}
+            min={new Date().toLocaleDateString('en-CA')}
             value={form.expectedDeliveryDate} onChange={e => { set('expectedDeliveryDate')(e); setFormErrors(f => ({ ...f, expectedDeliveryDate: undefined })) }} />
           {formErrors.expectedDeliveryDate && <span className="field-error-text">{formErrors.expectedDeliveryDate}</span>}
         </div>

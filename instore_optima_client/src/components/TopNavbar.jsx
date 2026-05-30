@@ -2,6 +2,7 @@ import { NavLink, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useTheme } from '../context/ThemeContext'
 import { useMessages } from '../context/MessagesContext'
+import { useAlertBadges } from '../context/AlertBadgesContext'
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 
@@ -9,6 +10,7 @@ export default function TopNavbar({ zoom = 100, setZoom = () => {}, browserZoomD
   const { user, logout, canManage, role } = useAuth()
   const { dark, toggle } = useTheme()
   const { unreadCount } = useMessages()
+  const { inventory, procurement, finance, glowing, muteSection } = useAlertBadges()
   const navigate = useNavigate()
   const { pathname } = useLocation()
   const [toast, setToast] = useState(null)
@@ -42,11 +44,11 @@ export default function TopNavbar({ zoom = 100, setZoom = () => {}, browserZoomD
   const resetZoom  = () => applyZoom(100)
 
   const SECTIONS = [
-    { label: 'Dashboard',   to: `${rolePrefix}/dashboard`,       pages: ['dashboard'] },
-    { label: 'Inventory',   to: `${rolePrefix}/products`,        pages: ['products', 'stock', 'stock-movement'] },
-    { label: 'Procurement', to: `${rolePrefix}/suppliers`,       pages: ['suppliers', 'replenishment', 'purchase-orders'] },
-    { label: 'Finance',     to: `${rolePrefix}/orders`,          pages: ['orders', 'order-items', 'payments', 'invoices', 'receipts'] },
-    { label: 'Admin',       to: `${rolePrefix}/users`,           pages: ['users', 'audit-logs'], adminOnly: true },
+    { label: 'Dashboard',   to: `${rolePrefix}/dashboard`,       pages: ['dashboard'],                                                    badge: 0,           glow: false,                   glowKey: null },
+    { label: 'Inventory',   to: `${rolePrefix}/products`,        pages: ['products', 'stock', 'stock-movement'],                          badge: inventory,   glow: glowing.inventory,       glowKey: 'inventory' },
+    { label: 'Procurement', to: `${rolePrefix}/suppliers`,       pages: ['suppliers', 'replenishment', 'purchase-orders'],                badge: procurement, glow: glowing.procurement,     glowKey: 'procurement' },
+    { label: 'Finance',     to: `${rolePrefix}/orders`,          pages: ['orders', 'order-items', 'payments', 'invoices', 'receipts'],    badge: finance,     glow: glowing.finance,         glowKey: 'finance' },
+    { label: 'Admin',       to: `${rolePrefix}/users`,           pages: ['users', 'audit-logs'], adminOnly: true,                        badge: 0,           glow: false,                   glowKey: null },
   ]
 
   const initials = user?.name
@@ -87,12 +89,13 @@ export default function TopNavbar({ zoom = 100, setZoom = () => {}, browserZoomD
             <NavLink
               key={s.to}
               to={s.to}
-              className={`tnav-pill${isActive(s) ? ' active' : ''}${s.adminOnly && !canManage ? ' tnav-pill-locked' : ''}`}
-              onClick={e => handleNavClick(e, s)}
+              className={`tnav-pill${isActive(s) ? ' active' : ''}${s.adminOnly && !canManage ? ' tnav-pill-locked' : ''}${s.glow ? ' tnav-pill-glow' : ''}`}
+              onClick={e => { handleNavClick(e, s); if (s.glowKey) muteSection(s.glowKey) }}
             >
               {isActive(s) && <span className="tnav-pill-dot"></span>}
               {s.adminOnly && !canManage && <i className="bi bi-lock" style={{ fontSize: 9, opacity: .6 }}></i>}
               {s.label}
+              {s.badge > 0 && <span className="tnav-alert-badge">{s.badge > 99 ? '99+' : s.badge}</span>}
             </NavLink>
           ))}
         </div>

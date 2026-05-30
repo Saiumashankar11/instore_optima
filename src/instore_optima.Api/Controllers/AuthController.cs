@@ -16,10 +16,12 @@ namespace instore_optima.Api.Controllers
     public class AuthController : BaseApiController
     {
         private readonly IAuthRepository _authRepository;
+        private readonly ILogger<AuthController> _logger;
 
-        public AuthController(IAuthRepository authRepository)
+        public AuthController(IAuthRepository authRepository, ILogger<AuthController> logger)
         {
             _authRepository = authRepository;
+            _logger = logger;
         }
 
         /// <summary>
@@ -49,6 +51,8 @@ namespace instore_optima.Api.Controllers
 
             var created = await _authRepository.RegisterAsync(user);
 
+            _logger.LogInformation("New user registered — {Name} ({Email}) with role {Role}", created.Name, created.Email, created.Role);
+
             // Log audit
             await _authRepository.LogAuditAsync(
                 created.UserId, "Register", "User", created.UserId);
@@ -76,19 +80,30 @@ namespace instore_optima.Api.Controllers
             // Check if user exists
             var user = await _authRepository.GetUserByEmailAsync(dto.Email);
             if (user == null)
+            {
+                _logger.LogWarning("Failed login attempt for unknown email {Email}", dto.Email);
                 throw new UnauthorizedAccessException("Invalid email or password");
+            }
 
             // Check if account has been deactivated
             if (user.Role == "Inactive")
+            {
+                _logger.LogWarning("Login blocked for deactivated account {Email}", dto.Email);
                 throw new UnauthorizedAccessException("This account has been deactivated. Please contact an administrator.");
+            }
 
             // Verify password
             var isValid = _authRepository.VerifyPassword(dto.Password, user.Password);
             if (!isValid)
+            {
+                _logger.LogWarning("Failed login attempt — wrong password for {Email}", dto.Email);
                 throw new UnauthorizedAccessException("Invalid email or password");
+            }
 
             // Generate JWT token
             var token = _authRepository.GenerateJwtToken(user);
+
+            _logger.LogInformation("User {Name} ({Email}) logged in with role {Role}", user.Name, user.Email, user.Role);
 
             // Log audit
             await _authRepository.LogAuditAsync(

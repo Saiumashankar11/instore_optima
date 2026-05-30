@@ -6,6 +6,8 @@ import {
   getRecipients, sendMessage, markAsRead, toggleStar,
   moveToTrash, restoreFromTrash, deleteMessage
 } from '../services/internalMessageService'
+import { updatePO } from '../services/purchaseOrderService'
+import { useAlertBadges } from '../context/AlertBadgesContext'
 
 const fmtDate = d => d ? new Date(d).toLocaleString('en-GB', {
   day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit'
@@ -23,6 +25,7 @@ const EMPTY_FORM = {
 export default function Messages() {
   const { user } = useAuth()
   const { setUnreadCount, fetchUnread } = useMessages()
+  const { fetchBadges } = useAlertBadges()
 
   const [tab, setTab]               = useState('inbox')
   const [inbox, setInbox]           = useState([])
@@ -96,6 +99,22 @@ export default function Messages() {
     await deleteMessage(msg.messageId, msg.senderId === user?.userId).catch(() => {})
     load()
     if (selected?.messageId === msg.messageId) setSelected(null)
+  }
+
+  const [poActionState, setPoActionState] = useState({}) // { [messageId]: 'loading' | 'done' | 'error' }
+
+  const handleMarkDelivered = async (msg) => {
+    const poId = parseInt(msg.actionPayload, 10)
+    if (!poId) return
+    setPoActionState(s => ({ ...s, [msg.messageId]: 'loading' }))
+    try {
+      await updatePO(poId, { status: 'Delivered' })
+      setPoActionState(s => ({ ...s, [msg.messageId]: 'done' }))
+      fetchBadges()
+    } catch (err) {
+      const status = err?.response?.status
+      setPoActionState(s => ({ ...s, [msg.messageId]: status === 409 ? 'already' : 'error' }))
+    }
   }
 
   const startCompose = (preset = {}) => {
@@ -247,6 +266,8 @@ export default function Messages() {
             onRestore={handleRestore}
             onPermDelete={handlePermDelete}
             isTrash={tab === 'trash'}
+            onMarkDelivered={handleMarkDelivered}
+            poActionState={poActionState[selected?.messageId]}
           />
         ) : (
           <MessageList
@@ -623,7 +644,7 @@ function MessageList({ tab, loading, error, messages, search, setSearch, inboxFi
 }
 
 // -- Message Detail --------------------------------------------
-function MessageDetail({ msg, onBack, onReply, onForward, onStar, onTrash, onRestore, onPermDelete, isTrash }) {
+function MessageDetail({ msg, onBack, onReply, onForward, onStar, onTrash, onRestore, onPermDelete, isTrash, onMarkDelivered, poActionState }) {
   const TYPE_ICON  = { Request: 'bi-question-circle', Reply: 'bi-reply', Forward: 'bi-forward' }
   const TYPE_CLASS = { request: 'msgs-type-request', reply: 'msgs-type-reply', forward: 'msgs-type-forward' }
   const isSent = msg._tab === 'sent'
@@ -659,8 +680,11 @@ function MessageDetail({ msg, onBack, onReply, onForward, onStar, onTrash, onRes
           <div className="msgs-meta-row">
             <span className="msgs-meta-label">From</span>
             <span className="msgs-meta-val">
-              {msg.senderName}
-              <span className="msgs-meta-role" style={{ color: ROLE_COLOR[msg.senderRole] }}>{msg.senderRole}</span>
+              {msg.senderDisplayName ?? msg.senderName}
+              {msg.senderDisplayEmail
+                ? <span className="msgs-meta-role" style={{ color: '#94a3b8', fontStyle: 'italic' }}>{msg.senderDisplayEmail}</span>
+                : <span className="msgs-meta-role" style={{ color: ROLE_COLOR[msg.senderRole] }}>{msg.senderRole}</span>
+              }
             </span>
           </div>
           <div className="msgs-meta-row">
@@ -697,6 +721,34 @@ function MessageDetail({ msg, onBack, onReply, onForward, onStar, onTrash, onRes
               : <p key={i} style={{ margin: '2px 0' }}>{line || <br />}</p>
           ))}
         </div>
+
+        {/* PO delivery action */}
+        {msg.actionType === 'MARK_PO_DELIVERED' && (
+          <div className="msgs-po-action-bar">
+            <i className="bi bi-box-seam" style={{ fontSize: 18 }}></i>
+            <span>Purchase Order <strong>#{msg.actionPayload}</strong> is awaiting delivery confirmation.</span>
+            {(poActionState === 'done' || poActionState === 'already') ? (
+              <span className="msgs-po-action-done">
+                <i className="bi bi-check-circle-fill"></i>
+                {poActionState === 'already' ? 'Already Delivered' : 'Marked as Delivered'}
+              </span>
+            ) : (
+              <button
+                className="msgs-po-action-btn"
+                onClick={() => onMarkDelivered(msg)}
+                disabled={poActionState === 'loading'}
+              >
+                {poActionState === 'loading'
+                  ? <><i className="bi bi-hourglass-split"></i> Marking...</>
+                  : <><i className="bi bi-truck"></i> Mark PO #{msg.actionPayload} as Delivered</>
+                }
+              </button>
+            )}
+            {poActionState === 'error' && (
+              <span className="msgs-po-action-error">Something went wrong. Please try again.</span>
+            )}
+          </div>
+        )}
 
         {/* Footer actions */}
         <div className="msgs-detail-footer">

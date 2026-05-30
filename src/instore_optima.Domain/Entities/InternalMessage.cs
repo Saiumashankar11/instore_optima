@@ -39,5 +39,13 @@ namespace instore_optima.Domain.Entities
         // Moved to trash (before permanent delete)
         public bool TrashedBySender   { get; set; } = false;
         public bool TrashedByReceiver { get; set; } = false;
+
+        // Actionable messages (e.g. "MARK_PO_DELIVERED")
+        public string? ActionType    { get; set; }
+        public string? ActionPayload { get; set; }
+
+        // Display overrides — used by automated/system messages to show a virtual sender
+        public string? SenderDisplayName  { get; set; }
+        public string? SenderDisplayEmail { get; set; }
     }
 }

@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using instore_optima.Infrastructure.Data;
 
@@ -11,9 +12,11 @@ using instore_optima.Infrastructure.Data;
 namespace instore_optima.Api.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260530192313_AddActionFieldsToInternalMessage")]
+    partial class AddActionFieldsToInternalMessage
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -126,12 +129,6 @@ namespace instore_optima.Api.Migrations
 
                     b.Property<DateTime?>("ScheduledAt")
                         .HasColumnType("datetime2");
-
-                    b.Property<string>("SenderDisplayEmail")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("SenderDisplayName")
-                        .HasColumnType("nvarchar(max)");
 
                     b.Property<int>("SenderId")
                         .HasColumnType("int");

@@ -9,6 +9,7 @@ import { getItemsByOrderId, createOrderItem, updateOrderItem, deleteOrderItem } 
 import { getAllProducts } from '../services/productsService'
 import { getAllStock } from '../services/stockService'
 import { useAuth } from '../context/AuthContext'
+import { useAlertBadges } from '../context/AlertBadgesContext'
 import { useUndoDelete } from '../hooks/useUndoDelete'
 import { useToast } from '../hooks/useToast'
 import { parseApiError, fmtDate } from '../utils/validators'
@@ -26,6 +27,7 @@ const isTerminal = (status) => status === 'Completed' || status === 'Cancelled'
 
 export default function Orders() {
   const { user } = useAuth()
+  const { fetchBadges } = useAlertBadges()
   const { scheduleDelete, UndoToast } = useUndoDelete()
   const { show: toast, ToastContainer } = useToast()
 
@@ -98,6 +100,7 @@ export default function Orders() {
       else await createOrder({ userId: user?.userId })
       setShowOrderForm(false)
       await loadOrders(selectedOrder)
+      fetchBadges()
     } catch (err) { toast(parseApiError(err)) }
     finally { setSavingOrder(false) }
   }

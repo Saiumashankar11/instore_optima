@@ -46,6 +46,10 @@ namespace instore_optima.Application.DTOs
         public DateTime? ScheduledAt { get; set; }
         public string? AttachmentsJson { get; set; }
         public DateTime CreatedAt { get; set; }
+        public string? ActionType         { get; set; }
+        public string? ActionPayload      { get; set; }
+        public string? SenderDisplayName  { get; set; }
+        public string? SenderDisplayEmail { get; set; }
     }
 
     public class UnreadCountDto

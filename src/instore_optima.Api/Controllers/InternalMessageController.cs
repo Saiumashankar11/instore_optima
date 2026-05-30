@@ -34,25 +34,29 @@ namespace instore_optima.Api.Controllers
                              (m.ReceiverId == viewerId && m.IsStarredByReceiver);
             return new MessageResponseDto
             {
-                MessageId       = m.MessageId,
-                SenderId        = m.SenderId,
-                SenderName      = sender?.Name   ?? "Unknown",
-                SenderRole      = sender?.Role   ?? "",
-                ReceiverId      = m.ReceiverId,
-                ReceiverName    = receiver?.Name ?? "Unknown",
-                ReceiverRole    = receiver?.Role ?? "",
-                Subject         = m.Subject,
-                Body            = m.Body,
-                IsRead          = m.IsRead,
-                ParentMessageId = m.ParentMessageId,
-                MessageType     = m.MessageType,
-                Cc              = m.Cc,
-                Bcc             = m.Bcc,
-                IsDraft          = m.IsDraft,
-                IsStarred        = isStarred,
-                ScheduledAt      = m.ScheduledAt,
-                AttachmentsJson  = m.AttachmentsJson,
-                CreatedAt        = m.CreatedAt
+                MessageId           = m.MessageId,
+                SenderId            = m.SenderId,
+                SenderName          = m.SenderDisplayName  ?? sender?.Name  ?? "Unknown",
+                SenderRole          = m.SenderDisplayEmail ?? sender?.Role  ?? "",
+                ReceiverId          = m.ReceiverId,
+                ReceiverName        = receiver?.Name ?? "Unknown",
+                ReceiverRole        = receiver?.Role ?? "",
+                Subject             = m.Subject,
+                Body                = m.Body,
+                IsRead              = m.IsRead,
+                ParentMessageId     = m.ParentMessageId,
+                MessageType         = m.MessageType,
+                Cc                  = m.Cc,
+                Bcc                 = m.Bcc,
+                IsDraft             = m.IsDraft,
+                IsStarred           = isStarred,
+                ScheduledAt         = m.ScheduledAt,
+                AttachmentsJson     = m.AttachmentsJson,
+                CreatedAt           = m.CreatedAt,
+                ActionType          = m.ActionType,
+                ActionPayload       = m.ActionPayload,
+                SenderDisplayName   = m.SenderDisplayName,
+                SenderDisplayEmail  = m.SenderDisplayEmail
             };
         }
 

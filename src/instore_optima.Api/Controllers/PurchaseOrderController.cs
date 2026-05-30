@@ -21,10 +21,14 @@ namespace instore_optima.Api.Controllers
     public class PurchaseOrderController : ControllerBase
     {
         private readonly IPurchaseOrderRepository _purchaseOrderRepository;
+        private readonly IPONotificationService   _poNotifier;
 
-        public PurchaseOrderController(IPurchaseOrderRepository purchaseOrderRepository)
+        public PurchaseOrderController(
+            IPurchaseOrderRepository purchaseOrderRepository,
+            IPONotificationService poNotifier)
         {
             _purchaseOrderRepository = purchaseOrderRepository;
+            _poNotifier              = poNotifier;
         }
 
         /// <summary>
@@ -78,6 +82,11 @@ namespace instore_optima.Api.Controllers
             };
 
             var created = await _purchaseOrderRepository.CreatePurchaseOrderAsync(po);
+
+            var creatorId = int.TryParse(User.FindFirst("userId")?.Value, out var uid) ? uid : 0;
+            if (creatorId > 0)
+                await _poNotifier.NotifyPOCreatedAsync(created, creatorId);
+
             return CreatedAtAction(nameof(GetById), new { id = created.PurchaseOrderId }, created);
         }
 
@@ -95,8 +104,15 @@ namespace instore_optima.Api.Controllers
             var po = await _purchaseOrderRepository.GetPOByIdAsync(id);
             if (po == null) return NotFound();
 
-            var updated = await _purchaseOrderRepository.UpdatePOStatusAsync(id, dto.Status);
-            return Ok(updated);
+            try
+            {
+                var updated = await _purchaseOrderRepository.UpdatePOStatusAsync(id, dto.Status);
+                return Ok(updated);
+            }
+            catch (InvalidOperationException ex)
+            {
+                throw new ConflictException(ex.Message);
+            }
         }
 
         // DELETE api/purchaseorder/{id}

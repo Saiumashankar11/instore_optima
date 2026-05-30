@@ -15,13 +15,22 @@ using instore_optima.Api.Middleware;
 var builder = WebApplication.CreateBuilder(args);
 
 // --- Serilog Configuration ------------------------------------
+const string OutputTemplate = "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}";
+const string FileTemplate   = "[{Timestamp:yyyy-MM-dd HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}";
+
 builder.Host.UseSerilog((context, loggerConfig) =>
 {
     loggerConfig
         .ReadFrom.Configuration(context.Configuration)
         .Enrich.FromLogContext()
-        .WriteTo.Console()
-        .WriteTo.File("Logs/log-.txt", rollingInterval: RollingInterval.Day, retainedFileCountLimit: 30);
+        .WriteTo.Console(
+            outputTemplate: OutputTemplate,
+            theme: Serilog.Sinks.SystemConsole.Themes.AnsiConsoleTheme.Code)
+        .WriteTo.File(
+            "Logs/log-.txt",
+            outputTemplate: FileTemplate,
+            rollingInterval: RollingInterval.Day,
+            retainedFileCountLimit: 30);
 });
 
 // Add services to the container.
@@ -64,7 +73,8 @@ builder.Services.AddScoped<IAuditLogRepository, AuditLogRepository>();
 //builder.Services.AddScoped<IOrderRepository, OrderRepository>();
 //builder.Services.AddScoped<IOrderItemRepository, OrderItemRepository>();
 //builder.Services.AddScoped<IPaymentRepository, PaymentRepository>();
-builder.Services.AddControllers();
+builder.Services.AddScoped<instore_optima.Api.Filters.CrudLoggingFilter>();
+builder.Services.AddControllers(opts => opts.Filters.AddService<instore_optima.Api.Filters.CrudLoggingFilter>());
 
 
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
@@ -112,6 +122,8 @@ builder.Services.AddScoped<IAuthRepository, AuthRepository>();
 
 // ─── Internal Messaging ───────────────────────────────
 builder.Services.AddScoped<IInternalMessageRepository, InternalMessageRepository>();
+builder.Services.AddScoped<instore_optima.Domain.Interfaces.IPONotificationService,
+                           instore_optima.Infrastructure.Services.PONotificationService>();
 
 // ─── JWT Authentication ───────────────────────────────
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -141,6 +153,16 @@ builder.Services.AddCors(options =>
 });
 
 var app = builder.Build();
+
+app.UseSerilogRequestLogging(opts =>
+{
+    opts.GetLevel = (ctx, _, _) =>
+        ctx.Request.Path.StartsWithSegments("/api/auth/ping") ||
+        ctx.Request.Path.StartsWithSegments("/api/messages/unread-count") ||
+        ctx.Request.Path.StartsWithSegments("/api/badges")
+            ? Serilog.Events.LogEventLevel.Verbose
+            : Serilog.Events.LogEventLevel.Information;
+});
 
 // ─── Global Exception Handling Middleware ────────────
 app.UseMiddleware<GlobalExceptionHandlingMiddleware>();
