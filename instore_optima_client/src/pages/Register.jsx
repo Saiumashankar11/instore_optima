@@ -3,8 +3,9 @@ import { useNavigate, Link } from 'react-router-dom'
 import { registerApi } from '../services/authService'
 import { useTheme } from '../context/ThemeContext'
 import { validateField, parseApiError } from '../utils/validators'
+import ZoomControl from '../components/ZoomControl'
 
-export default function Register() {
+export default function Register({ zoom = 100, setZoom = () => {} }) {
   const { dark, toggle } = useTheme()
   const navigate = useNavigate()
   const [form, setForm] = useState({ name: '', email: '', password: '', role: 'Staff' })
@@ -68,9 +69,12 @@ export default function Register() {
           <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M11.5 7H2.5M6 3L2.5 7 6 11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
           Home
         </button>
-        <button type="button" className="login-theme-toggle" onClick={toggle} title="Toggle theme">
-          {dark ? '☀️' : '🌙'}
-        </button>
+        <div className="login-controls-right">
+          <ZoomControl zoom={zoom} setZoom={setZoom} />
+          <button type="button" className="login-theme-toggle" onClick={toggle} title="Toggle theme">
+            {dark ? '☀️' : '🌙'}
+          </button>
+        </div>
       </div>
 
       <div className="login-left">

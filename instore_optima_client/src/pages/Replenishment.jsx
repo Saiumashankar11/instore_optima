@@ -7,6 +7,8 @@ import ConfirmModal from '../components/shared/ConfirmModal'
 import StatusBadge from '../components/shared/StatusBadge'
 import { getAllReplenishments, createReplenishment, updateReplenishment, deleteReplenishment } from '../services/replenishmentService'
 import { getAllProducts } from '../services/productsService'
+import { getAllSuppliers } from '../services/supplierService'
+import { createPO } from '../services/purchaseOrderService'
 import { useAuth } from '../context/AuthContext'
 import { useUndoDelete } from '../hooks/useUndoDelete'
 import { useToast } from '../hooks/useToast'
@@ -14,6 +16,7 @@ import { parseApiError } from '../utils/validators'
 import { fmtDate } from '../utils/validators'
 
 const EMPTY = { productId: '', quantityRequested: '' }
+const EMPTY_PO = { supplierId: '', expectedDeliveryDate: '' }
 
 export default function Replenishment() {
   const { user, canManage } = useAuth()
@@ -21,6 +24,7 @@ export default function Replenishment() {
   const { show: toast, ToastContainer } = useToast()
   const [data, setData]               = useState([])
   const [products, setProducts]       = useState([])
+  const [suppliers, setSuppliers]     = useState([])
   const [loading, setLoading]         = useState(true)
   const [error, setError]             = useState('')
   const [search, setSearch]           = useState('')
@@ -31,12 +35,21 @@ export default function Replenishment() {
   const [saving, setSaving]           = useState(false)
   const [formErrors, setFormErrors]   = useState({})
 
+  // PO creation popup state
+  const [showPoPrompt, setShowPoPrompt]   = useState(false)
+  const [showPoForm, setShowPoForm]       = useState(false)
+  const [pendingReplId, setPendingReplId] = useState(null)
+  const [poForm, setPoForm]               = useState(EMPTY_PO)
+  const [poFormErrors, setPoFormErrors]   = useState({})
+  const [poSaving, setPoSaving]           = useState(false)
+
   const load = async () => {
     setLoading(true)
     try {
-      const [r, p] = await Promise.all([getAllReplenishments(), getAllProducts()])
+      const [r, p, s] = await Promise.all([getAllReplenishments(), getAllProducts(), getAllSuppliers()])
       setData(r.data || [])
       setProducts(p.data || [])
+      setSuppliers(s.data || [])
     } catch { setError('Failed to load replenishments.') }
     finally { setLoading(false) }
   }
@@ -58,6 +71,38 @@ export default function Replenishment() {
       toast('Replenishment order created!', 'success')
     } catch (err) { toast(parseApiError(err)) }
     finally { setSaving(false) }
+  }
+
+  const handlePoYes = () => {
+    setShowPoPrompt(false)
+    setShowPoForm(true)
+  }
+
+  const handlePoNo = () => {
+    setShowPoPrompt(false)
+    setPendingReplId(null)
+  }
+
+  const handlePoSave = async () => {
+    const errors = {}
+    if (!poForm.supplierId) errors.supplierId = 'Please select a supplier.'
+    if (!poForm.expectedDeliveryDate) errors.expectedDeliveryDate = 'Please set an expected delivery date.'
+    setPoFormErrors(errors)
+    if (Object.keys(errors).length) { toast(Object.values(errors)[0], 'warning'); return }
+    setPoSaving(true)
+    try {
+      await createPO({
+        replenishmentOrderId: pendingReplId,
+        supplierId: Number(poForm.supplierId),
+        issuedAt: new Date().toISOString(),
+        expectedDeliveryDate: new Date(poForm.expectedDeliveryDate).toISOString()
+      })
+      setShowPoForm(false)
+      setPendingReplId(null)
+      setPoForm(EMPTY_PO)
+      toast('Purchase Order created successfully!', 'success')
+    } catch (err) { toast(parseApiError(err), 'error') }
+    finally { setPoSaving(false) }
   }
 
   const triggerAction = (row, action) => { setConfirmAction({ row, action }); setShowConfirm(true) }
@@ -86,6 +131,13 @@ export default function Replenishment() {
       }
       setShowConfirm(false); load()
       toast('Action completed!', 'success')
+      // Show PO prompt only after Approved
+      if (confirmAction.action === 'Approved') {
+        setPendingReplId(confirmAction.row.replenishmentOrderId)
+        setPoForm(EMPTY_PO)
+        setPoFormErrors({})
+        setShowPoPrompt(true)
+      }
     } catch (err) { toast(parseApiError(err)) }
     finally { setSaving(false) }
   }
@@ -177,6 +229,46 @@ export default function Replenishment() {
         confirmLabel={confirmAction?.action}
         variant={confirmAction?.action === 'Rejected' || confirmAction?.action === 'Delete' ? 'danger' : 'success'}
         loading={saving} />
+
+      {/* PO Prompt Popup */}
+      <ConfirmModal
+        show={showPoPrompt}
+        onHide={handlePoNo}
+        onConfirm={handlePoYes}
+        title="Create Purchase Order?"
+        message={`Replenishment #${pendingReplId} created. Would you like to automatically create a Purchase Order for this replenishment now?`}
+        confirmLabel="Yes, Create PO"
+        variant="primary"
+      />
+
+      {/* PO Form Modal */}
+      <FormModal show={showPoForm} onHide={() => { setShowPoForm(false); setPendingReplId(null) }} onSubmit={handlePoSave}
+        title="Create Purchase Order" loading={poSaving}>
+        <p style={{ color: 'var(--text-400)', fontSize: 13, marginBottom: 16 }}>
+          <i className="bi bi-info-circle" style={{ marginRight: 6 }}></i>
+          The supplier and expected delivery date will be linked to replenishment <strong>#{pendingReplId}</strong>.
+        </p>
+        <div style={{ marginBottom: 14 }}>
+          <label className="form-label-custom">Supplier *</label>
+          <select className={`form-control-custom${poFormErrors.supplierId ? ' input-error' : ''}`}
+            value={poForm.supplierId}
+            onChange={e => { setPoForm(f => ({ ...f, supplierId: e.target.value })); setPoFormErrors(fe => ({ ...fe, supplierId: undefined })) }}>
+            <option value="">— Select Supplier —</option>
+            {suppliers.map(s => <option key={s.supplierId} value={s.supplierId}>{s.name}</option>)}
+          </select>
+          {poFormErrors.supplierId && <span className="field-error-text">{poFormErrors.supplierId}</span>}
+        </div>
+        <div style={{ marginBottom: 14 }}>
+          <label className="form-label-custom">Expected Delivery Date *</label>
+          <input className={`form-control-custom${poFormErrors.expectedDeliveryDate ? ' input-error' : ''}`}
+            type="date"
+            min={new Date().toISOString().split('T')[0]}
+            value={poForm.expectedDeliveryDate}
+            onChange={e => { setPoForm(f => ({ ...f, expectedDeliveryDate: e.target.value })); setPoFormErrors(fe => ({ ...fe, expectedDeliveryDate: undefined })) }} />
+          {poFormErrors.expectedDeliveryDate && <span className="field-error-text">{poFormErrors.expectedDeliveryDate}</span>}
+        </div>
+      </FormModal>
+
       {UndoToast}
       {ToastContainer}
     </div>

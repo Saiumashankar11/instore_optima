@@ -1,7 +1,9 @@
 import { BrowserRouter, Routes, Route, Navigate, useParams } from 'react-router-dom'
 import { AuthProvider, useAuth } from './context/AuthContext'
+import { MessagesProvider } from './context/MessagesContext'
 import AccessDenied from './components/shared/AccessDenied'
 import ErrorBoundary from './components/shared/ErrorBoundary'
+import { useState, useEffect } from 'react'
 
 import TopNavLayout from './components/TopNavLayout'
 import InnerLayout from './components/InnerLayout'
@@ -22,6 +24,7 @@ import Invoices     from './pages/Invoices'
 import Receipts     from './pages/Receipts'
 import Users        from './pages/Users'
 import AuditLogs    from './pages/AuditLogs'
+import Messages     from './pages/Messages'
 
 // Redirect unauthenticated users to login
 function RequireAuth({ children }) {
@@ -52,21 +55,56 @@ function RequireRole({ roles, children }) {
 }
 
 export default function App() {
+  const [zoom, setZoom] = useState(() => Number(localStorage.getItem('appZoom')) || 100)
+  const [browserZoomDetected, setBrowserZoomDetected] = useState(false)
+
+  // Apply zoom only to content wrapper, not navbar
+  useEffect(() => {
+    const contentWrapper = document.getElementById('app-content-wrapper')
+    if (contentWrapper) {
+      const zoomRatio = zoom / 100
+      contentWrapper.style.transform = `scale(${zoomRatio})`
+      contentWrapper.style.transformOrigin = 'top left'
+      contentWrapper.style.width = `${100 / zoomRatio}%`
+      contentWrapper.style.height = `auto`
+    }
+    localStorage.setItem('appZoom', zoom)
+  }, [zoom])
+
+  // Detect browser zoom changes
+  useEffect(() => {
+    let lastDevicePixelRatio = window.devicePixelRatio
+    const checkBrowserZoom = () => {
+      if (Math.abs(window.devicePixelRatio - lastDevicePixelRatio) > 0.01) {
+        // Browser zoom changed — reset app zoom to 100%
+        setZoom(100)
+        setBrowserZoomDetected(true)
+        setTimeout(() => setBrowserZoomDetected(false), 4000)
+        lastDevicePixelRatio = window.devicePixelRatio
+      }
+    }
+    window.addEventListener('resize', checkBrowserZoom)
+    return () => window.removeEventListener('resize', checkBrowserZoom)
+  }, [])
+
   return (
     <ErrorBoundary>
     <AuthProvider>
+      <MessagesProvider>
       <BrowserRouter>
+        <div id="app-content-wrapper">
         <Routes>
-          <Route path="/"         element={<LandingPage />} />
-          <Route path="/login"    element={<Login />} />
-          <Route path="/register" element={<Register />} />
+          <Route path="/"         element={<LandingPage zoom={zoom} setZoom={setZoom} />} />
+          <Route path="/login"    element={<Login zoom={zoom} setZoom={setZoom} />} />
+          <Route path="/register" element={<Register zoom={zoom} setZoom={setZoom} />} />
 
           {/* Role-scoped routes — all paths carry /:role prefix */}
-          <Route path="/:role" element={<RequireAuth><RoleUrlGuard><TopNavLayout /></RoleUrlGuard></RequireAuth>}>
+          <Route path="/:role" element={<RequireAuth><RoleUrlGuard><TopNavLayout zoom={zoom} setZoom={setZoom} browserZoomDetected={browserZoomDetected} /></RoleUrlGuard></RequireAuth>}>
             <Route path="dashboard" element={<Dashboard />} />
+            <Route path="messages"  element={<Messages />} />
           </Route>
 
-          <Route path="/:role" element={<RequireAuth><RoleUrlGuard><InnerLayout /></RoleUrlGuard></RequireAuth>}>
+          <Route path="/:role" element={<RequireAuth><RoleUrlGuard><InnerLayout zoom={zoom} setZoom={setZoom} browserZoomDetected={browserZoomDetected} /></RoleUrlGuard></RequireAuth>}>
             <Route path="products"        element={
               <RequireRole roles={['Admin','Manager']}><Products /></RequireRole>
             } />
@@ -95,7 +133,9 @@ export default function App() {
           <Route path="/dashboard" element={<RoleRedirect page="dashboard" />} />
           <Route path="*"          element={<RoleRedirectOrLanding />} />
         </Routes>
+        </div>
       </BrowserRouter>
+      </MessagesProvider>
     </AuthProvider>
     </ErrorBoundary>
   )

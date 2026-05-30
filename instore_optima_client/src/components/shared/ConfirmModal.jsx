@@ -11,7 +11,7 @@ export default function ConfirmModal({ show, onHide, onConfirm, title, message, 
         <button className="btn-outline-custom" onClick={onHide} disabled={loading}>Cancel</button>
         <button
           className="btn-primary-custom"
-          style={{ background: variant === 'danger' ? '#dc2626' : '#4f46e5' }}
+          style={{ background: variant === 'danger' ? '#dc2626' : variant === 'success' ? '#059669' : '#4f46e5' }}
           onClick={onConfirm}
           disabled={loading}
         >

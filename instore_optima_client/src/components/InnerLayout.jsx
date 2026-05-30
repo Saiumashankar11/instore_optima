@@ -46,7 +46,7 @@ function getSidebarKey(pathname) {
   return 'inventory'
 }
 
-export default function InnerLayout() {
+export default function InnerLayout({ zoom = 100, setZoom = () => {}, browserZoomDetected = false }) {
   const { pathname } = useLocation()
   const { role } = useAuth()
   const rolePrefix = `/${role.toLowerCase()}`
@@ -55,7 +55,7 @@ export default function InnerLayout() {
 
   return (
     <div className="app-root">
-      <TopNavbar />
+      <TopNavbar zoom={zoom} setZoom={setZoom} browserZoomDetected={browserZoomDetected} />
       <div className="inner-body">
         <aside className="inner-sidebar">
           <div className="isb-section">{sidebar.section}</div>

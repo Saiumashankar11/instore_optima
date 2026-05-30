@@ -122,6 +122,7 @@ export default function StockMovement() {
               <option value="IN">IN</option>
               <option value="OUT">OUT</option>
               <option value="ADJUSTMENT">ADJUSTMENT</option>
+              <option value="WRITE_OFF">WRITE_OFF</option>
             </select>
             <SearchBar value={search} onChange={e => setSearch(e.target.value)} placeholder="Search product..." />
           </div>

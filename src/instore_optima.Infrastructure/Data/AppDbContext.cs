@@ -34,6 +34,7 @@ namespace instore_optima.Infrastructure.Data
         public DbSet<AuditLog> AuditLogs { get; set; }
         public DbSet<Notification> Notifications { get; set; }
         public DbSet<TaskItem> Tasks { get; set; }
+        public DbSet<InternalMessage> InternalMessages { get; set; }
 
         // ?? RELATIONSHIP CONFIGURATION
 
@@ -239,6 +240,21 @@ namespace instore_optima.Infrastructure.Data
                 .HasOne<User>()
                 .WithMany()
                 .HasForeignKey(t => t.AssignedTo)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // InternalMessage
+            modelBuilder.Entity<InternalMessage>().HasKey(m => m.MessageId);
+
+            modelBuilder.Entity<InternalMessage>()
+                .HasOne<User>()
+                .WithMany()
+                .HasForeignKey(m => m.SenderId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<InternalMessage>()
+                .HasOne<User>()
+                .WithMany()
+                .HasForeignKey(m => m.ReceiverId)
                 .OnDelete(DeleteBehavior.Restrict);
         }
     }

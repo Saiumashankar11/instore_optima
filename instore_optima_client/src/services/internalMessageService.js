@@ -1,0 +1,15 @@
+﻿import axiosClient from '../api/axiosClient'
+
+export const getInbox          = ()         => axiosClient.get('/api/messages/inbox')
+export const getSent           = ()         => axiosClient.get('/api/messages/sent')
+export const getDrafts         = ()         => axiosClient.get('/api/messages/drafts')
+export const getStarred        = ()         => axiosClient.get('/api/messages/starred')
+export const getTrash          = ()         => axiosClient.get('/api/messages/trash')
+export const getUnreadCount    = ()         => axiosClient.get('/api/messages/unread-count')
+export const getRecipients     = ()         => axiosClient.get('/api/messages/recipients')
+export const sendMessage       = (data)     => axiosClient.post('/api/messages', data)
+export const markAsRead        = (id)       => axiosClient.put(`/api/messages/${id}/read`)
+export const toggleStar        = (id)       => axiosClient.put(`/api/messages/${id}/star`)
+export const moveToTrash       = (id)       => axiosClient.put(`/api/messages/${id}/trash`)
+export const restoreFromTrash  = (id)       => axiosClient.put(`/api/messages/${id}/restore`)
+export const deleteMessage     = (id, sent) => axiosClient.delete(`/api/messages/${id}?sent=${sent}`)

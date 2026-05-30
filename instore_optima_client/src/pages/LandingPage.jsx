@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTheme } from "../context/ThemeContext";
+import ZoomControl from "../components/ZoomControl";
 
 function useVisible(threshold = 0.15) {
   const ref = useRef(null);
@@ -205,7 +206,7 @@ const FEATURES = [
   { num: "06 / COMPLIANCE",    title: "Audit trail",           desc: "Every action logged with who, what, and when. Immutable. Always available for compliance review." },
 ];
 
-export default function LandingPage() {
+export default function LandingPage({ zoom = 100, setZoom = () => {} }) {
   const navigate = useNavigate();
   const canvasRef = useRef(null);
   const [heroIn, setHeroIn] = useState(false);
@@ -462,6 +463,7 @@ export default function LandingPage() {
             <span className="lp-logo-text">InStore Optima</span>
           </div>
           <div className="lp-nav-r">
+            <ZoomControl zoom={zoom} setZoom={setZoom} />
             <button type="button" className="lp-theme-toggle" onClick={toggleTheme} title="Toggle theme">
               {dark ? '☀️' : '🌙'}
             </button>

@@ -92,13 +92,52 @@ namespace instore_optima.Api.Controllers
         [HttpPut("{id}")]
         public async Task<IActionResult> Update(int id, StockUpdateDTO dto)
         {
+            var existing = await _repo.GetByIdAsync(id);
+            if (existing == null)
+                throw new ResourceNotFoundException("Stock", id);
+
+            int oldStock = existing.CurrentStock;
+            int newStock = dto.CurrentStock;
+
             var updated = await _repo.UpdateAsync(id, new Stock
             {
-                CurrentStock = dto.CurrentStock
+                CurrentStock = newStock
             });
 
             if (updated == null)
                 throw new ResourceNotFoundException("Stock", id);
+
+            // Record a stock movement for the difference
+            var userIdClaim = User.FindFirst("userId")?.Value
+                           ?? User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            int performedBy = int.TryParse(userIdClaim, out int uid) ? uid : 1;
+
+            if (newStock < oldStock)
+            {
+                // Stock decreased — record a write-off (log only, stock already updated)
+                await _movementRepo.RecordOnlyAsync(new StockMovement
+                {
+                    ProductId    = existing.ProductId,
+                    Quantity     = oldStock - newStock,
+                    MovementType = "WRITE_OFF",
+                    PerformedBy  = performedBy,
+                    Reason       = $"Manual stock adjustment: reduced from {oldStock} to {newStock}",
+                    PerformedAt  = DateTime.UtcNow
+                });
+            }
+            else if (newStock > oldStock)
+            {
+                // Stock increased — record as adjustment (log only, stock already updated)
+                await _movementRepo.RecordOnlyAsync(new StockMovement
+                {
+                    ProductId    = existing.ProductId,
+                    Quantity     = newStock - oldStock,
+                    MovementType = "ADJUSTMENT",
+                    PerformedBy  = performedBy,
+                    Reason       = $"Manual stock adjustment: increased from {oldStock} to {newStock}",
+                    PerformedAt  = DateTime.UtcNow
+                });
+            }
 
             return Ok(MapToResponse(updated));
         }
@@ -120,7 +159,7 @@ namespace instore_optima.Api.Controllers
             // Auto-record a WRITE_OFF movement so the audit trail is preserved
             if (stock.CurrentStock > 0)
             {
-                await _movementRepo.CreateAsync(new StockMovement
+                await _movementRepo.RecordOnlyAsync(new StockMovement
                 {
                     ProductId    = stock.ProductId,
                     Quantity     = stock.CurrentStock,

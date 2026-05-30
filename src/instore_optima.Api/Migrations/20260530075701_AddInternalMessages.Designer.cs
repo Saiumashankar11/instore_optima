@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using instore_optima.Infrastructure.Data;
 
@@ -11,9 +12,11 @@ using instore_optima.Infrastructure.Data;
 namespace instore_optima.Api.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260530075701_AddInternalMessages")]
+    partial class AddInternalMessages
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -74,17 +77,8 @@ namespace instore_optima.Api.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("MessageId"));
 
-                    b.Property<string>("AttachmentsJson")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("Bcc")
-                        .HasColumnType("nvarchar(max)");
-
                     b.Property<string>("Body")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("Cc")
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<DateTime>("CreatedAt")
@@ -96,16 +90,7 @@ namespace instore_optima.Api.Migrations
                     b.Property<bool>("DeletedBySender")
                         .HasColumnType("bit");
 
-                    b.Property<bool>("IsDraft")
-                        .HasColumnType("bit");
-
                     b.Property<bool>("IsRead")
-                        .HasColumnType("bit");
-
-                    b.Property<bool>("IsStarredByReceiver")
-                        .HasColumnType("bit");
-
-                    b.Property<bool>("IsStarredBySender")
                         .HasColumnType("bit");
 
                     b.Property<string>("MessageType")
@@ -118,21 +103,12 @@ namespace instore_optima.Api.Migrations
                     b.Property<int>("ReceiverId")
                         .HasColumnType("int");
 
-                    b.Property<DateTime?>("ScheduledAt")
-                        .HasColumnType("datetime2");
-
                     b.Property<int>("SenderId")
                         .HasColumnType("int");
 
                     b.Property<string>("Subject")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
-
-                    b.Property<bool>("TrashedByReceiver")
-                        .HasColumnType("bit");
-
-                    b.Property<bool>("TrashedBySender")
-                        .HasColumnType("bit");
 
                     b.HasKey("MessageId");
 

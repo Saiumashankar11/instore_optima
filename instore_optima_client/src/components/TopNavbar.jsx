@@ -1,16 +1,45 @@
 import { NavLink, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useTheme } from '../context/ThemeContext'
-import { useState, useCallback } from 'react'
+import { useMessages } from '../context/MessagesContext'
+import { useState, useCallback, useRef, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 
-export default function TopNavbar() {
+export default function TopNavbar({ zoom = 100, setZoom = () => {}, browserZoomDetected = false }) {
   const { user, logout, canManage, role } = useAuth()
   const { dark, toggle } = useTheme()
+  const { unreadCount } = useMessages()
   const navigate = useNavigate()
   const { pathname } = useLocation()
   const [toast, setToast] = useState(null)
+  const [profileOpen, setProfileOpen] = useState(false)
+  const profileRef = useRef(null)
   const rolePrefix = `/${role?.toLowerCase()}`
+
+  // Show browser zoom detected toast
+  useEffect(() => {
+    if (browserZoomDetected) {
+      setToast('Browser zoom detected — app zoom reset to 100%')
+      setTimeout(() => setToast(null), 4000)
+    }
+  }, [browserZoomDetected])
+  // Close profile dropdown on outside click
+  useEffect(() => {
+    const handler = e => {
+      if (profileRef.current && !profileRef.current.contains(e.target)) {
+        setProfileOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
+
+  const applyZoom = z => {
+    const clamped = Math.min(150, Math.max(70, z))
+    setZoom(clamped)
+  }
+  const changeZoom = delta => applyZoom(zoom + delta)
+  const resetZoom  = () => applyZoom(100)
 
   const SECTIONS = [
     { label: 'Dashboard',   to: `${rolePrefix}/dashboard`,       pages: ['dashboard'] },
@@ -69,23 +98,82 @@ export default function TopNavbar() {
         </div>
       </div>
 
-      {/* RIGHT — status + user */}
+      {/* RIGHT — controls + user */}
       <div className="tnav-right-wrap">
         <div className="tnav-right">
           <button className="tnav-theme-toggle" onClick={toggle} title="Toggle theme">
             {dark ? '☀️' : '🌙'}
           </button>
+          <NavLink to={`${rolePrefix}/messages`} className="tnav-msg-bell" title="Internal Messages">
+            <i className="bi bi-envelope"></i>
+            {unreadCount > 0 && (
+              <span className="tnav-msg-badge">{unreadCount > 99 ? '99+' : unreadCount}</span>
+            )}
+          </NavLink>
           <div className="tnav-status">
             <div className="tnav-dot"></div>
             System live
           </div>
-          <div className="tnav-user">
-            <div className="tnav-avatar">{initials}</div>
-            <span className="tnav-username">{user?.name || 'User'}</span>
-            <span className="tnav-role">{user?.role || 'Staff'}</span>
-            <button className="tnav-logout" onClick={handleLogout} title="Logout">
-              <i className="bi bi-box-arrow-right"></i>
+
+          {/* Profile dropdown */}
+          <div className="tnav-profile-wrap" ref={profileRef}>
+            <button className="tnav-user" onClick={() => setProfileOpen(o => !o)}>
+              <div className="tnav-avatar">{initials}</div>
+              <span className="tnav-username">{user?.name || 'User'}</span>
+              <span className="tnav-role">{user?.role || 'Staff'}</span>
+              <i className={`bi bi-chevron-${profileOpen ? 'up' : 'down'}`} style={{ fontSize: 10, opacity: 0.6, marginLeft: 2 }}></i>
             </button>
+
+            {profileOpen && (
+              <div className="tnav-profile-dropdown">
+                {/* Avatar + name header */}
+                <div className="tnav-pd-header">
+                  <div className="tnav-pd-avatar">{initials}</div>
+                  <div>
+                    <div className="tnav-pd-name">{user?.name || 'User'}</div>
+                    <div className="tnav-pd-role-badge">{user?.role || 'Staff'}</div>
+                  </div>
+                </div>
+
+                <div className="tnav-pd-divider" />
+
+                {/* Details */}
+                <div className="tnav-pd-details">
+                  <div className="tnav-pd-row">
+                    <i className="bi bi-envelope"></i>
+                    <span>{user?.email || '—'}</span>
+                  </div>
+                  <div className="tnav-pd-row">
+                    <i className="bi bi-person-badge"></i>
+                    <span>ID: #{user?.userId || '—'}</span>
+                  </div>
+                  <div className="tnav-pd-row">
+                    <i className="bi bi-shield-check"></i>
+                    <span>Role: {user?.role || '—'}</span>
+                  </div>
+                </div>
+
+                <div className="tnav-pd-divider" />
+
+                {/* Zoom controls */}
+                <div className="tnav-pd-zoom">
+                  <span className="tnav-pd-zoom-label"><i className="bi bi-zoom-in" style={{ marginRight: 5 }}></i>Page Zoom</span>
+                  <div className="tnav-pd-zoom-controls">
+                    <button className="tnav-pd-zoom-btn" onClick={() => changeZoom(-10)} title="Zoom out"><i className="bi bi-dash"></i></button>
+                    <span className="tnav-pd-zoom-pct" onClick={resetZoom} title="Reset to 100%">{zoom}%</span>
+                    <button className="tnav-pd-zoom-btn" onClick={() => changeZoom(10)} title="Zoom in"><i className="bi bi-plus"></i></button>
+                  </div>
+                </div>
+
+                <div className="tnav-pd-divider" />
+
+                {/* Sign out */}
+                <button className="tnav-pd-signout" onClick={handleLogout}>
+                  <i className="bi bi-box-arrow-right"></i>
+                  Sign Out
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>

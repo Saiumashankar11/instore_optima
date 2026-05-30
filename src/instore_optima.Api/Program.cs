@@ -110,6 +110,9 @@ builder.Services.AddSwaggerGen(options =>
 // ─── Auth Repository ──────────────────────────────────
 builder.Services.AddScoped<IAuthRepository, AuthRepository>();
 
+// ─── Internal Messaging ───────────────────────────────
+builder.Services.AddScoped<IInternalMessageRepository, InternalMessageRepository>();
+
 // ─── JWT Authentication ───────────────────────────────
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>

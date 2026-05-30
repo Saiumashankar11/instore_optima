@@ -57,11 +57,19 @@ namespace instore_optima.Infrastructure.Repositories
                 "IN"         => stock.CurrentStock + movement.Quantity,
                 "OUT"        => Math.Max(0, stock.CurrentStock - movement.Quantity),
                 "WRITE_OFF"  => Math.Max(0, stock.CurrentStock - movement.Quantity),
-                "ADJUSTMENT" => movement.Quantity, // absolute correction
+                "ADJUSTMENT" => stock.CurrentStock + movement.Quantity,
                 _            => stock.CurrentStock
             };
             stock.LastUpdated = DateTime.UtcNow;
 
+            _context.StockMovements.Add(movement);
+            await _context.SaveChangesAsync();
+            return movement;
+        }
+
+        public async Task<StockMovement> RecordOnlyAsync(StockMovement movement)
+        {
+            movement.PerformedAt = DateTime.UtcNow;
             _context.StockMovements.Add(movement);
             await _context.SaveChangesAsync();
             return movement;
