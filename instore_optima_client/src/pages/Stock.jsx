@@ -21,7 +21,8 @@ export default function Stock() {
   const [products, setProducts] = useState([])
   const [loading, setLoading]   = useState(true)
   const [error, setError]       = useState('')
-  const [search, setSearch]     = useState('')
+  const [search, setSearch]         = useState('')
+  const [statusFilter, setStatusFilter] = useState('All')
   const [showForm, setShowForm] = useState(false)
   const [editing, setEditing]   = useState(null)
   const [form, setForm]         = useState({ currentStock: '' })
@@ -149,10 +150,13 @@ export default function Stock() {
     return { ...row, _productName: prod?.name || `Product #${row.productId}`, _isLow: isLow, _rowClass: isLow ? 'row-low-stock' : '' }
   })
 
-  const filtered = enriched.filter(d =>
-    String(d.stockId).includes(search) ||
-    d._productName.toLowerCase().includes(search.toLowerCase())
-  )
+  const filtered = enriched.filter(d => {
+    const matchesSearch = String(d.stockId).includes(search) || d._productName.toLowerCase().includes(search.toLowerCase())
+    const matchesStatus = statusFilter === 'All'
+      || (statusFilter === 'Low Stock' && d._isLow)
+      || (statusFilter === 'OK' && !d._isLow)
+    return matchesSearch && matchesStatus
+  })
 
   const lowCount = enriched.filter(r => r._isLow).length
 
@@ -216,6 +220,16 @@ export default function Stock() {
             All Stock <span className="count">{filtered.length}</span>
           </p>
           <div className="table-toolbar-right">
+            <select
+              className="form-control-custom"
+              style={{ width: 130 }}
+              value={statusFilter}
+              onChange={e => setStatusFilter(e.target.value)}
+            >
+              <option>All</option>
+              <option>Low Stock</option>
+              <option>OK</option>
+            </select>
             <SearchBar value={search} onChange={e => setSearch(e.target.value)} placeholder="Search by product..." />
           </div>
         </div>

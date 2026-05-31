@@ -121,7 +121,9 @@ export default function PurchaseOrders() {
     <div><div class="grid-label">PO Number</div><div class="grid-val">#${po.purchaseOrderId}</div></div>
     <div><div class="grid-label">Replenishment Order</div><div class="grid-val">#${po.replenishmentOrderId}</div></div>
     <div><div class="grid-label">Supplier</div><div class="grid-val">${supplier?.name || '#' + po.supplierId}</div></div>
-    <div><div class="grid-label">Contact</div><div class="grid-val">${supplier?.contactEmail || '—'}</div></div>
+    <div><div class="grid-label">Email</div><div class="grid-val">${supplier?.email || '—'}</div></div>
+    <div><div class="grid-label">Phone / Contact</div><div class="grid-val">${supplier?.contact || '—'}</div></div>
+    <div><div class="grid-label">Address</div><div class="grid-val">${supplier?.address || '—'}</div></div>
     <div><div class="grid-label">Issued Date</div><div class="grid-val">${po.issuedAt ? new Date(po.issuedAt).toLocaleDateString('en-IN') : '—'}</div></div>
     <div><div class="grid-label">Delivered Date</div><div class="grid-val">${po.deliveredAt ? new Date(po.deliveredAt).toLocaleDateString('en-IN') : '—'}</div></div>
   </div>

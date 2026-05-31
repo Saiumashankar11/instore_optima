@@ -127,6 +127,14 @@ export default function Orders() {
   const handleSaveItem = async () => {
     if (!itemForm.quantity || Number(itemForm.quantity) < 1) return toast('Enter a valid quantity (≥ 1).', 'warning')
     if (!editItem && !itemForm.productId) return toast('Please select a product.', 'warning')
+    // Stock check — run before hitting the API to give a clear message
+    if (!editItem) {
+      const stockEntry = stock.find(s => Number(s.productId) === Number(itemForm.productId))
+      const available = stockEntry?.currentStock ?? 0
+      if (Number(itemForm.quantity) > available) {
+        return toast(`Insufficient stock. Only ${available} unit${available !== 1 ? 's' : ''} available for this product.`, 'warning')
+      }
+    }
     setSavingItem(true)
     try {
       if (editItem) {

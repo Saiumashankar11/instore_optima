@@ -364,8 +364,8 @@ export default function LandingPage({ zoom = 100, setZoom = () => {} }) {
         .lp-foot{border-top:1px solid rgba(255,255,255,0.04);padding:18px 44px;display:flex;align-items:center;justify-content:space-between}
         .lp-foot-l{font-family:'DM Mono',monospace;font-size:10px;color:#475569}
         .lp-foot-links{display:flex;gap:20px}
-        .lp-foot-a{font-family:'DM Mono',monospace;font-size:10px;color:#475569;background:none;border:none;cursor:pointer;transition:.15s;padding:0}
-        .lp-foot-a:hover{color:#0891b2}
+        .lp-foot-a{font-family:'DM Mono',monospace;font-size:10px;color:#e2e8f0;background:none;border:none;cursor:pointer;transition:.15s;padding:0}
+        .lp-foot-a:hover{color:#22d3ee}
 
         .lp-theme-toggle{background:none;border:1px solid rgba(255,255,255,0.09);color:#64748b;width:34px;height:34px;border-radius:6px;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;transition:.2s;flex-shrink:0;line-height:1}
         .lp-theme-toggle:hover{border-color:rgba(8,145,178,0.4);color:#94a3b8}
@@ -449,7 +449,7 @@ export default function LandingPage({ zoom = 100, setZoom = () => {} }) {
 
         .lp-light .lp-foot{border-top-color:rgba(0,0,0,0.06);background:#e2e8f0}
         .lp-light .lp-foot-l{color:#64748b}
-        .lp-light .lp-foot-a{color:#64748b}
+        .lp-light .lp-foot-a{color:#1e293b}
         .lp-light .lp-foot-a:hover{color:#0891b2}
 
         @media(max-width:860px){.lp-hero{grid-template-columns:1fr}.lp-hero-r{display:none}.lp-stats{grid-template-columns:repeat(2,1fr)}.lp-feat-grid{grid-template-columns:1fr 1fr}}

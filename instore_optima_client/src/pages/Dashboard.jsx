@@ -17,7 +17,7 @@ export default function Dashboard() {
   const [stats, setStats] = useState({
     products: 0, lowStock: 0, orders: 0,
     suppliers: 0, pending: 0, approved: 0,
-    rejected: 0, totalReplen: 0, revenue: 0
+    rejected: 0, fulfilled: 0, totalReplen: 0, revenue: 0
   })
   const [recentOrders, setRecentOrders] = useState([])
   const [loading, setLoading] = useState(true)
@@ -45,10 +45,11 @@ export default function Dashboard() {
         .reduce((acc, x) => acc + (Number(x.totalAmount) || 0), 0)
 
       // real replenishment counts
-      const rPending  = r.filter(x => x.status === 'Pending').length
-      const rApproved = r.filter(x => x.status === 'Approved').length
-      const rRejected = r.filter(x => x.status === 'Rejected').length
-      const rTotal    = r.length
+      const rPending   = r.filter(x => x.status === 'Pending').length
+      const rApproved  = r.filter(x => x.status === 'Approved').length
+      const rRejected  = r.filter(x => x.status === 'Rejected').length
+      const rFulfilled = r.filter(x => x.status === 'Fulfilled').length
+      const rTotal     = r.length
 
       setStats({
         products:  p.length,
@@ -58,6 +59,7 @@ export default function Dashboard() {
         pending:   rPending,
         approved:  rApproved,
         rejected:  rRejected,
+        fulfilled: rFulfilled,
         totalReplen: rTotal,
         revenue,
       })
@@ -187,6 +189,16 @@ export default function Dashboard() {
           </div>
         </div>
         <span className="bento-replen-bar-label">{stats.pending} pending</span>
+      </div>
+      <div className="bento-replen-bar-row">
+        <div className="bento-replen-bar-track">
+          <div className="bento-replen-bar-fill" style={{
+            width: stats.totalReplen > 0 ? `${Math.round((stats.fulfilled / stats.totalReplen) * 100)}%` : '0%',
+            background: '#818cf8'
+          }}>
+          </div>
+        </div>
+        <span className="bento-replen-bar-label">{stats.fulfilled} fulfilled</span>
       </div>
     </div>
   </div>

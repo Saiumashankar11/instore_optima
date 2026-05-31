@@ -17,7 +17,8 @@ export default function Products() {
   const [suppliers, setSuppliers] = useState([])
   const [loading, setLoading]     = useState(true)
   const [error, setError]         = useState('')
-  const [search, setSearch]       = useState('')
+  const [search, setSearch]           = useState('')
+  const [supplierFilter, setSupplierFilter] = useState('')
   const [showForm, setShowForm]   = useState(false)
   const [showDel, setShowDel]     = useState(false)
   const [editing, setEditing]     = useState(null)
@@ -90,10 +91,11 @@ export default function Products() {
     })
   }
 
-  const filtered = data.filter(d =>
-    String(d.productId).includes(search) ||
-    d.name?.toLowerCase().includes(search.toLowerCase())
-  )
+  const filtered = data.filter(d => {
+    const matchesSearch = String(d.productId).includes(search) || d.name?.toLowerCase().includes(search.toLowerCase())
+    const matchesSupplier = !supplierFilter || String(d.supplierId) === supplierFilter
+    return matchesSearch && matchesSupplier
+  })
 
   const columns = [
     { key: 'productId',   label: 'ID',          render: r => <span className="text-accent" style={{ fontWeight: 600 }}>#{r.productId}</span> },
@@ -125,6 +127,17 @@ export default function Products() {
             All Products <span className="count">{filtered.length}</span>
           </p>
           <div className="table-toolbar-right">
+            <select
+              className="form-control-custom"
+              style={{ width: 160 }}
+              value={supplierFilter}
+              onChange={e => setSupplierFilter(e.target.value)}
+            >
+              <option value="">All Suppliers</option>
+              {suppliers.map(s => (
+                <option key={s.supplierId} value={String(s.supplierId)}>{s.name}</option>
+              ))}
+            </select>
             <SearchBar value={search} onChange={e => setSearch(e.target.value)} placeholder="Search products..." />
           </div>
         </div>
