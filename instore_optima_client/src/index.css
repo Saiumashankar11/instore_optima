@@ -29,6 +29,13 @@
   --text-header:    #64748b;
   --border-row:     rgba(255,255,255,.07);
 
+  /* numbered text scale (dark defaults — light overrides below) */
+  --text-950: #f8fafc;   /* near-white, maximum emphasis */
+  --text-200: #e2e8f0;   /* near-white, primary body content */
+  --text-400: #94a3b8;   /* medium slate, secondary content */
+  --text-600: #64748b;   /* darker slate, muted / descriptions */
+  --text-700: #475569;   /* most muted */
+
   --navbar-h:    52px;
   --sidebar-w:   200px;
   --radius-sm:   5px;
@@ -54,6 +61,13 @@
   --text-muted:     #64748b;
   --text-header:    #475569;
   --border-row:     #e2e8f0;
+
+  /* numbered text scale — light */
+  --text-950: #0f172a;   /* near-black, maximum emphasis */
+  --text-200: #1e293b;   /* very dark, primary body content */
+  --text-400: #334155;   /* dark grey, secondary content */
+  --text-600: #475569;   /* medium grey, muted */
+  --text-700: #64748b;   /* lighter grey, most muted */
 }
 
 /* ── instant theme transitions: applied to everything when toggling ── */
@@ -119,9 +133,9 @@
 [data-theme="light"] .btn-icon.danger:hover { background: #fef2f2; border-color: #fecaca; color: var(--danger); }
 [data-theme="light"] .form-label-custom                    { color: #1e293b; }
 [data-theme="light"] .login-page .form-label-custom        { color: #1e293b; }
-[data-theme="light"] .form-control-custom                  { background: #ffffff; border-color: #e2e8f0; color: #0f172a; }
+[data-theme="light"] .form-control-custom                  { background: #ffffff; border-color: #e2e8f0; color: #0f172a !important; }
 [data-theme="light"] .form-control-custom option            { background: #ffffff; color: #0f172a; }
-[data-theme="light"] .form-control-custom::placeholder     { color: #94a3b8; }
+[data-theme="light"] .form-control-custom::placeholder     { color: #64748b !important; }
 [data-theme="light"] .login-page select.form-control-custom { background: #ffffff !important; border-color: #e2e8f0 !important; color: #0f172a !important; }
 [data-theme="light"] .login-page select.form-control-custom option { background: #ffffff; color: #0f172a; }
 [data-theme="light"] .empty-state i         { color: #cbd5e1; }
@@ -208,7 +222,7 @@
     box-shadow     0.2s ease !important;
 }
 html { font-size: 14px; }
-body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; background: var(--page-bg); color: #475569; -webkit-font-smoothing: antialiased; line-height: 1.5; }
+body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; background: var(--page-bg); color: var(--text-200); -webkit-font-smoothing: antialiased; line-height: 1.5; }
 
 /* ═══════════════════════════════════════════
    APP ROOT
@@ -544,10 +558,10 @@ table.custom-table tbody tr.row-overdue td   { background: rgba(245,158,11,.08) 
 .btn-outline-custom  { display: inline-flex; align-items: center; gap: 6px; padding: 6px 13px; background: rgba(255,255,255,.06); color: #e2e8f0; border: 1px solid rgba(255,255,255,.1); border-radius: var(--radius-md); font-size: 12.5px; font-weight: 500; cursor: pointer; text-decoration: none; transition: all .12s; }
 .btn-outline-custom:hover { background: rgba(255,255,255,.1); color: #ffffff; text-decoration: none; }
 
-.btn-secondary-custom { display: inline-flex; align-items: center; gap: 6px; padding: 6px 13px; background: rgba(255,255,255,.05); color: #94a3b8; border: 1px solid rgba(255,255,255,.09); border-radius: var(--radius-md); font-size: 12px; font-weight: 500; cursor: pointer; white-space: nowrap; transition: all .15s; }
-.btn-secondary-custom:hover { background: rgba(255,255,255,.09); border-color: rgba(255,255,255,.16); color: #e2e8f0; }
-[data-theme="light"] .btn-secondary-custom { background: rgba(0,0,0,.04); color: #475569; border-color: rgba(0,0,0,.1); }
-[data-theme="light"] .btn-secondary-custom:hover { background: rgba(0,0,0,.08); color: #1e293b; }
+.btn-secondary-custom { display: inline-flex; align-items: center; gap: 6px; padding: 6px 13px; background: rgba(255,255,255,.08); color: #e2e8f0; border: 1px solid rgba(255,255,255,.14); border-radius: var(--radius-md); font-size: 12px; font-weight: 500; cursor: pointer; white-space: nowrap; transition: all .15s; }
+.btn-secondary-custom:hover { background: rgba(255,255,255,.13); border-color: rgba(255,255,255,.22); color: #ffffff; }
+[data-theme="light"] .btn-secondary-custom { background: #f1f5f9; color: #1e293b; border-color: #e2e8f0; }
+[data-theme="light"] .btn-secondary-custom:hover { background: #e2e8f0; color: #0f172a; }
 
 .btn-icon        { width: 30px; height: 30px; display: inline-flex; align-items: center; justify-content: center; background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.1); border-radius: var(--radius-sm); font-size: 13px; color: #94a3b8; cursor: pointer; transition: all .12s; }
 .btn-icon:hover        { background: rgba(255,255,255,.1); color: #e2e8f0; }
@@ -588,6 +602,9 @@ table.custom-table tbody tr.row-overdue td   { background: rgba(245,158,11,.08) 
 .modal-backdrop.show   { opacity: .4 !important; }
 .modal-content .form-control-custom { background: #ffffff; border-color: #e2e8f0; color: #0f172a; }
 .modal-content .form-label-custom   { color: #1e293b; }
+/* Modal is always white — override outline button to be always-readable */
+.modal-content .btn-outline-custom       { background: #f1f5f9; color: #374151; border-color: #e2e8f0; }
+.modal-content .btn-outline-custom:hover { background: #e2e8f0; color: #111827; border-color: #cbd5e1; }
 
 /* ── empty state ── */
 .empty-state   { text-align: center; padding: 56px 20px; }

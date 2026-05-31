@@ -225,11 +225,16 @@ export default function Replenishment() {
       </FormModal>
 
       <ConfirmModal show={showConfirm} onHide={() => setShowConfirm(false)} onConfirm={handleConfirm}
-        title={confirmAction?.action === 'Delete' ? 'Delete Replenishment Order' : `${confirmAction?.action} Replenishment`}
+        title={
+          confirmAction?.action === 'Delete'   ? 'Delete Replenishment Order' :
+          confirmAction?.action === 'Approved' ? 'Approve Replenishment' :
+          confirmAction?.action === 'Rejected' ? 'Reject Replenishment' :
+          `${confirmAction?.action} Replenishment`
+        }
         message={confirmAction?.action === 'Delete'
           ? 'Are you sure you want to permanently delete this replenishment order?'
           : `Are you sure you want to ${confirmAction?.action === 'Approved' ? 'approve' : 'reject'} this order?`}
-        confirmLabel={confirmAction?.action}
+        confirmLabel={confirmAction?.action === 'Approved' ? 'Approve' : confirmAction?.action === 'Rejected' ? 'Reject' : confirmAction?.action}
         variant={confirmAction?.action === 'Rejected' || confirmAction?.action === 'Delete' ? 'danger' : 'success'}
         loading={saving} />
 
