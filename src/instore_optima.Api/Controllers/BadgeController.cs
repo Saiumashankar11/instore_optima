@@ -37,13 +37,18 @@ namespace instore_optima.Api.Controllers
             var pendingPayments = await _db.Payments
                 .CountAsync(p => p.PaymentStatus == "Pending");
 
+            // Invoices that have been issued but not yet paid
+            var issuedInvoices = await _db.Invoices
+                .CountAsync(i => i.Status == "Issued");
+
             return Ok(new BadgeCountsDto
             {
                 LowStock             = lowStock,
                 PendingReplenishment = pendingReplenishment,
                 PendingPurchaseOrders = pendingPOs,
                 PendingOrders        = pendingOrders,
-                PendingPayments      = pendingPayments
+                PendingPayments      = pendingPayments,
+                IssuedInvoices       = issuedInvoices
             });
         }
     }

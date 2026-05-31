@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.Linq;
@@ -61,9 +61,10 @@ namespace instore_optima.Application.DTOs
     // Returned from POST /api/auth/login — signals the client to show OTP input
     public class OtpChallengeDto
     {
-        public bool RequiresOtp   { get; set; } = true;
-        public string SessionKey  { get; set; } = string.Empty;   // GUID to correlate OTP → JWT exchange
-        public string MaskedEmail { get; set; } = string.Empty;   // e.g. s***@gmail.com (shown in UI)
+        public bool RequiresOtp      { get; set; } = true;
+        public bool IsTotpChallenge  { get; set; } = false;  // true when user has TOTP app enabled
+        public string SessionKey     { get; set; } = string.Empty;
+        public string MaskedEmail    { get; set; } = string.Empty;
     }
 
     // Sent by client to POST /api/auth/verify-otp
@@ -82,5 +83,117 @@ namespace instore_optima.Application.DTOs
     {
         [Required]
         public string SessionKey { get; set; } = string.Empty;
+    }
+
+    // POST /api/auth/forgot-password
+    public class ForgotPasswordDto
+    {
+        [Required(ErrorMessage = "Email is required.")]
+        [RegularExpression(
+            @"^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$",
+            ErrorMessage = "Enter a valid email address.")]
+        public string Email { get; set; } = string.Empty;
+    }
+
+    // POST /api/auth/reset-password
+    public class ResetPasswordDto
+    {
+        [Required]
+        public string SessionKey { get; set; } = string.Empty;
+
+        [Required]
+        [StringLength(6, MinimumLength = 6, ErrorMessage = "Code must be exactly 6 digits.")]
+        public string Otp { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "New password is required.")]
+        [MinLength(6, ErrorMessage = "Password must be at least 6 characters.")]
+        [RegularExpression(
+            @"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{6,}$",
+            ErrorMessage = "Password must contain uppercase, lowercase, and a number.")]
+        public string NewPassword { get; set; } = string.Empty;
+    }
+
+    // POST /api/auth/change-password [Authorize]
+    public class ChangePasswordDto
+    {
+        [Required(ErrorMessage = "Current password is required.")]
+        public string CurrentPassword { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "New password is required.")]
+        [MinLength(6, ErrorMessage = "Password must be at least 6 characters.")]
+        [RegularExpression(
+            @"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{6,}$",
+            ErrorMessage = "Password must contain uppercase, lowercase, and a number.")]
+        public string NewPassword { get; set; } = string.Empty;
+    }
+
+    // POST /api/auth/totp/enable [Authorize]
+    public class TotpEnableDto
+    {
+        [Required]
+        public string Secret { get; set; } = string.Empty;
+
+        [Required]
+        [StringLength(6, MinimumLength = 6)]
+        public string Code { get; set; } = string.Empty;
+    }
+
+    // POST /api/auth/totp/disable [Authorize]
+    public class TotpDisableDto
+    {
+        [Required]
+        public string Password { get; set; } = string.Empty;
+    }
+
+    // Response from GET /api/auth/totp/setup
+    public class TotpSetupResponseDto
+    {
+        public string Secret    { get; set; } = string.Empty;
+        public string QrCodeUri { get; set; } = string.Empty;
+        public string ManualKey { get; set; } = string.Empty;
+    }
+
+    // Response from GET /api/auth/profile
+    public class UserProfileDto
+    {
+        public int UserId          { get; set; }
+        public string Name         { get; set; } = string.Empty;
+        public string Email        { get; set; } = string.Empty;
+        public string Role         { get; set; } = string.Empty;
+        public DateTime? CreatedAt { get; set; }
+        public bool TotpEnabled    { get; set; }
+        public string? PhoneNumber { get; set; }
+        public string? Address     { get; set; }
+    }
+
+    // PUT /api/auth/profile [Authorize]
+    public class UpdateProfileDto
+    {
+        [Required(ErrorMessage = "Name is required.")]
+        [StringLength(100, MinimumLength = 2, ErrorMessage = "Name must be between 2 and 100 characters.")]
+        public string Name { get; set; } = string.Empty;
+
+        [StringLength(20, ErrorMessage = "Phone number too long.")]
+        public string? PhoneNumber { get; set; }
+
+        [StringLength(300, ErrorMessage = "Address too long.")]
+        public string? Address { get; set; }
+    }
+
+    // POST /api/support/contact
+    public class ContactSupportDto
+    {
+        [Required(ErrorMessage = "Name is required.")]
+        public string Name { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Email is required.")]
+        [RegularExpression(
+            @"^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$",
+            ErrorMessage = "Enter a valid email address.")]
+        public string Email { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Message is required.")]
+        [StringLength(2000, MinimumLength = 10, ErrorMessage = "Message must be between 10 and 2000 characters.")]
+        public string Message { get; set; } = string.Empty;
     }
 }

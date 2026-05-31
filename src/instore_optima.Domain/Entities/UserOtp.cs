@@ -9,5 +9,7 @@ namespace instore_optima.Domain.Entities
         public DateTime ExpiresAt { get; set; }
         public bool IsUsed       { get; set; } = false;
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        // "login" | "reset" | "totp"
+        public string Purpose    { get; set; } = "login";
     }
 }

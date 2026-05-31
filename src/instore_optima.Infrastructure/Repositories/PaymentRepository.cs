@@ -43,6 +43,20 @@ namespace instore_optima.Api.Repositories.Implementations
             _context.Payments.Add(payment);
             await _context.SaveChangesAsync();
 
+            // A payment has now been recorded → move the order into "Processing"
+            // (it stays Processing until the payment is marked Completed). This also
+            // locks the order from further editing on the frontend.
+            try
+            {
+                var orderToProcess = await _context.Orders.FindAsync(payment.OrderId);
+                if (orderToProcess != null && orderToProcess.Status == "Pending")
+                {
+                    orderToProcess.Status = "Processing";
+                    await _context.SaveChangesAsync();
+                }
+            }
+            catch { /* best-effort; never block payment creation */ }
+
             // Auto-create invoice if one doesn't exist for this order
             try
             {
@@ -112,6 +126,18 @@ namespace instore_optima.Api.Repositories.Implementations
                     }
                 }
                 catch { /* Order status update is best-effort; never block payment completion */ }
+
+                // Mark the linked invoice as Paid (it leaves the "Issued" badge count)
+                try
+                {
+                    var linkedInvoice = await _context.Invoices.FirstOrDefaultAsync(i => i.OrderId == payment.OrderId);
+                    if (linkedInvoice != null && linkedInvoice.Status != "Paid")
+                    {
+                        linkedInvoice.Status = "Paid";
+                        await _context.SaveChangesAsync();
+                    }
+                }
+                catch { /* best-effort; never block payment completion */ }
             }
 
             return payment;

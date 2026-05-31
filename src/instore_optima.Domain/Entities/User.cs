@@ -15,5 +15,9 @@ namespace instore_optima.Domain.Entities
         public string Password { get; set; }
         public string Role { get; set; }
         public DateTime CreatedAt { get; set; }
+        public bool TotpEnabled { get; set; } = false;
+        public string? TotpSecret { get; set; }
+        public string? PhoneNumber { get; set; }
+        public string? Address { get; set; }
     }
 }
