@@ -9,9 +9,11 @@ import { useState, useEffect } from 'react'
 import TopNavLayout from './components/TopNavLayout'
 import InnerLayout from './components/InnerLayout'
 
-import Login        from './pages/Login'
-import Register     from './pages/Register'
-import LandingPage from './pages/LandingPage'
+import Login           from './pages/Login'
+import Register        from './pages/Register'
+import LandingPage     from './pages/LandingPage'
+import ForgotPassword  from './pages/ForgotPassword'
+import Profile         from './pages/Profile'
 import Dashboard    from './pages/Dashboard'
 import Products     from './pages/Products'
 import Stock        from './pages/Stock'
@@ -96,14 +98,16 @@ export default function App() {
       <BrowserRouter>
         <div id="app-content-wrapper">
         <Routes>
-          <Route path="/"         element={<LandingPage zoom={zoom} setZoom={setZoom} />} />
-          <Route path="/login"    element={<Login zoom={zoom} setZoom={setZoom} />} />
-          <Route path="/register" element={<Register zoom={zoom} setZoom={setZoom} />} />
+          <Route path="/"                  element={<LandingPage zoom={zoom} setZoom={setZoom} />} />
+          <Route path="/login"            element={<Login zoom={zoom} setZoom={setZoom} />} />
+          <Route path="/register"         element={<Register zoom={zoom} setZoom={setZoom} />} />
+          <Route path="/forgot-password"  element={<ForgotPassword zoom={zoom} setZoom={setZoom} />} />
 
           {/* Role-scoped routes — all paths carry /:role prefix */}
           <Route path="/:role" element={<RequireAuth><RoleUrlGuard><TopNavLayout zoom={zoom} setZoom={setZoom} browserZoomDetected={browserZoomDetected} /></RoleUrlGuard></RequireAuth>}>
             <Route path="dashboard" element={<Dashboard />} />
             <Route path="messages"  element={<Messages />} />
+            <Route path="profile"   element={<Profile />} />
           </Route>
 
           <Route path="/:role" element={<RequireAuth><RoleUrlGuard><InnerLayout zoom={zoom} setZoom={setZoom} browserZoomDetected={browserZoomDetected} /></RoleUrlGuard></RequireAuth>}>

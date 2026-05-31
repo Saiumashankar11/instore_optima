@@ -5,6 +5,7 @@ import { useMessages } from '../context/MessagesContext'
 import { useAlertBadges } from '../context/AlertBadgesContext'
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { createPortal } from 'react-dom'
+import ContactSupportModal from './ContactSupportModal'
 
 export default function TopNavbar({ zoom = 100, setZoom = () => {}, browserZoomDetected = false }) {
   const { user, logout, canManage, role } = useAuth()
@@ -15,6 +16,7 @@ export default function TopNavbar({ zoom = 100, setZoom = () => {}, browserZoomD
   const { pathname } = useLocation()
   const [toast, setToast] = useState(null)
   const [profileOpen, setProfileOpen] = useState(false)
+  const [supportOpen, setSupportOpen] = useState(false)
   const profileRef = useRef(null)
   const rolePrefix = `/${role?.toLowerCase()}`
 
@@ -158,6 +160,20 @@ export default function TopNavbar({ zoom = 100, setZoom = () => {}, browserZoomD
 
                 <div className="tnav-pd-divider" />
 
+                {/* Navigation links */}
+                <div style={{ padding: '4px 0' }}>
+                  <NavLink
+                    to={`${rolePrefix}/profile`}
+                    className="tnav-pd-navlink"
+                    onClick={() => setProfileOpen(false)}
+                  >
+                    <i className="bi bi-person-circle"></i>
+                    My Profile
+                  </NavLink>
+                </div>
+
+                <div className="tnav-pd-divider" />
+
                 {/* Zoom controls */}
                 <div className="tnav-pd-zoom">
                   <span className="tnav-pd-zoom-label"><i className="bi bi-zoom-in" style={{ marginRight: 5 }}></i>Page Zoom</span>
@@ -167,6 +183,16 @@ export default function TopNavbar({ zoom = 100, setZoom = () => {}, browserZoomD
                     <button className="tnav-pd-zoom-btn" onClick={() => changeZoom(10)} title="Zoom in"><i className="bi bi-plus"></i></button>
                   </div>
                 </div>
+
+                <div className="tnav-pd-divider" />
+
+                {/* Contact support */}
+                <button
+                  className="tnav-pd-support"
+                  onClick={() => { setProfileOpen(false); setSupportOpen(true) }}>
+                  <i className="bi bi-headset"></i>
+                  Contact Support
+                </button>
 
                 <div className="tnav-pd-divider" />
 
@@ -181,6 +207,13 @@ export default function TopNavbar({ zoom = 100, setZoom = () => {}, browserZoomD
         </div>
       </div>
     </nav>
+
+    <ContactSupportModal
+      show={supportOpen}
+      onHide={() => setSupportOpen(false)}
+      prefillName={user?.name || ''}
+      prefillEmail={user?.email || ''}
+    />
 
     {/* Toast rendered via portal directly into document.body — avoids any nav stacking/clipping */}
     {toast && createPortal(

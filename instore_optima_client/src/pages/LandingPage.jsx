@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTheme } from "../context/ThemeContext";
 import ZoomControl from "../components/ZoomControl";
+import ContactSupportModal from "../components/ContactSupportModal";
 
 function useVisible(threshold = 0.15) {
   const ref = useRef(null);
@@ -96,6 +97,39 @@ function buildTerminalLines(d) {
       { cls: "info", label: "[REV]",  msg: ` Today's revenue · ${fmt(d.todayRevenue)}` },
     ]},
   ];
+}
+
+// Build the scrolling ticker items from the live snapshot. Returns [icon, text][].
+// Returns null ONLY when the snapshot is unreachable (so we fall back to the
+// static sample). When the backend responds, we always show live data — padding
+// with honest "all clear" lines so the marquee always has enough to scroll.
+function buildTickerItems(d) {
+  if (!d) return null;
+  const fmt = n => `₹${Number(n).toLocaleString('en-IN')}`;
+  const items = [];
+
+  items.push(["●", `${d.totalProducts ?? 0} products tracked · ${d.activeUsers ?? 0} users online`]);
+
+  const low = d.lowStockItems || [];
+  if (low.length > 0) low.forEach(x =>
+    items.push(["!", `${x.name} — low stock (${x.currentStock}/${x.minStock})`]));
+  else items.push(["✓", "All stock levels within threshold"]);
+
+  items.push(["↑", d.pendingReplenishment > 0
+    ? `${d.pendingReplenishment} replenishment order${d.pendingReplenishment !== 1 ? 's' : ''} queued`
+    : "Replenishment up to date"]);
+
+  if (d.lastApproved)
+    items.push(["✓", `${d.lastApproved.id} approved — ${d.lastApproved.name}`]);
+
+  (d.todayOrders || []).forEach(o =>
+    items.push([o.status === 'Completed' ? "✓" : "→", `Order #${o.orderId} — ${fmt(o.amount)} · ${o.status}`]));
+
+  items.push(["✓", d.todayOrderCount > 0
+    ? `${d.todayOrderCount} order${d.todayOrderCount !== 1 ? 's' : ''} today · ${fmt(d.todayRevenue)} revenue`
+    : "No orders placed today yet"]);
+
+  return items;
 }
 
 function Terminal() {
@@ -213,6 +247,22 @@ export default function LandingPage({ zoom = 100, setZoom = () => {} }) {
   const [statsRef, statsVisible] = useVisible(0.3);
   const { dark, toggle: toggleTheme } = useTheme();
   const themeRef = useRef(dark);
+  const [supportOpen, setSupportOpen] = useState(false);
+  const [tickerItems, setTickerItems] = useState(null);
+
+  // Live ticker feed — pulled from the public snapshot endpoint
+  useEffect(() => {
+    let cancelled = false;
+    const fetchTicker = () => {
+      fetch("/api/live/snapshot")
+        .then(r => r.ok ? r.json() : null)
+        .catch(() => null)
+        .then(data => { if (!cancelled) setTickerItems(buildTickerItems(data)); });
+    };
+    fetchTicker();
+    const id = setInterval(fetchTicker, 30000); // refresh every 30s
+    return () => { cancelled = true; clearInterval(id); };
+  }, []);
 
   useEffect(() => {
     themeRef.current = dark;
@@ -253,7 +303,9 @@ export default function LandingPage({ zoom = 100, setZoom = () => {} }) {
     return () => { cancelAnimationFrame(animId); ro.disconnect(); };
   }, []);
 
-  const allItems = [...TICKER_ITEMS, ...TICKER_ITEMS];
+  // Use live data when available; fall back to the static sample otherwise
+  const baseItems = tickerItems || TICKER_ITEMS;
+  const allItems = [...baseItems, ...baseItems];
 
   return (
     <>
@@ -467,6 +519,7 @@ export default function LandingPage({ zoom = 100, setZoom = () => {} }) {
             <button type="button" className="lp-theme-toggle" onClick={toggleTheme} title="Toggle theme">
               {dark ? '☀️' : '🌙'}
             </button>
+            <button className="lp-btn-ghost" onClick={() => setSupportOpen(true)}>Support</button>
             <button className="lp-btn-ghost" onClick={() => navigate("/login")}>Sign in</button>
             <button className="lp-btn-solid" onClick={() => navigate("/register")}>Get started</button>
           </div>
@@ -555,9 +608,12 @@ export default function LandingPage({ zoom = 100, setZoom = () => {} }) {
           <div className="lp-foot-links">
             <button className="lp-foot-a" onClick={() => navigate("/login")}>sign_in()</button>
             <button className="lp-foot-a" onClick={() => navigate("/register")}>register()</button>
+            <button className="lp-foot-a" onClick={() => setSupportOpen(true)}>contact_support()</button>
           </div>
         </footer>
       </div>
+
+      <ContactSupportModal show={supportOpen} onHide={() => setSupportOpen(false)} />
     </>
   );
 }

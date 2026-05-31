@@ -165,23 +165,27 @@ export function parseApiError(err) {
   const data = err.response?.data
   const status = err.response?.status
 
-  if (status === 502 || status === 503) return 'Backend is not live. Please start the backend server and try again.'
-  if (status === 400) return 'Invalid data submitted. Please check your inputs.'
-  if (status === 403) return 'You do not have permission to perform this action.'
-  if (status === 404) return 'The requested resource was not found.'
-  if (status === 409) return data?.message || 'This item cannot be deleted — it is currently referenced by existing records.'
-  if (status >= 500) return 'Server error — please try again later or contact support.'
-
-  if (!data) return err.message || 'Something went wrong. Please try again.'
-
-  // Field-level validation errors from backend
-  if (data.errors && typeof data.errors === 'object') {
-    const firstError = Object.values(data.errors).flat()[0]
+  // ── 1. ALWAYS prefer the specific message the backend gave us ──────────────
+  // Field-level validation errors, e.g. { errors: { Email: ["Email already registered"] } }
+  if (data && data.errors && typeof data.errors === 'object') {
+    const firstError = Object.values(data.errors).flat().find(Boolean)
     if (firstError) return firstError
   }
+  // A meaningful top-level message (skip the generic validation envelope title)
+  if (data && typeof data.message === 'string' && data.message.trim() &&
+      data.message !== 'One or more validation errors occurred.') {
+    return data.message
+  }
+  if (typeof data === 'string' && data.trim()) return data
 
-  if (data.message) return data.message
-  if (typeof data === 'string') return data
+  // ── 2. Fall back to friendly text based on the HTTP status ─────────────────
+  if (status === 502 || status === 503) return 'Backend is not live. Please start the backend server and try again.'
+  if (status === 400) return 'Please check your inputs and try again.'
+  if (status === 401) return 'Your session has expired. Please sign in again.'
+  if (status === 403) return 'You do not have permission to perform this action.'
+  if (status === 404) return 'The requested resource was not found.'
+  if (status === 409) return 'This action conflicts with existing records and cannot be completed.'
+  if (status >= 500) return 'Server error — please try again later or contact support.'
 
-  return 'An unexpected error occurred.'
+  return err.message || 'Something went wrong. Please try again.'
 }

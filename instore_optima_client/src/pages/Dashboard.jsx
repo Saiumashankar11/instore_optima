@@ -234,6 +234,7 @@ export default function Dashboard() {
                   { label: 'Invoices',      to: `${rp}/invoices`,      icon: 'bi-receipt',     roles: ['Admin','Manager','Staff'] },
                   { label: 'Purchase Orders', to: `${rp}/purchase-orders`, icon: 'bi-file-earmark-text', roles: ['Admin','Manager','Staff'] },
                   { label: 'Internal Mail',   to: `${rp}/messages`,        icon: 'bi-envelope',          roles: ['Admin','Manager','Staff'] },
+                  { label: 'My Profile',      to: `${rp}/profile`,         icon: 'bi-person-circle',     roles: ['Admin','Manager','Staff'] },
                 ].filter(item => item.roles.includes(role)).map(item => (
                   <Link key={item.to} to={item.to} className="bento-link-chip">
                     <i className={`bi ${item.icon}`}></i>

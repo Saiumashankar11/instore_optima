@@ -4,10 +4,12 @@ import { registerApi } from '../services/authService'
 import { useTheme } from '../context/ThemeContext'
 import { validateField, parseApiError } from '../utils/validators'
 import ZoomControl from '../components/ZoomControl'
+import ContactSupportModal from '../components/ContactSupportModal'
 
 export default function Register({ zoom = 100, setZoom = () => {} }) {
   const { dark, toggle } = useTheme()
   const navigate = useNavigate()
+  const [supportOpen, setSupportOpen] = useState(false)
   const [form, setForm] = useState({ name: '', email: '', password: '', role: 'Staff' })
   const [fieldErrors, setFieldErrors] = useState({})
   const [error, setError] = useState('')
@@ -189,6 +191,17 @@ export default function Register({ zoom = 100, setZoom = () => {} }) {
           </p>
         </div>
       </div>
+
+      <div style={{ position: 'absolute', bottom: 16, right: 24 }}>
+        <button
+          type="button"
+          onClick={() => setSupportOpen(true)}
+          style={{ background: 'none', border: 'none', fontSize: 12, color: 'var(--text-600, #64748b)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}>
+          <i className="bi bi-headset"></i> Contact Support
+        </button>
+      </div>
+
+      <ContactSupportModal show={supportOpen} onHide={() => setSupportOpen(false)} />
     </div>
   )
 }

@@ -103,6 +103,7 @@ export default function Replenishment() {
       setShowPoForm(false)
       setPendingReplId(null)
       setPoForm(EMPTY_PO)
+      fetchBadges()
       toast('Purchase Order created successfully!', 'success')
     } catch (err) { toast(parseApiError(err), 'error') }
     finally { setPoSaving(false) }

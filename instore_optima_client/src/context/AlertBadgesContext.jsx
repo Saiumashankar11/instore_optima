@@ -35,6 +35,7 @@ export function AlertBadgesProvider({ children }) {
   const [badges, setBadges] = useState({
     lowStock: 0, pendingReplenishment: 0,
     pendingPurchaseOrders: 0, pendingOrders: 0, pendingPayments: 0,
+    issuedInvoices: 0,
   })
   const [glowing, setGlowing] = useState({ inventory: false, procurement: false, finance: false })
   const [sounding, setSounding] = useState({ inventory: false, procurement: false, finance: false })
@@ -85,13 +86,14 @@ export function AlertBadgesProvider({ children }) {
         pendingPurchaseOrders: d.pendingPurchaseOrders ?? 0,
         pendingOrders:         d.pendingOrders         ?? 0,
         pendingPayments:       d.pendingPayments       ?? 0,
+        issuedInvoices:        d.issuedInvoices        ?? 0,
       })
     } catch { /* silent */ }
   }, [user])
 
   useEffect(() => {
     if (!user) {
-      setBadges({ lowStock:0, pendingReplenishment:0, pendingPurchaseOrders:0, pendingOrders:0, pendingPayments:0 })
+      setBadges({ lowStock:0, pendingReplenishment:0, pendingPurchaseOrders:0, pendingOrders:0, pendingPayments:0, issuedInvoices:0 })
       return
     }
     fetchBadges()
@@ -101,7 +103,7 @@ export function AlertBadgesProvider({ children }) {
 
   const inventory   = badges.lowStock
   const procurement = badges.pendingReplenishment + badges.pendingPurchaseOrders
-  const finance     = badges.pendingOrders + badges.pendingPayments
+  const finance     = badges.pendingOrders + badges.pendingPayments + badges.issuedInvoices
 
   useEffect(() => {
     const sections = { inventory, procurement, finance }

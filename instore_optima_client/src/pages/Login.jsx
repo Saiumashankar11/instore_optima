@@ -2,12 +2,12 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useTheme } from '../context/ThemeContext'
-import { loginApi, verifyOtpApi } from '../services/authService'
-import axiosClient from '../api/axiosClient'
+import { loginApi, verifyOtpApi, resendOtpApi, switchToEmailOtpApi } from '../services/authService'
 import { validateField, parseApiError } from '../utils/validators'
 import ZoomControl from '../components/ZoomControl'
+import ContactSupportModal from '../components/ContactSupportModal'
 
-const OTP_EXPIRY_SEC  = 10 * 60   // 10 minutes (matches backend)
+const OTP_EXPIRY_SEC  = 3 * 60    // 3 minutes (matches backend)
 const RESEND_COOLDOWN = 60         // 60s before Resend is enabled again
 
 // ── Credentials step ──────────────────────────────────────────────────────────
@@ -41,9 +41,8 @@ function CredentialsStep({ onOtpSent, dark, toggle, zoom, setZoom, navigate }) {
     setLoading(true)
     try {
       const res = await loginApi(form)
-      // Backend now always returns OTP challenge
-      const { sessionKey, maskedEmail } = res.data
-      onOtpSent(sessionKey, maskedEmail)
+      const { sessionKey, maskedEmail, isTotpChallenge } = res.data
+      onOtpSent(sessionKey, maskedEmail, !!isTotpChallenge)
     } catch (err) {
       setError(parseApiError(err))
       setLoading(false)
@@ -77,7 +76,10 @@ function CredentialsStep({ onOtpSent, dark, toggle, zoom, setZoom, navigate }) {
       </div>
 
       <div className="login-field">
-        <label className="form-label-custom">Password</label>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+          <label className="form-label-custom" style={{ margin: 0 }}>Password</label>
+          <Link to="/forgot-password" className="login-link" style={{ fontSize: 11.5 }}>Forgot password?</Link>
+        </div>
         <div className={`login-input-wrap ${fieldErrors.password ? 'input-error' : ''}`}>
           <i className="bi bi-lock login-input-icon"></i>
           <input
@@ -116,21 +118,30 @@ function CredentialsStep({ onOtpSent, dark, toggle, zoom, setZoom, navigate }) {
 const MAX_ATTEMPTS = 3
 
 // ── OTP step ──────────────────────────────────────────────────────────────────
-function OtpStep({ sessionKey: initialSessionKey, maskedEmail, onSuccess, onBack }) {
+function OtpStep({ sessionKey: initialSessionKey, maskedEmail, isTotpChallenge: initialIsTotp, onSuccess, onBack, onSwitchToEmail }) {
   const [digits, setDigits]         = useState(['', '', '', '', '', ''])
   const [sessionKey, setSessionKey] = useState(initialSessionKey)
+  const [isTotpChallenge, setIsTotpChallenge] = useState(initialIsTotp)
   const [error, setError]           = useState('')
   const [loading, setLoading]       = useState(false)
-  const [resendCd, setResendCd]     = useState(RESEND_COOLDOWN)
+  const [switching, setSwitching]   = useState(false)
+  const [resendCd, setResendCd]     = useState(0)          // 0 = immediately available
   const [expiry, setExpiry]         = useState(OTP_EXPIRY_SEC)
   const [attempts, setAttempts]     = useState(0)   // wrong-OTP counter
+  const [totpWindow, setTotpWindow] = useState(0)   // seconds left in current TOTP 30s window
   const inputRefs = useRef([])
 
   // Countdown timers
   useEffect(() => {
+    const tick = () => {
+      const nowSec = Math.floor(Date.now() / 1000)
+      setTotpWindow(30 - (nowSec % 30))
+    }
+    tick()
     const cd = setInterval(() => setResendCd(s => Math.max(0, s - 1)), 1000)
     const ex = setInterval(() => setExpiry(s => Math.max(0, s - 1)), 1000)
-    return () => { clearInterval(cd); clearInterval(ex) }
+    const tw = setInterval(tick, 1000)
+    return () => { clearInterval(cd); clearInterval(ex); clearInterval(tw) }
   }, [])
 
   const fmt = sec => `${String(Math.floor(sec / 60)).padStart(2, '0')}:${String(sec % 60).padStart(2, '0')}`
@@ -200,7 +211,7 @@ function OtpStep({ sessionKey: initialSessionKey, maskedEmail, onSuccess, onBack
   const handleResend = async () => {
     if (resendCd > 0) return
     try {
-      const res = await axiosClient.post('/api/auth/resend-otp', { sessionKey })
+      const res = await resendOtpApi({ sessionKey })
       setSessionKey(res.data.sessionKey)
       setResendCd(RESEND_COOLDOWN)
       setExpiry(OTP_EXPIRY_SEC)
@@ -212,18 +223,38 @@ function OtpStep({ sessionKey: initialSessionKey, maskedEmail, onSuccess, onBack
     }
   }
 
+  const handleSwitchToEmail = async () => {
+    setSwitching(true); setError('')
+    try {
+      const res = await switchToEmailOtpApi({ sessionKey })
+      setSessionKey(res.data.sessionKey)
+      setIsTotpChallenge(false)
+      setResendCd(0)
+      setExpiry(OTP_EXPIRY_SEC)
+      setDigits(['', '', '', '', '', ''])
+      if (onSwitchToEmail) onSwitchToEmail(res.data.maskedEmail)
+      setTimeout(() => inputRefs.current[0]?.focus(), 50)
+    } catch (err) {
+      setError(parseApiError(err))
+    } finally {
+      setSwitching(false)
+    }
+  }
+
   const otp = digits.join('')
 
   return (
     <>
       {/* Shield icon */}
       <div style={{ textAlign: 'center', marginBottom: 6 }}>
-        <div style={{ width: 52, height: 52, borderRadius: '50%', background: 'rgba(8,145,178,.12)', border: '1.5px solid rgba(8,145,178,.35)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginBottom: 10 }}>
-          <i className="bi bi-shield-lock-fill" style={{ fontSize: 22, color: '#22d3ee' }}></i>
+        <div style={{ width: 52, height: 52, borderRadius: '50%', background: isTotpChallenge ? 'rgba(124,58,237,.12)' : 'rgba(8,145,178,.12)', border: `1.5px solid ${isTotpChallenge ? 'rgba(124,58,237,.35)' : 'rgba(8,145,178,.35)'}`, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginBottom: 10 }}>
+          <i className={`bi ${isTotpChallenge ? 'bi-phone-fill' : 'bi-shield-lock-fill'}`} style={{ fontSize: 22, color: isTotpChallenge ? '#a78bfa' : '#22d3ee' }}></i>
         </div>
         <h1 className="login-card-title" style={{ marginBottom: 4 }}>Verify your identity</h1>
         <p className="login-card-sub" style={{ marginBottom: 0 }}>
-          A 6-digit code was sent to <strong style={{ color: '#e2e8f0' }}>{maskedEmail}</strong>
+          {isTotpChallenge
+            ? 'Open your authenticator app and enter the 6-digit code'
+            : <>A 6-digit code was sent to <strong style={{ color: '#e2e8f0' }}>{maskedEmail}</strong></>}
         </p>
       </div>
 
@@ -252,11 +283,22 @@ function OtpStep({ sessionKey: initialSessionKey, maskedEmail, onSuccess, onBack
         ))}
       </div>
 
-      {/* Expiry countdown */}
+      {/* Timer line — different for TOTP vs email OTP */}
       <p className="otp-meta">
-        {expiry > 0
-          ? <>Code expires in <strong>{fmt(expiry)}</strong></>
-          : <span style={{ color: '#f87171' }}>Code expired — please resend or go back</span>}
+        {isTotpChallenge ? (
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7 }}>
+            <span style={{ display: 'inline-block', width: 28, height: 28, borderRadius: '50%', border: `2.5px solid ${totpWindow <= 5 ? '#f87171' : '#22d3ee'}`, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, color: totpWindow <= 5 ? '#f87171' : '#22d3ee', transition: 'border-color .3s, color .3s' }}>
+              {totpWindow}
+            </span>
+            <span style={{ color: totpWindow <= 5 ? '#f87171' : undefined }}>
+              {totpWindow <= 5 ? 'Code changing soon — enter it now' : 'Current code changes in ' + totpWindow + 's'}
+            </span>
+          </span>
+        ) : (
+          expiry > 0
+            ? <>Code expires in <strong>{fmt(expiry)}</strong></>
+            : <span style={{ color: '#f87171' }}>Code expired — please resend or go back</span>
+        )}
       </p>
 
       <button
@@ -269,18 +311,42 @@ function OtpStep({ sessionKey: initialSessionKey, maskedEmail, onSuccess, onBack
           : <>Verify &amp; Sign In <i className="bi bi-shield-check"></i></>}
       </button>
 
-      <div className="otp-resend-row" style={{ marginTop: 16 }}>
-        <button type="button" className="otp-back-btn" onClick={onBack}>
-          <i className="bi bi-arrow-left"></i> Back to login
-        </button>
-        <span style={{ color: '#334155' }}>·</span>
-        <button
-          type="button"
-          className="otp-resend-btn"
-          disabled={resendCd > 0}
-          onClick={handleResend}>
-          {resendCd > 0 ? `Resend in ${resendCd}s` : 'Resend code'}
-        </button>
+      {/* Bottom action row */}
+      <div style={{ marginTop: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
+        {/* Resend / switch row */}
+        <div className="otp-resend-row">
+          {isTotpChallenge ? (
+            /* TOTP mode — offer to switch to email OTP */
+            <button
+              type="button"
+              className="otp-resend-btn"
+              onClick={handleSwitchToEmail}
+              disabled={switching}
+              style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              {switching
+                ? <><i className="bi bi-hourglass-split"></i> Sending code...</>
+                : <><i className="bi bi-envelope"></i> Use email OTP instead</>}
+            </button>
+          ) : (
+            /* Email OTP mode — resend */
+            <button
+              type="button"
+              className="otp-resend-btn"
+              disabled={resendCd > 0}
+              onClick={handleResend}
+              style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <i className="bi bi-arrow-clockwise"></i>
+              {resendCd > 0 ? `Resend in ${resendCd}s` : 'Resend code'}
+            </button>
+          )}
+        </div>
+
+        {/* Back to login */}
+        <div style={{ textAlign: 'center' }}>
+          <button type="button" className="otp-back-btn" onClick={onBack}>
+            <i className="bi bi-arrow-left"></i> Back to login
+          </button>
+        </div>
       </div>
     </>
   )
@@ -293,17 +359,26 @@ export default function Login({ zoom = 100, setZoom = () => {} }) {
   const navigate          = useNavigate()
 
   // 'credentials' | 'otp'
-  const [step, setStep]             = useState('credentials')
-  const [sessionKey, setSessionKey] = useState('')
-  const [maskedEmail, setMaskedEmail] = useState('')
-  const [success, setSuccess]       = useState(false)
-  const [backMsg, setBackMsg]       = useState('')   // message shown after being kicked back
+  const [step, setStep]                   = useState('credentials')
+  const [sessionKey, setSessionKey]       = useState('')
+  const [maskedEmail, setMaskedEmail]     = useState('')
+  const [isTotpChallenge, setIsTotpChallenge] = useState(false)
+  const [success, setSuccess]             = useState(false)
+  const [backMsg, setBackMsg]             = useState('')
+  const [supportOpen, setSupportOpen]     = useState(false)
+
+  // Called when user switches from TOTP to email OTP mid-step
+  const handleSwitchedToEmail = (newMasked) => {
+    setIsTotpChallenge(false)
+    if (newMasked) setMaskedEmail(newMasked)
+  }
 
   useEffect(() => { /* reset on mount */ }, [])
 
-  const handleOtpSent = (sk, me) => {
+  const handleOtpSent = (sk, me, isTotp = false) => {
     setSessionKey(sk)
     setMaskedEmail(me)
+    setIsTotpChallenge(isTotp)
     setBackMsg('')
     setStep('otp')
   }
@@ -417,13 +492,26 @@ export default function Login({ zoom = 100, setZoom = () => {} }) {
             <OtpStep
               sessionKey={sessionKey}
               maskedEmail={maskedEmail}
+              isTotpChallenge={isTotpChallenge}
               onSuccess={handleOtpSuccess}
               onBack={handleBack}
+              onSwitchToEmail={handleSwitchedToEmail}
             />
           )}
 
         </div>
       </div>
+
+      <div style={{ position: 'absolute', bottom: 16, right: 24 }}>
+        <button
+          type="button"
+          onClick={() => setSupportOpen(true)}
+          style={{ background: 'none', border: 'none', fontSize: 12, color: 'var(--text-600, #64748b)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}>
+          <i className="bi bi-headset"></i> Contact Support
+        </button>
+      </div>
+
+      <ContactSupportModal show={supportOpen} onHide={() => setSupportOpen(false)} />
     </div>
   )
 }

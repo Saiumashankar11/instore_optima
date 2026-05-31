@@ -72,6 +72,7 @@ export default function InnerLayout({ zoom = 100, setZoom = () => {}, browserZoo
     'purchase-orders': badges.pendingPurchaseOrders,
     'orders':          badges.pendingOrders,
     'payments':        badges.pendingPayments,
+    'invoices':        badges.issuedInvoices,
   }
 
   return (

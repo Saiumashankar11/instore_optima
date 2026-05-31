@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
 import PageHeader from '../components/shared/PageHeader'
 import DataTable from '../components/shared/DataTable'
 import SearchBar from '../components/shared/SearchBar'
+import StatusFilter from '../components/shared/StatusFilter'
 import FormModal from '../components/shared/FormModal'
 import ConfirmModal from '../components/shared/ConfirmModal'
 import StatusBadge from '../components/shared/StatusBadge'
@@ -15,18 +17,22 @@ import { validateField, parseApiError } from '../utils/validators'
 import { fmtDate } from '../utils/validators'
 
 const EMPTY = { orderId: '', paymentMethod: 'Card' }
+const PAYMENT_STATUSES = ['Pending', 'Completed', 'Failed', 'Refunded']
 
 export default function Payments() {
   const { isAdmin } = useAuth()
   const { fetchBadges } = useAlertBadges()
   const { scheduleDelete, UndoToast } = useUndoDelete()
   const { show: toast, ToastContainer } = useToast()
+  const location = useLocation()
+  const navigate = useNavigate()
   const [formErrors, setFormErrors] = useState({})
   const [data, setData]         = useState([])
   const [orders, setOrders]     = useState([])
   const [loading, setLoading]   = useState(true)
   const [error, setError]       = useState('')
   const [search, setSearch]     = useState('')
+  const [statusFilter, setStatusFilter] = useState('')
   const [showForm, setShowForm] = useState(false)
   const [form, setForm]         = useState(EMPTY)
   const [saving, setSaving]     = useState(false)
@@ -45,6 +51,17 @@ export default function Payments() {
 
   useEffect(() => { load() }, [])
 
+  // "Proceed to payment" from the Orders page: auto-open the form pre-filled.
+  useEffect(() => {
+    const orderId = location.state?.openPaymentForOrder
+    if (orderId) {
+      setForm({ orderId: String(orderId), paymentMethod: 'Card' })
+      setShowForm(true)
+      // Clear the navigation state so a refresh / back doesn't re-open the form
+      navigate(location.pathname, { replace: true, state: {} })
+    }
+  }, [location.state])
+
   const set = k => e => setForm(f => ({ ...f, [k]: e.target.value }))
 
   const handleSave = async () => {
@@ -54,7 +71,7 @@ export default function Payments() {
     setSaving(true)
     try {
       await createPayment({ ...form, orderId: Number(form.orderId), paymentStatus: 'Pending' })
-      setShowForm(false); setForm(EMPTY); load()
+      setShowForm(false); setForm(EMPTY); load(); fetchBadges()
       toast('Payment recorded successfully!', 'success')
     } catch (err) { toast(parseApiError(err)) }
     finally { setSaving(false) }
@@ -78,12 +95,14 @@ export default function Payments() {
     })
   }
 
-  const filtered = data.filter(d =>
-    String(d.paymentId).includes(search) ||
-    String(d.orderId).includes(search) ||
-    d.paymentMethod?.toLowerCase().includes(search.toLowerCase()) ||
-    d.paymentStatus?.toLowerCase().includes(search.toLowerCase())
-  )
+  const filtered = data
+    .filter(d =>
+      String(d.paymentId).includes(search) ||
+      String(d.orderId).includes(search) ||
+      d.paymentMethod?.toLowerCase().includes(search.toLowerCase()) ||
+      d.paymentStatus?.toLowerCase().includes(search.toLowerCase())
+    )
+    .filter(d => !statusFilter || d.paymentStatus === statusFilter)
 
   const METHOD_ICON = { Card: 'credit-card', Cash: 'cash-coin', 'Bank Transfer': 'bank', UPI: 'phone' }
 
@@ -132,6 +151,7 @@ export default function Payments() {
             All Payments <span className="count">{filtered.length}</span>
           </p>
           <div className="table-toolbar-right">
+            <StatusFilter value={statusFilter} onChange={setStatusFilter} options={PAYMENT_STATUSES} />
             <SearchBar value={search} onChange={e => setSearch(e.target.value)} placeholder="Search by order, method..." />
           </div>
         </div>
@@ -145,7 +165,7 @@ export default function Payments() {
           <select className={`form-control-custom${formErrors.orderId ? ' input-error' : ''}`} value={form.orderId} onChange={e => { set('orderId')(e); setFormErrors({}) }}>
             <option value="">— Select Order —</option>
             {orders
-              .filter(o => o.status !== 'Cancelled' && !data.some(p => p.orderId === o.orderId))
+              .filter(o => o.status !== 'Cancelled' && o.status !== 'Completed' && !data.some(p => p.orderId === o.orderId))
               .map(o => <option key={o.orderId} value={o.orderId}>Order #{o.orderId} — ₹{Number(o.totalAmount || 0).toLocaleString('en-IN')} ({o.status})</option>)}
           </select>
           {formErrors.orderId && <span className="field-error-text">{formErrors.orderId}</span>}

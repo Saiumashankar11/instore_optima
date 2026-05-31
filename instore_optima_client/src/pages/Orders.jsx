@@ -1,6 +1,8 @@
 import { useEffect, useState, useCallback } from 'react'
+import { useNavigate } from 'react-router-dom'
 import PageHeader from '../components/shared/PageHeader'
 import SearchBar from '../components/shared/SearchBar'
+import StatusFilter from '../components/shared/StatusFilter'
 import FormModal from '../components/shared/FormModal'
 import ConfirmModal from '../components/shared/ConfirmModal'
 import StatusBadge from '../components/shared/StatusBadge'
@@ -16,25 +18,30 @@ import { parseApiError, fmtDate } from '../utils/validators'
 
 const ORDER_STATUSES = ['Pending', 'Processing', 'Completed', 'Cancelled']
 
-// Only allow forward transitions; Completed and Cancelled are terminal
+// Manual transitions allowed from a Pending order: keep it Pending or Cancel it.
+// Processing & Completed are now driven automatically by the payment lifecycle
+// (Processing = payment recorded, Completed = payment marked paid).
 const getValidNextStatuses = (current) => {
-  if (current === 'Pending')    return ['Pending', 'Processing', 'Cancelled']
-  if (current === 'Processing') return ['Processing', 'Completed', 'Cancelled']
-  return [current] // Completed / Cancelled — no further changes
+  if (current === 'Pending') return ['Pending', 'Cancelled']
+  return [current]
 }
 
-const isTerminal = (status) => status === 'Completed' || status === 'Cancelled'
+// An order is locked once a payment has been recorded (status leaves "Pending")
+// or it has reached a terminal state — no more manual edits / item changes.
+const isLocked = (status) => status !== 'Pending'
 
 export default function Orders() {
-  const { user } = useAuth()
+  const { user, role } = useAuth()
   const { fetchBadges } = useAlertBadges()
   const { scheduleDelete, UndoToast } = useUndoDelete()
   const { show: toast, ToastContainer } = useToast()
+  const navigate = useNavigate()
 
   const [orders, setOrders]           = useState([])
   const [loading, setLoading]         = useState(true)
   const [error, setError]             = useState('')
   const [search, setSearch]           = useState('')
+  const [statusFilter, setStatusFilter] = useState('')
   const [selectedOrder, setSelected]  = useState(null)
   const [items, setItems]             = useState([])
   const [itemsLoading, setItemsLoading] = useState(false)
@@ -164,10 +171,17 @@ export default function Orders() {
     })
   }
 
-  const filtered = orders.filter(o =>
-    String(o.orderId).includes(search) ||
-    o.status?.toLowerCase().includes(search.toLowerCase())
-  )
+  const goToPayment = (o, e) => {
+    e.stopPropagation()
+    navigate(`/${role.toLowerCase()}/payments`, { state: { openPaymentForOrder: o.orderId } })
+  }
+
+  const filtered = orders
+    .filter(o =>
+      String(o.orderId).includes(search) ||
+      o.status?.toLowerCase().includes(search.toLowerCase())
+    )
+    .filter(o => !statusFilter || o.status === statusFilter)
 
   const getProductName  = id => products.find(p => p.productId === id)?.name || `#${id}`
   const getProductPrice = id => products.find(p => p.productId === id)?.price
@@ -192,6 +206,7 @@ export default function Orders() {
           <div className="table-toolbar">
             <p className="table-toolbar-title">All Orders <span className="count">{filtered.length}</span></p>
             <div className="table-toolbar-right">
+              <StatusFilter value={statusFilter} onChange={setStatusFilter} options={ORDER_STATUSES} />
               <SearchBar value={search} onChange={e => setSearch(e.target.value)} placeholder="Search ID or status..." />
             </div>
           </div>
@@ -229,8 +244,14 @@ export default function Orders() {
                       </td>
                       <td style={{ padding: '10px 14px' }}><StatusBadge status={o.status} /></td>
                       <td style={{ padding: '10px 14px' }}>
-                        <div style={{ display: 'flex', gap: 4 }}>
-                          <button className="btn-icon" title="Edit status" onClick={e => openEditOrder(o, e)} disabled={isTerminal(o.status)}><i className="bi bi-pencil"></i></button>
+                        <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                          {o.status === 'Pending' && (Number(o.totalAmount) > 0) && (
+                            <button className="btn-primary-custom" style={{ padding: '4px 10px', fontSize: 11.5, whiteSpace: 'nowrap' }}
+                              title="Record payment for this order" onClick={e => goToPayment(o, e)}>
+                              <i className="bi bi-credit-card"></i> Pay
+                            </button>
+                          )}
+                          <button className="btn-icon" title={isLocked(o.status) ? `Locked — order is ${o.status}` : 'Edit status'} onClick={e => openEditOrder(o, e)} disabled={isLocked(o.status)}><i className="bi bi-pencil"></i></button>
                           <button className="btn-icon danger" title="Delete" onClick={e => openDelOrder(o.orderId, e)}><i className="bi bi-trash"></i></button>
                         </div>
                       </td>
@@ -263,15 +284,15 @@ export default function Orders() {
               </div>
               <div className="table-toolbar-right">
                 <span
-                  title={isTerminal(selectedOrder?.status) ? `Cannot add items — order is ${selectedOrder?.status}` : ''}
-                  style={{ display: 'inline-block', cursor: isTerminal(selectedOrder?.status) ? 'not-allowed' : 'default' }}
+                  title={isLocked(selectedOrder?.status) ? `Cannot add items — order is ${selectedOrder?.status}` : ''}
+                  style={{ display: 'inline-block', cursor: isLocked(selectedOrder?.status) ? 'not-allowed' : 'default' }}
                 >
                   <button
                     className="btn-primary-custom"
-                    onClick={isTerminal(selectedOrder?.status)
+                    onClick={isLocked(selectedOrder?.status)
                       ? () => toast(`Cannot add items — order is ${selectedOrder?.status} 🚫`, 'warning')
                       : openAddItem}
-                    style={isTerminal(selectedOrder?.status) ? { pointerEvents: 'none', opacity: 0.45 } : {}}
+                    style={isLocked(selectedOrder?.status) ? { pointerEvents: 'none', opacity: 0.45 } : {}}
                   >
                     <i className="bi bi-plus-lg"></i> Add Item
                   </button>
@@ -301,8 +322,8 @@ export default function Orders() {
                       <td style={{ padding: '10px 14px', fontWeight: 600, color: 'var(--text-primary)' }}>₹{Number((item.price||0)*(item.quantity||0)).toLocaleString('en-IN')}</td>
                       <td style={{ padding: '10px 14px' }}>
                         <div style={{ display: 'flex', gap: 4 }}>
-                          <button className="btn-icon" onClick={() => openEditItem(item)} disabled={isTerminal(selectedOrder?.status)} title={isTerminal(selectedOrder?.status) ? `Order is ${selectedOrder?.status} — editing locked 🚫` : 'Edit quantity'}><i className="bi bi-pencil"></i></button>
-                          <button className="btn-icon danger" onClick={() => openDelItem(item.orderItemId)} disabled={isTerminal(selectedOrder?.status)} title={isTerminal(selectedOrder?.status) ? `Order is ${selectedOrder?.status} — deletion locked 🚫` : 'Remove item'}><i className="bi bi-trash"></i></button>
+                          <button className="btn-icon" onClick={() => openEditItem(item)} disabled={isLocked(selectedOrder?.status)} title={isLocked(selectedOrder?.status) ? `Order is ${selectedOrder?.status} — editing locked 🚫` : 'Edit quantity'}><i className="bi bi-pencil"></i></button>
+                          <button className="btn-icon danger" onClick={() => openDelItem(item.orderItemId)} disabled={isLocked(selectedOrder?.status)} title={isLocked(selectedOrder?.status) ? `Order is ${selectedOrder?.status} — deletion locked 🚫` : 'Remove item'}><i className="bi bi-trash"></i></button>
                         </div>
                       </td>
                     </tr>

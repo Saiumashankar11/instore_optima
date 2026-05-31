@@ -3,14 +3,22 @@ import PageHeader from '../components/shared/PageHeader'
 import DataTable from '../components/shared/DataTable'
 import SearchBar from '../components/shared/SearchBar'
 import StatusBadge from '../components/shared/StatusBadge'
+import StatusFilter from '../components/shared/StatusFilter'
 import { getAllInvoices, updateInvoice } from '../services/invoiceService'
-import { fmtDate } from '../utils/validators'
+import { fmtDate, parseApiError } from '../utils/validators'
+import { useAlertBadges } from '../context/AlertBadgesContext'
+import { useToast } from '../hooks/useToast'
+
+const INVOICE_STATUSES = ['Draft', 'Issued', 'Paid', 'Overdue']
 
 export default function Invoices() {
+  const { fetchBadges } = useAlertBadges()
+  const { show: toast, ToastContainer } = useToast()
   const [data, setData]         = useState([])
   const [loading, setLoading]   = useState(true)
   const [error, setError]       = useState('')
   const [search, setSearch]     = useState('')
+  const [statusFilter, setStatusFilter] = useState('')
 
   const load = async () => {
     setLoading(true)
@@ -22,8 +30,8 @@ export default function Invoices() {
   useEffect(() => { load() }, [])
 
   const handleStatusUpdate = async (row, status) => {
-    try { await updateInvoice(row.invoiceId, { ...row, status }); load() }
-    catch { alert('Update failed.') }
+    try { await updateInvoice(row.invoiceId, { ...row, status }); load(); fetchBadges(); toast('Invoice status updated!', 'success') }
+    catch (err) { toast(parseApiError(err), 'error') }
   }
 
   const isOverdue = row => row.dueDate && new Date(row.dueDate) < new Date() && row.status !== 'Paid'
@@ -31,6 +39,7 @@ export default function Invoices() {
   const filtered = data
     .map(row => ({ ...row, _rowClass: isOverdue(row) ? 'row-overdue' : '' }))
     .filter(d => d.invoiceNumber?.toLowerCase().includes(search.toLowerCase()) || String(d.invoiceId).includes(search))
+    .filter(d => !statusFilter || d.status === statusFilter)
 
   const columns = [
     { key: 'invoiceId',     label: 'ID',          render: r => <span className="text-accent" style={{ fontWeight: 600 }}>#{r.invoiceId}</span> },
@@ -67,11 +76,13 @@ export default function Invoices() {
             All Invoices <span className="count">{filtered.length}</span>
           </p>
           <div className="table-toolbar-right">
+            <StatusFilter value={statusFilter} onChange={setStatusFilter} options={INVOICE_STATUSES} />
             <SearchBar value={search} onChange={e => setSearch(e.target.value)} placeholder="Search invoice number..." />
           </div>
         </div>
         <DataTable columns={columns} data={filtered} loading={loading} error={error} />
       </div>
+      {ToastContainer}
     </div>
   )
 }

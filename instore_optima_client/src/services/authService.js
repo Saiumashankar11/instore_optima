@@ -1,4 +1,15 @@
 import axiosClient from '../api/axiosClient'
-export const loginApi     = (data) => axiosClient.post('/api/auth/login', data)
-export const registerApi  = (data) => axiosClient.post('/api/auth/register', data)
-export const verifyOtpApi = (data) => axiosClient.post('/api/auth/verify-otp', data)
+
+export const loginApi          = (data) => axiosClient.post('/api/auth/login', data)
+export const registerApi       = (data) => axiosClient.post('/api/auth/register', data)
+export const verifyOtpApi      = (data) => axiosClient.post('/api/auth/verify-otp', data)
+export const resendOtpApi          = (data) => axiosClient.post('/api/auth/resend-otp', data)
+export const switchToEmailOtpApi   = (data) => axiosClient.post('/api/auth/switch-to-email-otp', data)
+export const forgotPasswordApi = (data) => axiosClient.post('/api/auth/forgot-password', data)
+export const resetPasswordApi  = (data) => axiosClient.post('/api/auth/reset-password', data)
+export const getProfileApi     = ()     => axiosClient.get('/api/auth/profile')
+export const updateProfileApi  = (data) => axiosClient.put('/api/auth/profile', data)
+export const changePasswordApi = (data) => axiosClient.post('/api/auth/change-password', data)
+export const totpSetupApi      = ()     => axiosClient.get('/api/auth/totp/setup')
+export const totpEnableApi     = (data) => axiosClient.post('/api/auth/totp/enable', data)
+export const totpDisableApi    = (data) => axiosClient.post('/api/auth/totp/disable', data)
