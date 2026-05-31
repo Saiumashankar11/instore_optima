@@ -94,7 +94,7 @@ export default function StockMovement() {
     { key: '_productName', label: 'Product', render: r => <span style={{ fontWeight: 500, color: 'var(--text-200)' }}>{r._productName}</span> },
     { key: 'quantity',     label: 'Qty',     render: r => <span style={{ fontWeight: 700, color: 'var(--text-200)' }}>{r.quantity}</span> },
     { key: 'movementType', label: 'Type',    render: r => <StatusBadge status={r.movementType} /> },
-    { key: 'reason',       label: 'Reason',  render: r => <span style={{ color: 'var(--text-600)' }}>{r.reason || '—'}</span> },
+    { key: 'reason',       label: 'Reason',  render: r => <span style={{ color: 'var(--text-primary)' }}>{r.reason || '—'}</span> },
     { key: 'performedAt',  label: 'Date',    render: r => fmtDateTime(r.performedAt) },
     { key: 'actions', label: 'Actions', render: r => isAdmin ? (
       <button className="btn-icon danger" title="Delete" onClick={() => { setDelId(r.movementId); setShowDel(true) }}>

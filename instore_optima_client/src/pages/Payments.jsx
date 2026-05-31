@@ -145,7 +145,7 @@ export default function Payments() {
           <select className={`form-control-custom${formErrors.orderId ? ' input-error' : ''}`} value={form.orderId} onChange={e => { set('orderId')(e); setFormErrors({}) }}>
             <option value="">— Select Order —</option>
             {orders
-              .filter(o => !data.some(p => p.orderId === o.orderId))
+              .filter(o => o.status !== 'Cancelled' && !data.some(p => p.orderId === o.orderId))
               .map(o => <option key={o.orderId} value={o.orderId}>Order #{o.orderId} — ₹{Number(o.totalAmount || 0).toLocaleString('en-IN')} ({o.status})</option>)}
           </select>
           {formErrors.orderId && <span className="field-error-text">{formErrors.orderId}</span>}

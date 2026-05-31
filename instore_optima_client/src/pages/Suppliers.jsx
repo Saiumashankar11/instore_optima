@@ -97,7 +97,7 @@ export default function Suppliers() {
     )},
     { key: 'contact', label: 'Contact', render: r => r.contact || '—' },
     { key: 'email',   label: 'Email',   render: r => <span className="text-accent" style={{ fontSize: 12 }}>{r.email || '—'}</span> },
-    { key: 'address', label: 'Address', render: r => <span style={{ color: 'var(--text-600)', fontSize: 12 }}>{r.address || '—'}</span> },
+    { key: 'address', label: 'Address', render: r => <span style={{ color: 'var(--text-primary)', fontSize: 12 }}>{r.address || '—'}</span> },
     { key: 'actions', label: 'Actions', render: r => (
       <div style={{ display: 'flex', gap: 6 }}>
         <button className="btn-icon" onClick={() => openEdit(r)}><i className="bi bi-pencil"></i></button>

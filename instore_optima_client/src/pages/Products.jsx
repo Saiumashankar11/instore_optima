@@ -100,7 +100,7 @@ export default function Products() {
   const columns = [
     { key: 'productId',   label: 'ID',          render: r => <span className="text-accent" style={{ fontWeight: 600 }}>#{r.productId}</span> },
     { key: 'name',        label: 'Name',         render: r => <span style={{ fontWeight: 500, color: 'var(--text-200)' }}>{r.name}</span> },
-    { key: 'description', label: 'Description',  render: r => <span style={{ color: 'var(--text-600)' }}>{r.description || '—'}</span> },
+    { key: 'description', label: 'Description',  render: r => <span style={{ color: 'var(--text-primary)' }}>{r.description || '—'}</span> },
     { key: 'price',       label: 'Price',        render: r => <span style={{ fontWeight: 600, color: 'var(--text-200)' }}>₹{Number(r.price || 0).toLocaleString('en-IN')}</span> },
     { key: 'minStock',    label: 'Min Stock' },
     { key: 'maxStock',    label: 'Max Stock' },
