@@ -57,4 +57,30 @@ namespace instore_optima.Application.DTOs
         public string Token { get; set; } = string.Empty;
         public DateTime? CreatedAt { get; set; }
     }
+
+    // Returned from POST /api/auth/login — signals the client to show OTP input
+    public class OtpChallengeDto
+    {
+        public bool RequiresOtp   { get; set; } = true;
+        public string SessionKey  { get; set; } = string.Empty;   // GUID to correlate OTP → JWT exchange
+        public string MaskedEmail { get; set; } = string.Empty;   // e.g. s***@gmail.com (shown in UI)
+    }
+
+    // Sent by client to POST /api/auth/verify-otp
+    public class VerifyOtpDto
+    {
+        [Required(ErrorMessage = "Session key is required.")]
+        public string SessionKey { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Verification code is required.")]
+        [StringLength(6, MinimumLength = 6, ErrorMessage = "Code must be exactly 6 digits.")]
+        public string Otp { get; set; } = string.Empty;
+    }
+
+    // Sent by client to POST /api/auth/resend-otp
+    public class ResendOtpDto
+    {
+        [Required]
+        public string SessionKey { get; set; } = string.Empty;
+    }
 }

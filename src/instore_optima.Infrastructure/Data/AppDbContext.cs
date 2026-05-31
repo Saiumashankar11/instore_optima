@@ -35,6 +35,7 @@ namespace instore_optima.Infrastructure.Data
         public DbSet<Notification> Notifications { get; set; }
         public DbSet<TaskItem> Tasks { get; set; }
         public DbSet<InternalMessage> InternalMessages { get; set; }
+        public DbSet<UserOtp> UserOtps { get; set; }
 
         // ?? RELATIONSHIP CONFIGURATION
 
@@ -241,6 +242,17 @@ namespace instore_optima.Infrastructure.Data
                 .WithMany()
                 .HasForeignKey(t => t.AssignedTo)
                 .OnDelete(DeleteBehavior.Restrict);
+
+            // UserOtp
+            modelBuilder.Entity<UserOtp>().HasKey(o => o.Id);
+            modelBuilder.Entity<UserOtp>()
+                .HasIndex(o => o.SessionKey)
+                .IsUnique();
+            modelBuilder.Entity<UserOtp>()
+                .HasOne<User>()
+                .WithMany()
+                .HasForeignKey(o => o.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
 
             // InternalMessage
             modelBuilder.Entity<InternalMessage>().HasKey(m => m.MessageId);

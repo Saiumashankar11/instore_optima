@@ -120,6 +120,10 @@ builder.Services.AddSwaggerGen(options =>
 // ─── Auth Repository ──────────────────────────────────
 builder.Services.AddScoped<IAuthRepository, AuthRepository>();
 
+// ─── Email / 2FA ──────────────────────────────────────
+builder.Services.AddScoped<instore_optima.Domain.Interfaces.IEmailService,
+                           instore_optima.Infrastructure.Services.SmtpEmailService>();
+
 // ─── Internal Messaging ───────────────────────────────
 builder.Services.AddScoped<IInternalMessageRepository, InternalMessageRepository>();
 builder.Services.AddScoped<instore_optima.Domain.Interfaces.IPONotificationService,
