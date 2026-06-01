@@ -4,30 +4,41 @@ import { MessagesProvider } from './context/MessagesContext'
 import { AlertBadgesProvider } from './context/AlertBadgesContext'
 import AccessDenied from './components/shared/AccessDenied'
 import ErrorBoundary from './components/shared/ErrorBoundary'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, lazy, Suspense } from 'react'
 
 import TopNavLayout from './components/TopNavLayout'
 import InnerLayout from './components/InnerLayout'
 
-import Login           from './pages/Login'
-import Register        from './pages/Register'
-import LandingPage     from './pages/LandingPage'
-import ForgotPassword  from './pages/ForgotPassword'
-import Profile         from './pages/Profile'
-import Dashboard    from './pages/Dashboard'
-import Products     from './pages/Products'
-import Stock        from './pages/Stock'
-import StockMovement from './pages/StockMovement'
-import Suppliers    from './pages/Suppliers'
-import Replenishment from './pages/Replenishment'
-import PurchaseOrders from './pages/PurchaseOrders'
-import Orders       from './pages/Orders'
-import Payments     from './pages/Payments'
-import Invoices     from './pages/Invoices'
-import Receipts     from './pages/Receipts'
-import Users        from './pages/Users'
-import AuditLogs    from './pages/AuditLogs'
-import Messages     from './pages/Messages'
+// Route-level code splitting — each page becomes its own lazily-loaded chunk
+// so the initial bundle stays small and pages load on demand.
+const Login           = lazy(() => import('./pages/Login'))
+const Register        = lazy(() => import('./pages/Register'))
+const LandingPage     = lazy(() => import('./pages/LandingPage'))
+const ForgotPassword  = lazy(() => import('./pages/ForgotPassword'))
+const Profile         = lazy(() => import('./pages/Profile'))
+const Dashboard       = lazy(() => import('./pages/Dashboard'))
+const Products        = lazy(() => import('./pages/Products'))
+const Stock           = lazy(() => import('./pages/Stock'))
+const StockMovement   = lazy(() => import('./pages/StockMovement'))
+const Suppliers       = lazy(() => import('./pages/Suppliers'))
+const Replenishment   = lazy(() => import('./pages/Replenishment'))
+const PurchaseOrders  = lazy(() => import('./pages/PurchaseOrders'))
+const Orders          = lazy(() => import('./pages/Orders'))
+const Payments        = lazy(() => import('./pages/Payments'))
+const Invoices        = lazy(() => import('./pages/Invoices'))
+const Receipts        = lazy(() => import('./pages/Receipts'))
+const Users           = lazy(() => import('./pages/Users'))
+const AuditLogs       = lazy(() => import('./pages/AuditLogs'))
+const Messages        = lazy(() => import('./pages/Messages'))
+
+// Lightweight fallback shown while a route chunk loads.
+function RouteFallback() {
+  return (
+    <div style={{ minHeight: '60vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div className="loading-spinner"><span/><span/><span/></div>
+    </div>
+  )
+}
 
 // Redirect unauthenticated users to login
 function RequireAuth({ children }) {
@@ -97,6 +108,7 @@ export default function App() {
       <AlertBadgesProvider>
       <BrowserRouter>
         <div id="app-content-wrapper">
+        <Suspense fallback={<RouteFallback />}>
         <Routes>
           <Route path="/"                  element={<LandingPage zoom={zoom} setZoom={setZoom} />} />
           <Route path="/login"            element={<Login zoom={zoom} setZoom={setZoom} />} />
@@ -139,6 +151,7 @@ export default function App() {
           <Route path="/dashboard" element={<RoleRedirect page="dashboard" />} />
           <Route path="*"          element={<RoleRedirectOrLanding />} />
         </Routes>
+        </Suspense>
         </div>
       </BrowserRouter>
       </AlertBadgesProvider>

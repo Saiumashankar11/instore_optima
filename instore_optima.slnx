@@ -5,4 +5,7 @@
     <Project Path="src/instore_optima.Domain/instore_optima.Domain.csproj" />
     <Project Path="src/instore_optima.Infrastructure/instore_optima.Infrastructure.csproj" />
   </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/instore_optima.Tests/instore_optima.Tests.csproj" />
+  </Folder>
 </Solution>

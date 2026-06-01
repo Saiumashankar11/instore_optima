@@ -251,8 +251,8 @@ export default function Orders() {
                               <i className="bi bi-credit-card"></i> Pay
                             </button>
                           )}
-                          <button className="btn-icon" title={isLocked(o.status) ? `Locked — order is ${o.status}` : 'Edit status'} onClick={e => openEditOrder(o, e)} disabled={isLocked(o.status)}><i className="bi bi-pencil"></i></button>
-                          <button className="btn-icon danger" title="Delete" onClick={e => openDelOrder(o.orderId, e)}><i className="bi bi-trash"></i></button>
+                          <button className="btn-icon" aria-label={`Edit status of order #${o.orderId}`} title={isLocked(o.status) ? `Locked — order is ${o.status}` : 'Edit status'} onClick={e => openEditOrder(o, e)} disabled={isLocked(o.status)}><i className="bi bi-pencil" aria-hidden="true"></i></button>
+                          <button className="btn-icon danger" aria-label={`Delete order #${o.orderId}`} title="Delete" onClick={e => openDelOrder(o.orderId, e)}><i className="bi bi-trash" aria-hidden="true"></i></button>
                         </div>
                       </td>
                     </tr>
@@ -297,7 +297,7 @@ export default function Orders() {
                     <i className="bi bi-plus-lg"></i> Add Item
                   </button>
                 </span>
-                <button className="btn-icon" title="Close" onClick={() => setSelected(null)}><i className="bi bi-x-lg"></i></button>
+                <button className="btn-icon" aria-label="Close items panel" title="Close" onClick={() => setSelected(null)}><i className="bi bi-x-lg" aria-hidden="true"></i></button>
               </div>
             </div>
 
@@ -322,8 +322,8 @@ export default function Orders() {
                       <td style={{ padding: '10px 14px', fontWeight: 600, color: 'var(--text-primary)' }}>₹{Number((item.price||0)*(item.quantity||0)).toLocaleString('en-IN')}</td>
                       <td style={{ padding: '10px 14px' }}>
                         <div style={{ display: 'flex', gap: 4 }}>
-                          <button className="btn-icon" onClick={() => openEditItem(item)} disabled={isLocked(selectedOrder?.status)} title={isLocked(selectedOrder?.status) ? `Order is ${selectedOrder?.status} — editing locked 🚫` : 'Edit quantity'}><i className="bi bi-pencil"></i></button>
-                          <button className="btn-icon danger" onClick={() => openDelItem(item.orderItemId)} disabled={isLocked(selectedOrder?.status)} title={isLocked(selectedOrder?.status) ? `Order is ${selectedOrder?.status} — deletion locked 🚫` : 'Remove item'}><i className="bi bi-trash"></i></button>
+                          <button className="btn-icon" aria-label="Edit item quantity" onClick={() => openEditItem(item)} disabled={isLocked(selectedOrder?.status)} title={isLocked(selectedOrder?.status) ? `Order is ${selectedOrder?.status} — editing locked 🚫` : 'Edit quantity'}><i className="bi bi-pencil" aria-hidden="true"></i></button>
+                          <button className="btn-icon danger" aria-label="Remove item" onClick={() => openDelItem(item.orderItemId)} disabled={isLocked(selectedOrder?.status)} title={isLocked(selectedOrder?.status) ? `Order is ${selectedOrder?.status} — deletion locked 🚫` : 'Remove item'}><i className="bi bi-trash" aria-hidden="true"></i></button>
                         </div>
                       </td>
                     </tr>

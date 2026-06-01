@@ -67,12 +67,6 @@ builder.Services.AddDbContext<AppDbContext>((sp, options) =>
         b => b.MigrationsAssembly("instore_optima.Api"));
     options.AddInterceptors(sp.GetRequiredService<instore_optima.Infrastructure.Data.AuditInterceptor>());
 });
-builder.Services.AddScoped<IUserRepository, UserRepository>();
-builder.Services.AddScoped<IAuditLogRepository, AuditLogRepository>();
-
-//builder.Services.AddScoped<IOrderRepository, OrderRepository>();
-//builder.Services.AddScoped<IOrderItemRepository, OrderItemRepository>();
-//builder.Services.AddScoped<IPaymentRepository, PaymentRepository>();
 builder.Services.AddScoped<instore_optima.Api.Filters.CrudLoggingFilter>();
 builder.Services.AddControllers(opts => opts.Filters.AddService<instore_optima.Api.Filters.CrudLoggingFilter>());
 
@@ -146,6 +140,15 @@ builder.Services.AddScoped<instore_optima.Domain.Interfaces.IPONotificationServi
                            instore_optima.Infrastructure.Services.PONotificationService>();
 
 // ─── JWT Authentication ───────────────────────────────
+// Fail fast on a missing/weak signing key instead of using a null-forgiving '!'.
+var jwtKey = builder.Configuration["Jwt:Key"];
+if (string.IsNullOrWhiteSpace(jwtKey) || jwtKey.Length < 32)
+{
+    throw new InvalidOperationException(
+        "Jwt:Key is missing or too short (min 32 chars). Set it via user-secrets " +
+        "(dotnet user-secrets set \"Jwt:Key\" \"<long-random-value>\") or an environment variable.");
+}
+
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
@@ -157,8 +160,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidateIssuerSigningKey = true,
             ValidIssuer = builder.Configuration["Jwt:Issuer"],
             ValidAudience = builder.Configuration["Jwt:Audience"],
-            IssuerSigningKey = new SymmetricSecurityKey(
-                Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]!))
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey))
         };
     });
 
@@ -201,30 +203,5 @@ app.UseMiddleware<InactiveUserMiddleware>();
 app.UseAuthorization();
 app.MapControllers();
 
-var summaries = new[]
-{
-    "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
-};
-
-app.MapGet("/weatherforecast", () =>
-{
-    var forecast =  Enumerable.Range(1, 5).Select(index =>
-        new WeatherForecast
-        (
-            DateOnly.FromDateTime(DateTime.Now.AddDays(index)),
-            Random.Shared.Next(-20, 55),
-            summaries[Random.Shared.Next(summaries.Length)]
-        ))
-        .ToArray();
-    return forecast;
-})
-.WithName("GetWeatherForecast")
-.WithOpenApi();
-
 app.Run();
-
-record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary)
-{
-    public int TemperatureF => 32 + (int)(TemperatureC / 0.5556);
-}
 
