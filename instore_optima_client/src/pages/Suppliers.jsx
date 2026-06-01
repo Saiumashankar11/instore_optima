@@ -100,8 +100,8 @@ export default function Suppliers() {
     { key: 'address', label: 'Address', render: r => <span style={{ color: 'var(--text-primary)', fontSize: 12 }}>{r.address || '—'}</span> },
     { key: 'actions', label: 'Actions', render: r => (
       <div style={{ display: 'flex', gap: 6 }}>
-        <button className="btn-icon" onClick={() => openEdit(r)}><i className="bi bi-pencil"></i></button>
-        <button className="btn-icon danger" onClick={() => openDel(r.supplierId)}><i className="bi bi-trash"></i></button>
+        <button className="btn-icon" aria-label={`Edit supplier #${r.supplierId}`} title="Edit" onClick={() => openEdit(r)}><i className="bi bi-pencil" aria-hidden="true"></i></button>
+        <button className="btn-icon danger" aria-label={`Delete supplier #${r.supplierId}`} title="Delete" onClick={() => openDel(r.supplierId)}><i className="bi bi-trash" aria-hidden="true"></i></button>
       </div>
     )}
   ]

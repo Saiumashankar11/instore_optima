@@ -76,8 +76,8 @@ export default function Users() {
     }},
     { key: 'createdAt', label: 'Joined', render: r => fmtDate(r.createdAt) },
     { key: 'actions',   label: 'Actions', render: r => isAdmin ? (
-      <button className="btn-icon danger" onClick={() => { setDelId(r.userId); setShowDel(true) }}>
-        <i className="bi bi-trash"></i>
+      <button className="btn-icon danger" aria-label={`Deactivate user #${r.userId}`} title="Deactivate" onClick={() => { setDelId(r.userId); setShowDel(true) }}>
+        <i className="bi bi-trash" aria-hidden="true"></i>
       </button>
     ) : <span style={{ color: 'var(--text-700)', fontSize: 12 }}>—</span> }
   ]

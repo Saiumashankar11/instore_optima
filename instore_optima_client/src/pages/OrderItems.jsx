@@ -102,8 +102,8 @@ export default function OrderItems() {
     { key: 'total',       label: 'Line Total', render: r => <span style={{ fontWeight: 600, color: 'var(--text-200)' }}>₹{Number((r.price || 0) * (r.quantity || 0)).toLocaleString('en-IN')}</span> },
     { key: 'actions',     label: 'Actions',    render: r => (
       <div style={{ display: 'flex', gap: 6 }}>
-        <button className="btn-icon" onClick={() => openEdit(r)}><i className="bi bi-pencil"></i></button>
-        <button className="btn-icon danger" onClick={() => openDel(r.orderItemId)}><i className="bi bi-trash"></i></button>
+        <button className="btn-icon" aria-label="Edit item" title="Edit" onClick={() => openEdit(r)}><i className="bi bi-pencil" aria-hidden="true"></i></button>
+        <button className="btn-icon danger" aria-label="Remove item" title="Remove" onClick={() => openDel(r.orderItemId)}><i className="bi bi-trash" aria-hidden="true"></i></button>
       </div>
     )}
   ]

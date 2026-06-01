@@ -2,12 +2,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { Link } from 'react-router-dom'
 import StatusBadge from '../components/shared/StatusBadge'
 import DataTable from '../components/shared/DataTable'
-import { getAllProducts } from '../services/productsService'
-import { getAllStock } from '../services/stockService'
-import { getAllOrders } from '../services/ordersService'
-import { getAllSuppliers } from '../services/supplierService'
-import { getAllReplenishments } from '../services/replenishmentService'
-import { getAllPayments } from '../services/paymentService'
+import { getDashboardSummary } from '../services/dashboardService'
 import { fmtDate } from '../utils/validators'
 import { useAuth } from '../context/AuthContext'
 
@@ -24,45 +19,20 @@ export default function Dashboard() {
 
   const fetchAll = useCallback(async () => {
     try {
-      const [products, stock, orders, suppliers, replenishments, payments] =
-        await Promise.allSettled([
-          getAllProducts(), getAllStock(), getAllOrders(),
-          getAllSuppliers(), getAllReplenishments(), getAllPayments()
-        ])
-      const p   = products.value?.data       || []
-      const s   = stock.value?.data          || []
-      const o   = orders.value?.data         || []
-      const sup = suppliers.value?.data      || []
-      const r   = replenishments.value?.data || []
-      const pay = payments.value?.data       || []
-
-      const completedOrderIds = new Set(
-        pay.filter(x => x.paymentStatus === 'Completed').map(x => x.orderId)
-      )
-      const revenue = o
-        .filter(x => completedOrderIds.has(x.orderId))
-        .reduce((acc, x) => acc + (Number(x.totalAmount) || 0), 0)
-
-      // real replenishment counts
-      const rPending   = r.filter(x => x.status === 'Pending').length
-      const rApproved  = r.filter(x => x.status === 'Approved').length
-      const rRejected  = r.filter(x => x.status === 'Rejected').length
-      const rFulfilled = r.filter(x => x.status === 'Fulfilled').length
-      const rTotal     = r.length
-
+      const d = (await getDashboardSummary()).data || {}
       setStats({
-        products:  p.length,
-        lowStock:  s.filter(x => x.currentStock <= (x.minStock || 0)).length,
-        orders:    o.length,
-        suppliers: sup.length,
-        pending:   rPending,
-        approved:  rApproved,
-        rejected:  rRejected,
-        fulfilled: rFulfilled,
-        totalReplen: rTotal,
-        revenue,
+        products:    d.products       ?? 0,
+        lowStock:    d.lowStock        ?? 0,
+        orders:      d.orders          ?? 0,
+        suppliers:   d.suppliers       ?? 0,
+        pending:     d.replenPending   ?? 0,
+        approved:    d.replenApproved  ?? 0,
+        rejected:    d.replenRejected  ?? 0,
+        fulfilled:   d.replenFulfilled ?? 0,
+        totalReplen: d.replenTotal     ?? 0,
+        revenue:     d.revenue         ?? 0,
       })
-      setRecentOrders(o.slice(0, 6))
+      setRecentOrders(d.recentOrders || [])
     } catch (e) { console.error(e) }
     finally { setLoading(false) }
   }, [])

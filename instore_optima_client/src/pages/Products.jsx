@@ -107,8 +107,8 @@ export default function Products() {
     { key: 'supplierId',  label: 'Supplier',     render: r => suppliers.find(s => s.supplierId === r.supplierId)?.name || '—' },
     { key: 'actions',     label: 'Actions',      render: r => (
       <div style={{ display: 'flex', gap: 6 }}>
-        <button className="btn-icon" onClick={() => openEdit(r)}><i className="bi bi-pencil"></i></button>
-        <button className="btn-icon danger" onClick={() => openDel(r.productId)}><i className="bi bi-trash"></i></button>
+        <button className="btn-icon" aria-label={`Edit product #${r.productId}`} title="Edit" onClick={() => openEdit(r)}><i className="bi bi-pencil" aria-hidden="true"></i></button>
+        <button className="btn-icon danger" aria-label={`Delete product #${r.productId}`} title="Delete" onClick={() => openDel(r.productId)}><i className="bi bi-trash" aria-hidden="true"></i></button>
       </div>
     )}
   ]
