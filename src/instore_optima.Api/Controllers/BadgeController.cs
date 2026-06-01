@@ -23,7 +23,7 @@ namespace instore_optima.Api.Controllers
                     s => s.ProductId,
                     p => p.ProductId,
                     (s, p) => new { s.CurrentStock, p.MinStock })
-                .CountAsync(x => x.CurrentStock < x.MinStock);
+                .CountAsync(x => x.CurrentStock <= x.MinStock);
 
             var pendingReplenishment = await _db.ReplenishmentOrders
                 .CountAsync(r => r.Status == "Pending");

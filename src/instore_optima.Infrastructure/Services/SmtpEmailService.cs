@@ -34,14 +34,31 @@ namespace instore_optima.Infrastructure.Services
 
         private async Task SendAsync(MimeMessage message, string username, string password, IConfigurationSection smtp)
         {
-            using var client = new SmtpClient();
-            await client.ConnectAsync(
-                smtp["Host"]!,
-                int.Parse(smtp["Port"] ?? "587"),
-                SecureSocketOptions.StartTls);
-            await client.AuthenticateAsync(username, password);
-            await client.SendAsync(message);
-            await client.DisconnectAsync(true);
+            // Fail fast: if the network blocks the SMTP port (common on corporate
+            // Wi-Fi), the TCP connect would otherwise hang until the OS timeout
+            // (30s+) and trip the client's request timeout. Bound it to ~12s so the
+            // controller can return a clear "couldn't send email" message quickly.
+            var timeout = int.TryParse(smtp["TimeoutSeconds"], out var t) ? t : 12;
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(timeout));
+
+            using var client = new SmtpClient { Timeout = timeout * 1000 };
+            try
+            {
+                await client.ConnectAsync(
+                    smtp["Host"]!,
+                    int.Parse(smtp["Port"] ?? "587"),
+                    SecureSocketOptions.StartTls,
+                    cts.Token);
+                await client.AuthenticateAsync(username, password, cts.Token);
+                await client.SendAsync(message, cts.Token);
+                await client.DisconnectAsync(true, cts.Token);
+            }
+            catch (OperationCanceledException)
+            {
+                throw new TimeoutException(
+                    $"Timed out connecting to the mail server ({smtp["Host"]}:{smtp["Port"] ?? "587"}) after {timeout}s. " +
+                    "The network may be blocking outbound email (SMTP). Try a different network or contact your administrator.");
+            }
         }
 
         private MailboxAddress FromAddress(IConfigurationSection smtp, string username)

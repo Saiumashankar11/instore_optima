@@ -37,7 +37,7 @@ namespace instore_optima.Api.Controllers
                     s => s.ProductId,
                     p => p.ProductId,
                     (s, p) => new { s.CurrentStock, p.MinStock, p.Name })
-                .Where(x => x.CurrentStock < x.MinStock)
+                .Where(x => x.CurrentStock <= x.MinStock)
                 .Select(x => new { x.Name, x.CurrentStock, x.MinStock })
                 .Take(2)
                 .ToListAsync();

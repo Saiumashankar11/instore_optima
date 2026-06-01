@@ -150,7 +150,7 @@ namespace instore_optima.Api.Controllers
                 var failed = await _context.UserOtps.FirstOrDefaultAsync(o => o.SessionKey == sessionKey);
                 if (failed != null) _context.UserOtps.Remove(failed);
                 await _context.SaveChangesAsync();
-                return StatusCode(502, new { message = "Could not send verification email. Check SMTP settings in appsettings.json." });
+                return StatusCode(502, new { message = "We couldn't send the verification email. Your network may be blocking email delivery — try a different network (e.g. mobile hotspot) or contact your administrator." });
             }
 
             _logger.LogInformation("Email OTP challenge issued for {Email}", user.Email);
@@ -202,7 +202,7 @@ namespace instore_optima.Api.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "SMTP failed during TOTP→email switch for {Email}", user.Email);
-                return StatusCode(502, new { message = "Could not send verification email. Please check SMTP settings." });
+                return StatusCode(502, new { message = "We couldn't send the verification email. Your network may be blocking email delivery — try a different network (e.g. mobile hotspot) or contact your administrator." });
             }
 
             _logger.LogInformation("Switched from TOTP to email OTP for {Email}", user.Email);
@@ -311,7 +311,7 @@ namespace instore_optima.Api.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "SMTP resend failed for {Email}", user.Email);
-                return StatusCode(502, new { message = "Could not send verification email. Please check SMTP settings." });
+                return StatusCode(502, new { message = "We couldn't send the verification email. Your network may be blocking email delivery — try a different network (e.g. mobile hotspot) or contact your administrator." });
             }
 
             _logger.LogInformation("OTP resent for {Email} (purpose: {Purpose})", user.Email, oldPurpose);
@@ -359,7 +359,7 @@ namespace instore_optima.Api.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "SMTP failed for password reset {Email}", user.Email);
-                return StatusCode(502, new { message = "Could not send reset email. Please try again later." });
+                return StatusCode(502, new { message = "We couldn't send the reset email. Your network may be blocking email delivery — try a different network or contact your administrator." });
             }
 
             _logger.LogInformation("Password reset OTP issued for {Email}", user.Email);

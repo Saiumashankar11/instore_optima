@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { Link } from 'react-router-dom'
 import StatusBadge from '../components/shared/StatusBadge'
 import DataTable from '../components/shared/DataTable'
@@ -22,8 +22,7 @@ export default function Dashboard() {
   const [recentOrders, setRecentOrders] = useState([])
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-  const fetchAll = async () => {
+  const fetchAll = useCallback(async () => {
     try {
       const [products, stock, orders, suppliers, replenishments, payments] =
         await Promise.allSettled([
@@ -66,9 +65,20 @@ export default function Dashboard() {
       setRecentOrders(o.slice(0, 6))
     } catch (e) { console.error(e) }
     finally { setLoading(false) }
-  }
-  fetchAll()
-}, [])
+  }, [])
+
+  useEffect(() => {
+    fetchAll()                                    // initial load
+    const id = setInterval(fetchAll, 30000)       // live refresh every 30s
+    const onVisible = () => { if (!document.hidden) fetchAll() }
+    window.addEventListener('focus', fetchAll)
+    document.addEventListener('visibilitychange', onVisible)
+    return () => {
+      clearInterval(id)
+      window.removeEventListener('focus', fetchAll)
+      document.removeEventListener('visibilitychange', onVisible)
+    }
+  }, [fetchAll])
 
   const greet = () => {
     const h = new Date().getHours()
@@ -76,8 +86,6 @@ export default function Dashboard() {
     if (h < 17) return 'Good afternoon'
     return 'Good evening'
   }
-
-  const [replenData, setReplenData] = useState({ pending: 0, approved: 0, rejected: 0, total: 0 })
 
   const orderColumns = [
     { key: 'orderId',     label: 'Order ID',  render: r => <span className="text-accent" style={{ fontWeight: 600 }}>#{r.orderId}</span> },
