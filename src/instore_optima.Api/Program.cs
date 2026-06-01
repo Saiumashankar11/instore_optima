@@ -121,8 +121,24 @@ builder.Services.AddSwaggerGen(options =>
 builder.Services.AddScoped<IAuthRepository, AuthRepository>();
 
 // ─── Email / 2FA ──────────────────────────────────────
-builder.Services.AddScoped<instore_optima.Domain.Interfaces.IEmailService,
-                           instore_optima.Infrastructure.Services.SmtpEmailService>();
+// SMTP is always available (used directly, or as the fallback for Brevo).
+builder.Services.AddScoped<instore_optima.Infrastructure.Services.SmtpEmailService>();
+
+var brevoKey = builder.Configuration["Brevo:ApiKey"];
+if (!string.IsNullOrWhiteSpace(brevoKey) && !brevoKey.Contains("your-"))
+{
+    // Brevo configured → send over HTTPS (works on networks that block SMTP),
+    // with automatic fallback to SMTP if a Brevo call fails.
+    builder.Services.AddHttpClient();
+    builder.Services.AddScoped<instore_optima.Domain.Interfaces.IEmailService,
+                               instore_optima.Infrastructure.Services.BrevoEmailService>();
+}
+else
+{
+    // No Brevo key → use SMTP directly.
+    builder.Services.AddScoped<instore_optima.Domain.Interfaces.IEmailService>(
+        sp => sp.GetRequiredService<instore_optima.Infrastructure.Services.SmtpEmailService>());
+}
 
 // ─── Internal Messaging ───────────────────────────────
 builder.Services.AddScoped<IInternalMessageRepository, InternalMessageRepository>();
