@@ -10,7 +10,7 @@ export default function Dashboard() {
   const { user, role, canManage } = useAuth()
   const rp = `/${role?.toLowerCase() || 'staff'}`
   const [stats, setStats] = useState({
-    products: 0, lowStock: 0, orders: 0,
+    products: 0, lowStock: 0, orders: 0, todayOrders: 0,
     suppliers: 0, pending: 0, approved: 0,
     rejected: 0, fulfilled: 0, totalReplen: 0, revenue: 0
   })
@@ -24,6 +24,7 @@ export default function Dashboard() {
         products:    d.products       ?? 0,
         lowStock:    d.lowStock        ?? 0,
         orders:      d.orders          ?? 0,
+        todayOrders: d.todayOrders     ?? 0,
         suppliers:   d.suppliers       ?? 0,
         pending:     d.replenPending   ?? 0,
         approved:    d.replenApproved  ?? 0,
@@ -195,8 +196,8 @@ export default function Dashboard() {
               </div>
               <div className="bento-card-a">
                 <div className="bento-card-a-label">Today's Orders</div>
-                <div className="bento-card-a-val">{stats.orders}</div>
-                <div className="bento-card-a-sub up">↑ All time total</div>
+                <div className="bento-card-a-val">{stats.todayOrders}</div>
+                <div className="bento-card-a-sub up">↑ Placed today</div>
               </div>
             </div>
 

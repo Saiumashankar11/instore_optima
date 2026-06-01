@@ -26,6 +26,9 @@ namespace instore_optima.Api.Controllers
             var suppliers = await _db.Suppliers.CountAsync();
             var orders    = await _db.Orders.CountAsync();
 
+            var today       = DateTime.Today;
+            var todayOrders = await _db.Orders.CountAsync(o => o.OrderDate.Date == today);
+
             var lowStock = await _db.Stocks
                 .Join(_db.Products, s => s.ProductId, p => p.ProductId,
                       (s, p) => new { s.CurrentStock, p.MinStock })
@@ -63,6 +66,7 @@ namespace instore_optima.Api.Controllers
                 Products        = products,
                 LowStock        = lowStock,
                 Orders          = orders,
+                TodayOrders     = todayOrders,
                 Suppliers       = suppliers,
                 ReplenPending   = Replen("Pending"),
                 ReplenApproved  = Replen("Approved"),

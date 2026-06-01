@@ -5,6 +5,7 @@ namespace instore_optima.Application.DTOs
         public int Products        { get; set; }
         public int LowStock        { get; set; }
         public int Orders          { get; set; }
+        public int TodayOrders     { get; set; }
         public int Suppliers       { get; set; }
 
         public int ReplenPending   { get; set; }
