@@ -1,3 +1,8 @@
+// ReplenishmentRepository — EF Core data access for ReplenishmentRule and ReplenishmentOrder entities.
+// Rules define per-product thresholds (MinLevel, MaxLevel, ReorderPoint) that drive auto-ordering.
+// Orders are raised when stock falls to or below the ReorderPoint, either manually or automatically.
+// TriggerAutoReplenishmentAsync uses raw SQL to insert orders so that the nullable ApprovedBy column
+// is never set (EF would attempt to set it to null which can violate some migration constraints).
 using instore_optima.Infrastructure.Data;
 using instore_optima.Domain.Entities;
 using instore_optima.Infrastructure.Interfaces;
@@ -16,6 +21,7 @@ namespace instore_optima.Infrastructure.Repositories
 
         // ── Rules ────────────────────────────────────────────────────
 
+        // Returns all replenishment rules (one rule can exist per product)
         public async Task<IEnumerable<ReplenishmentRule>> GetAllRulesAsync()
             => await _context.ReplenishmentRules
                 .ToListAsync();
@@ -24,6 +30,7 @@ namespace instore_optima.Infrastructure.Repositories
             => await _context.ReplenishmentRules
                 .FirstOrDefaultAsync(r => r.RuleId == ruleId);
 
+        // Look up the rule for a product — used before auto-triggering a replenishment order
         public async Task<ReplenishmentRule?> GetRuleByProductIdAsync(int productId)
             => await _context.ReplenishmentRules
                 .FirstOrDefaultAsync(r => r.ProductId == productId);
@@ -31,7 +38,7 @@ namespace instore_optima.Infrastructure.Repositories
         public async Task<ReplenishmentRule> CreateRuleAsync(ReplenishmentRule rule)
         {
             rule.CreatedAt = DateTime.UtcNow;
-            rule.Status = "Active";
+            rule.Status = "Active";  // new rules are immediately active
             _context.ReplenishmentRules.Add(rule);
             await _context.SaveChangesAsync();
             return rule;
@@ -43,9 +50,10 @@ namespace instore_optima.Infrastructure.Repositories
                 .FirstOrDefaultAsync(r => r.RuleId == ruleId);
             if (rule == null) return null;
 
+            // Explicitly map only the editable threshold fields
             rule.MinLevel = updated.MinLevel;
             rule.MaxLevel = updated.MaxLevel;
-            rule.ReorderPoint = updated.ReorderPoint;
+            rule.ReorderPoint = updated.ReorderPoint;  // stock level at which a new order is triggered
             rule.Status = updated.Status;
 
             await _context.SaveChangesAsync();
@@ -65,6 +73,7 @@ namespace instore_optima.Infrastructure.Repositories
 
         // ── Replenishment Orders ──────────────────────────────────────
 
+        // Returns all replenishment orders, newest first
         public async Task<IEnumerable<ReplenishmentOrder>> GetAllOrdersAsync()
             => await _context.ReplenishmentOrders
                 .OrderByDescending(o => o.GeneratedAt)
@@ -77,12 +86,13 @@ namespace instore_optima.Infrastructure.Repositories
         public async Task<ReplenishmentOrder> CreateOrderAsync(ReplenishmentOrder order)
         {
             order.GeneratedAt = DateTime.UtcNow;
-            order.Status = "Pending";
+            order.Status = "Pending";  // always starts as Pending; must be approved before a PO is raised
             _context.ReplenishmentOrders.Add(order);
             await _context.SaveChangesAsync();
             return order;
         }
 
+        // Overload used when an approver reviews and approves/rejects the order
         public async Task<ReplenishmentOrder?> UpdateOrderStatusAsync(
             int replenishmentOrderId, string status, int approvedBy)
         {
@@ -91,13 +101,14 @@ namespace instore_optima.Infrastructure.Repositories
             if (order == null) return null;
 
             order.Status = status;
-            order.ApprovedBy = approvedBy;
+            order.ApprovedBy = approvedBy;   // record which user approved/rejected the order
             order.ApprovedAt = DateTime.UtcNow;
 
             await _context.SaveChangesAsync();
             return order;
         }
 
+        // Overload used for status-only updates (e.g. system-initiated transitions with notes)
         public async Task<ReplenishmentOrder?> UpdateOrderStatusAsync(
             int replenishmentOrderId, string status, string notes)
         {
@@ -117,6 +128,7 @@ namespace instore_optima.Infrastructure.Repositories
             var order = await _context.ReplenishmentOrders.FindAsync(replenishmentOrderId);
             if (order == null) return false;
 
+            // Block deletion if a PO has already been created for this replenishment order
             bool hasPurchaseOrders = await _context.PurchaseOrders.AnyAsync(po => po.ReplenishmentOrderId == replenishmentOrderId);
             if (hasPurchaseOrders)
                 throw new InvalidOperationException(
@@ -131,6 +143,7 @@ namespace instore_optima.Infrastructure.Repositories
 
         public async Task TriggerAutoReplenishmentAsync()
         {
+            // Load all rules that are currently active (not paused or deleted)
             var activeRules = await _context.ReplenishmentRules
                 .Where(r => r.Status == "Active")
                 .ToListAsync();
@@ -140,21 +153,24 @@ namespace instore_optima.Infrastructure.Repositories
                 var stock = await _context.Stocks
                     .FirstOrDefaultAsync(s => s.ProductId == rule.ProductId);
 
+                // Skip if no stock record exists or if stock is still above the reorder threshold
                 if (stock == null || stock.CurrentStock > rule.ReorderPoint) continue;
 
+                // Skip if a Pending order already exists (avoid duplicate orders)
                 bool alreadyPending = await _context.ReplenishmentOrders
                     .AnyAsync(o => o.ProductId == rule.ProductId && o.Status == "Pending");
 
                 if (alreadyPending) continue;
 
                 // Use raw SQL to insert without touching ApprovedBy column at all
+                // (EF would set it to null which can trigger a constraint violation in some migrations)
                 await _context.Database.ExecuteSqlRawAsync(
-                    @"INSERT INTO ReplenishmentOrders 
+                    @"INSERT INTO ReplenishmentOrders
                 (ProductId, QuantityRequested, GeneratedAt, Status)
-              VALUES 
+              VALUES
                 ({0}, {1}, {2}, {3})",
                     rule.ProductId,
-                    rule.MaxLevel - stock.CurrentStock,
+                    rule.MaxLevel - stock.CurrentStock,  // order enough to reach the MaxLevel target
                     DateTime.UtcNow,
                     "Pending"
                 );

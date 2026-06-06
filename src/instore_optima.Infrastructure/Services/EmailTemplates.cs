@@ -1,15 +1,30 @@
+// =============================================================================
+// EmailTemplates.cs — Centralized HTML email templates
+// =============================================================================
+// All outgoing email content (subject lines and HTML bodies) is defined here.
+// Both transport services (SmtpEmailService and BrevoEmailService) call these
+// static methods so the actual email markup is never duplicated. If you need
+// to update the wording or branding of any email, this is the only file to
+// change.
+//
+// Templates use C# raw string literals (""" ... """) and interpolated strings
+// ($$""" ... """) for clean, readable multi-line HTML without escaping.
+// =============================================================================
 namespace instore_optima.Infrastructure.Services
 {
     /// <summary>
     /// Subject + HTML body for an email, shared by every transport (SMTP, Brevo, …).
+    /// This is a readonly record struct so it is lightweight and immutable.
     /// </summary>
     public readonly record struct EmailContent(string Subject, string Html);
 
     /// <summary>
     /// Centralised email markup so the SMTP and Brevo transports stay identical.
+    /// All methods are static — just call EmailTemplates.LoginOtp(...) etc.
     /// </summary>
     public static class EmailTemplates
     {
+        // Returns the subject and HTML for a two-factor sign-in OTP email.
         public static EmailContent LoginOtp(string toName, string otp) => new(
             $"Your InStore Optima sign-in code: {otp}",
             OtpHtml(toName, otp,
@@ -17,6 +32,7 @@ namespace instore_optima.Infrastructure.Services
                 "Someone (hopefully you) is signing in to InStore Optima. Enter the code below to complete sign-in.",
                 "#0891b2"));
 
+        // Returns the subject and HTML for a password-reset OTP email.
         public static EmailContent ResetOtp(string toName, string otp) => new(
             $"Reset your InStore Optima password: {otp}",
             OtpHtml(toName, otp,
@@ -24,6 +40,7 @@ namespace instore_optima.Infrastructure.Services
                 "You requested a password reset for your InStore Optima account. Enter the code below to set a new password. If you didn't request this, ignore this email.",
                 "#7c3aed"));
 
+        // Returns the subject and HTML for an account-deactivation notification email.
         public static EmailContent Deactivated(string toName) => new(
             "Your InStore Optima account has been deactivated",
             $$"""
@@ -54,8 +71,13 @@ namespace instore_optima.Infrastructure.Services
             </html>
             """);
 
+        // Returns the subject and HTML for an inbound support-request email that is
+        // routed to the support inbox. The user's message is HTML-escaped first to
+        // prevent any injected markup from rendering in the email client.
         public static EmailContent Support(string fromName, string fromEmail, string userMessage)
         {
+            // Escape HTML special characters in the user-supplied message so that
+            // any < > & characters are displayed as text rather than parsed as HTML.
             var safe = userMessage.Replace("&", "&amp;").Replace("<", "&lt;").Replace(">", "&gt;");
             var html = $$"""
                 <!DOCTYPE html>
@@ -89,6 +111,9 @@ namespace instore_optima.Infrastructure.Services
         }
 
         // ── Shared OTP markup ───────────────────────────────────────────────────
+        // Both LoginOtp and ResetOtp use the same HTML layout; only the title,
+        // body copy, and accent colour differ. Sharing this helper keeps the
+        // visual design consistent and avoids duplicating hundreds of lines of HTML.
         private static string OtpHtml(string toName, string otp, string title, string body, string accentColor) => $$"""
             <!DOCTYPE html>
             <html>

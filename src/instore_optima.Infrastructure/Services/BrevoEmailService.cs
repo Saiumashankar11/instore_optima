@@ -1,3 +1,13 @@
+// =============================================================================
+// BrevoEmailService.cs — HTTP-based email delivery via Brevo's API
+// =============================================================================
+// Brevo (formerly Sendinblue) is an email delivery service that accepts
+// requests over HTTPS (port 443) rather than raw SMTP (ports 587 / 465).
+// Many corporate and university networks block outbound SMTP, so this service
+// is the preferred transport. If anything goes wrong (missing key, network
+// error, non-2xx response from Brevo) it falls back to SmtpEmailService so
+// email delivery is resilient regardless of the network environment.
+// =============================================================================
 using System.Net.Http.Json;
 using instore_optima.Domain.Interfaces;
 using Microsoft.Extensions.Configuration;
@@ -33,6 +43,10 @@ namespace instore_optima.Infrastructure.Services
         }
 
         // ── Public API ──────────────────────────────────────────────────────────
+        // Each method below delegates to the private Send() helper, passing:
+        //   - The recipient details
+        //   - The pre-built EmailContent (subject + HTML) from EmailTemplates
+        //   - A fallback lambda that calls the equivalent SMTP method if Brevo fails
 
         public Task SendOtpEmailAsync(string toEmail, string toName, string otp)
             => Send(toName, toEmail, EmailTemplates.LoginOtp(toName, otp),
@@ -58,6 +72,9 @@ namespace instore_optima.Infrastructure.Services
 
         // ── Internals ───────────────────────────────────────────────────────────
 
+        // Core send method. Builds the Brevo JSON payload and POSTs it to the
+        // Brevo transactional email endpoint. On any failure (bad config, HTTP
+        // error, exception) it calls the SMTP fallback instead.
         private async Task Send(string toName, string toEmail, EmailContent content,
             Func<Task> fallback, string? replyToName = null, string? replyToEmail = null)
         {
@@ -108,6 +125,9 @@ namespace instore_optima.Infrastructure.Services
             }
         }
 
+        // Reads the sender name and email from configuration. Falls back through
+        // the Brevo-specific keys first, then to the SMTP keys so a single set
+        // of "from" details works for both transports.
         private (string Name, string Email) Sender()
         {
             var name  = _config["Brevo:SenderName"]  ?? _config["Smtp:FromName"]  ?? "InStore Optima";

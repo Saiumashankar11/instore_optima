@@ -1,37 +1,77 @@
+// =============================================================================
+// Login.jsx
+// =============================================================================
+// This is the main authentication page for InStore Optima.
+// It is split into two steps:
+//   1. CredentialsStep — user enters email + password.
+//   2. OtpStep        — user enters a 6-digit code (email OTP or TOTP from
+//                        an authenticator app) to complete two-factor login.
+//
+// After a successful verification the user is stored in AuthContext and the
+// app navigates them to /dashboard.
+// =============================================================================
+
+// React hooks used across this file
 import { useState, useEffect, useRef, useCallback } from 'react'
+// useNavigate lets us programmatically send the user to another route;
+// Link renders an <a> tag that works with React Router.
 import { useNavigate, Link } from 'react-router-dom'
+// AuthContext exposes the login() helper that persists the JWT token.
 import { useAuth } from '../context/AuthContext'
+// ThemeContext gives us the current dark/light mode and a toggle function.
 import { useTheme } from '../context/ThemeContext'
+// API helpers — each wraps an Axios call to the backend auth endpoints.
 import { loginApi, verifyOtpApi, resendOtpApi, switchToEmailOtpApi } from '../services/authService'
+// validateField checks a single form field; parseApiError extracts a
+// human-readable message from an Axios error response.
 import { validateField, parseApiError } from '../utils/validators'
+// Reusable UI components shared with other pages.
 import ZoomControl from '../components/ZoomControl'
 import ContactSupportModal from '../components/ContactSupportModal'
 
+// How long (in seconds) an email OTP is valid before it expires.
 const OTP_EXPIRY_SEC  = 3 * 60    // 3 minutes (matches backend)
+// How many seconds the user must wait before they can request a new OTP.
 const RESEND_COOLDOWN = 60         // 60s before Resend is enabled again
 
 // ── Credentials step ──────────────────────────────────────────────────────────
+// Renders the email + password form. On success it calls onOtpSent() so the
+// parent (Login) can advance to the OTP step.
 function CredentialsStep({ onOtpSent, dark, toggle, zoom, setZoom, navigate }) {
+  // form holds the current values of the email and password inputs.
   const [form, setForm]               = useState({ email: '', password: '' })
+  // fieldErrors stores per-field validation messages (e.g. "Email is invalid").
   const [fieldErrors, setFieldErrors] = useState({})
+  // error is a top-level API error (e.g. "Invalid credentials").
   const [error, setError]             = useState('')
+  // loading becomes true while waiting for the API call to respond.
   const [loading, setLoading]         = useState(false)
+  // showPassword toggles the password input between text and ••• mode.
   const [showPassword, setShowPassword] = useState(false)
+  // touched tracks which fields the user has interacted with so we only
+  // show validation errors after they've visited a field.
   const [touched, setTouched]         = useState({})
 
+  // Returns a change handler for the given field name.
+  // If the field was already touched, re-validates on every keystroke.
   const handleChange = field => e => {
     const value = e.target.value
     setForm(f => ({ ...f, [field]: value }))
     if (touched[field]) setFieldErrors(p => ({ ...p, [field]: validateField(field, value) }))
     if (error) setError('')
   }
+  // Returns a blur handler — marks the field as touched and validates it
+  // when the user leaves the input for the first time.
   const handleBlur = field => () => {
     setTouched(p => ({ ...p, [field]: true }))
     setFieldErrors(p => ({ ...p, [field]: validateField(field, form[field]) }))
   }
 
+  // Called when the user clicks "Continue" or presses Enter.
+  // Validates both fields before hitting the backend.
   const handleSubmit = async () => {
     setError('')
+    // Run client-side validation before making a network request.
     const emailErr = validateField('email', form.email)
     const passErr  = form.password ? '' : 'Password is required.'
     setFieldErrors({ email: emailErr, password: passErr })
@@ -40,8 +80,11 @@ function CredentialsStep({ onOtpSent, dark, toggle, zoom, setZoom, navigate }) {
 
     setLoading(true)
     try {
+      // POST credentials to the backend. On success the server issues a
+      // short-lived session key and (if TOTP is off) sends an email OTP.
       const res = await loginApi(form)
       const { sessionKey, maskedEmail, isTotpChallenge } = res.data
+      // Hand off to the parent so it can switch to the OTP step.
       onOtpSent(sessionKey, maskedEmail, !!isTotpChallenge)
     } catch (err) {
       setError(parseApiError(err))
@@ -115,23 +158,37 @@ function CredentialsStep({ onOtpSent, dark, toggle, zoom, setZoom, navigate }) {
   )
 }
 
+// After this many wrong OTP submissions the user is sent back to step 1.
 const MAX_ATTEMPTS = 3
 
 // ── OTP step ──────────────────────────────────────────────────────────────────
+// Renders six individual digit boxes and handles both email OTP and TOTP
+// (authenticator app) verification flows.
 function OtpStep({ sessionKey: initialSessionKey, maskedEmail, isTotpChallenge: initialIsTotp, onSuccess, onBack, onSwitchToEmail }) {
+  // digits is an array of 6 single-character strings, one per input box.
   const [digits, setDigits]         = useState(['', '', '', '', '', ''])
+  // sessionKey is a server-issued token that links this OTP challenge to
+  // the credentials the user entered in step 1. It may change on resend.
   const [sessionKey, setSessionKey] = useState(initialSessionKey)
+  // When true the user must use their authenticator app instead of email.
   const [isTotpChallenge, setIsTotpChallenge] = useState(initialIsTotp)
   const [error, setError]           = useState('')
   const [loading, setLoading]       = useState(false)
+  // switching is true while the "Use email OTP instead" request is in-flight.
   const [switching, setSwitching]   = useState(false)
   const [resendCd, setResendCd]     = useState(0)          // 0 = immediately available
   const [expiry, setExpiry]         = useState(OTP_EXPIRY_SEC)
   const [attempts, setAttempts]     = useState(0)   // wrong-OTP counter
   const [totpWindow, setTotpWindow] = useState(0)   // seconds left in current TOTP 30s window
+  // inputRefs lets us programmatically focus individual digit boxes (e.g.
+  // on auto-advance or when clearing after a wrong code).
   const inputRefs = useRef([])
 
   // Countdown timers
+  // Three independent 1-second intervals run simultaneously:
+  //   cd — counts down the resend cooldown
+  //   ex — counts down the OTP expiry time
+  //   tw — tracks how many seconds remain in the current 30-second TOTP window
   useEffect(() => {
     const tick = () => {
       const nowSec = Math.floor(Date.now() / 1000)
@@ -141,11 +198,16 @@ function OtpStep({ sessionKey: initialSessionKey, maskedEmail, isTotpChallenge: 
     const cd = setInterval(() => setResendCd(s => Math.max(0, s - 1)), 1000)
     const ex = setInterval(() => setExpiry(s => Math.max(0, s - 1)), 1000)
     const tw = setInterval(tick, 1000)
+    // Clean up all three intervals when the component unmounts.
     return () => { clearInterval(cd); clearInterval(ex); clearInterval(tw) }
   }, [])
 
+  // Converts a number of seconds into a "MM:SS" string for display.
   const fmt = sec => `${String(Math.floor(sec / 60)).padStart(2, '0')}:${String(sec % 60).padStart(2, '0')}`
 
+  // Called whenever a digit box value changes.
+  // Rejects non-numeric input, advances focus to the next box, and
+  // auto-submits the form as soon as all 6 digits are filled.
   const handleDigit = (i, value) => {
     if (!/^\d?$/.test(value)) return
     const next = [...digits]
@@ -160,6 +222,7 @@ function OtpStep({ sessionKey: initialSessionKey, maskedEmail, isTotpChallenge: 
     }
   }
 
+  // Keyboard navigation: Backspace moves focus left; arrow keys move between boxes.
   const handleKeyDown = (i, e) => {
     if (e.key === 'Backspace' && !digits[i] && i > 0) {
       inputRefs.current[i - 1]?.focus()
@@ -168,6 +231,8 @@ function OtpStep({ sessionKey: initialSessionKey, maskedEmail, isTotpChallenge: 
     if (e.key === 'ArrowRight' && i < 5) inputRefs.current[i + 1]?.focus()
   }
 
+  // Allows the user to paste a full 6-digit code (e.g. from a password
+  // manager), strips non-digits, fills all boxes, and auto-submits.
   const handlePaste = e => {
     const pasted = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6)
     if (!pasted) return
@@ -178,13 +243,18 @@ function OtpStep({ sessionKey: initialSessionKey, maskedEmail, isTotpChallenge: 
     if (pasted.length === 6) handleVerify(pasted)
   }
 
+  // Sends the assembled 6-digit code to the backend for verification.
+  // useCallback memoises this function so it is stable between renders —
+  // important because it is called from the auto-submit path in handleDigit.
   const handleVerify = useCallback(async (otp) => {
+    // otp may be passed directly (auto-submit) or assembled from state.
     const code = otp ?? digits.join('')
     if (code.length < 6) { setError('Please enter all 6 digits.'); return }
     setLoading(true)
     setError('')
     try {
       const res = await verifyOtpApi({ sessionKey, otp: code })
+      // On success the backend returns a signed JWT and the user's profile.
       const { token, userId, role, name, email } = res.data
       onSuccess(token, { userId, role, name, email })
     } catch (err) {
@@ -208,10 +278,13 @@ function OtpStep({ sessionKey: initialSessionKey, maskedEmail, isTotpChallenge: 
     }
   }, [digits, sessionKey, attempts, onSuccess, onBack])
 
+  // Asks the backend to issue a fresh OTP and resets all timers.
+  // The guard at the top prevents hammering before the cooldown expires.
   const handleResend = async () => {
     if (resendCd > 0) return
     try {
       const res = await resendOtpApi({ sessionKey })
+      // The server returns a new sessionKey bound to the fresh OTP.
       setSessionKey(res.data.sessionKey)
       setResendCd(RESEND_COOLDOWN)
       setExpiry(OTP_EXPIRY_SEC)
@@ -223,6 +296,8 @@ function OtpStep({ sessionKey: initialSessionKey, maskedEmail, isTotpChallenge: 
     }
   }
 
+  // Lets the user abandon TOTP and fall back to email OTP instead.
+  // The backend generates a new session key and sends a code by email.
   const handleSwitchToEmail = async () => {
     setSwitching(true); setError('')
     try {
@@ -232,7 +307,9 @@ function OtpStep({ sessionKey: initialSessionKey, maskedEmail, isTotpChallenge: 
       setResendCd(0)
       setExpiry(OTP_EXPIRY_SEC)
       setDigits(['', '', '', '', '', ''])
+      // Inform the parent so it can update the maskedEmail shown in the UI.
       if (onSwitchToEmail) onSwitchToEmail(res.data.maskedEmail)
+      // Small delay so the DOM has time to render before we steal focus.
       setTimeout(() => inputRefs.current[0]?.focus(), 50)
     } catch (err) {
       setError(parseApiError(err))
@@ -353,21 +430,32 @@ function OtpStep({ sessionKey: initialSessionKey, maskedEmail, isTotpChallenge: 
 }
 
 // ── Main Login component ──────────────────────────────────────────────────────
+// This is the page-level component. It owns the two-step login state machine
+// and renders the left marketing panel plus the right card that swaps between
+// CredentialsStep and OtpStep.
 export default function Login({ zoom = 100, setZoom = () => {} }) {
   const { login }         = useAuth()
   const { dark, toggle }  = useTheme()
   const navigate          = useNavigate()
 
+  // step drives which sub-component is rendered inside the card.
   // 'credentials' | 'otp'
   const [step, setStep]                   = useState('credentials')
+  // sessionKey and maskedEmail are received from the backend after credentials
+  // are accepted and are passed down to OtpStep.
   const [sessionKey, setSessionKey]       = useState('')
   const [maskedEmail, setMaskedEmail]     = useState('')
+  // When true OtpStep shows the TOTP (authenticator app) flow.
   const [isTotpChallenge, setIsTotpChallenge] = useState(false)
+  // success triggers the animated "Welcome back" splash before redirecting.
   const [success, setSuccess]             = useState(false)
+  // backMsg carries an optional error to show when the user is sent back to
+  // the credentials step (e.g. after too many wrong codes).
   const [backMsg, setBackMsg]             = useState('')
   const [supportOpen, setSupportOpen]     = useState(false)
 
   // Called when user switches from TOTP to email OTP mid-step
+  // Updates parent state so the new masked email address is shown.
   const handleSwitchedToEmail = (newMasked) => {
     setIsTotpChallenge(false)
     if (newMasked) setMaskedEmail(newMasked)
@@ -375,6 +463,8 @@ export default function Login({ zoom = 100, setZoom = () => {} }) {
 
   useEffect(() => { /* reset on mount */ }, [])
 
+  // Called by CredentialsStep once the backend accepts the credentials and
+  // returns a session key. Moves the wizard to the OTP step.
   const handleOtpSent = (sk, me, isTotp = false) => {
     setSessionKey(sk)
     setMaskedEmail(me)
@@ -383,9 +473,12 @@ export default function Login({ zoom = 100, setZoom = () => {} }) {
     setStep('otp')
   }
 
+  // Called by OtpStep after the code is verified. Saves the token in context
+  // and shows the success screen before navigating away.
   const handleOtpSuccess = (token, userData) => {
     login(token, userData)
     setSuccess(true)
+    // Short delay so the user sees the welcome animation.
     setTimeout(() => navigate('/dashboard'), 1400)
   }
 

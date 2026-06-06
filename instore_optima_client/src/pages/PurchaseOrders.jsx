@@ -1,40 +1,71 @@
+// =============================================================================
+// PurchaseOrders.jsx
+// =============================================================================
+// Manages the Purchase Order (PO) lifecycle: creating POs against approved
+// replenishment requests, tracking their delivery status, and printing a
+// Goods Received Note (GRN) PDF once a PO is marked as Delivered.
+//
+// Role rules:
+//   - Managers and Admins can create POs and mark them Delivered.
+//   - Only Admins can delete POs (and only those not yet Delivered).
+//   - Staff can view the list but have no action buttons.
+// =============================================================================
+
+// React hooks for state and side-effects.
 import { useEffect, useState } from 'react'
+// Shared UI components used across the app.
 import PageHeader from '../components/shared/PageHeader'
 import DataTable from '../components/shared/DataTable'
 import SearchBar from '../components/shared/SearchBar'
 import FormModal from '../components/shared/FormModal'
 import ConfirmModal from '../components/shared/ConfirmModal'
 import StatusBadge from '../components/shared/StatusBadge'
+// API service calls for purchase orders, suppliers, and replenishment data.
 import { getAllPOs, createPO, updatePO, deletePO } from '../services/purchaseOrderService'
 import { getAllSuppliers } from '../services/supplierService'
 import { getAllReplenishments } from '../services/replenishmentService'
+// Context and custom hooks for auth, badge counts, notifications, and undo.
 import { useAuth } from '../context/AuthContext'
 import { useAlertBadges } from '../context/AlertBadgesContext'
 import { useToast } from '../hooks/useToast'
 import { useUndoDelete } from '../hooks/useUndoDelete'
+// Utility helpers for error message extraction and date formatting.
 import { parseApiError } from '../utils/validators'
 import { fmtDate } from '../utils/validators'
 
+// Default blank form values used when opening the "Create PO" modal.
 const EMPTY = { replenishmentOrderId: '', supplierId: '', expectedDeliveryDate: '' }
 
 export default function PurchaseOrders() {
+  // Auth helpers: canManage is true for Admin/Manager; isAdmin is Admin-only.
   const { canManage, isAdmin } = useAuth()
+  // fetchBadges refreshes the notification badge counts in the sidebar after
+  // a status change that may affect pending-PO alerts.
   const { fetchBadges } = useAlertBadges()
+  // toast displays brief success / error / warning banners.
   const { show: toast, ToastContainer } = useToast()
+  // scheduleDelete gives the user a short window to undo a deletion before it
+  // is committed to the server.
   const { scheduleDelete, UndoToast } = useUndoDelete()
-  const [data, setData]                     = useState([])
-  const [suppliers, setSuppliers]           = useState([])
-  const [replenishments, setReplenishments] = useState([])
+
+  // ── State ──────────────────────────────────────────────────────────────────
+  const [data, setData]                     = useState([])          // all POs from the API
+  const [suppliers, setSuppliers]           = useState([])          // lookup list for supplier names
+  const [replenishments, setReplenishments] = useState([])          // lookup list for replenishment orders
   const [loading, setLoading]               = useState(true)
   const [error, setError]                   = useState('')
-  const [search, setSearch]                 = useState('')
-  const [showForm, setShowForm]             = useState(false)
-  const [form, setForm]                     = useState(EMPTY)
-  const [saving, setSaving]                 = useState(false)
-  const [formErrors, setFormErrors]         = useState({})
-  const [showDel, setShowDel]               = useState(false)
-  const [delId, setDelId]                   = useState(null)
+  const [search, setSearch]                 = useState('')           // search bar input
+  const [showForm, setShowForm]             = useState(false)        // controls Create-PO modal visibility
+  const [form, setForm]                     = useState(EMPTY)        // controlled form values
+  const [saving, setSaving]                 = useState(false)        // true while API call is in flight
+  const [formErrors, setFormErrors]         = useState({})           // per-field validation messages
+  const [showDel, setShowDel]               = useState(false)        // controls delete-confirm modal
+  const [delId, setDelId]                   = useState(null)         // ID of the PO queued for deletion
 
+  // ── Data fetching ──────────────────────────────────────────────────────────
+  // Loads all three datasets in parallel for efficiency.
+  // POs, suppliers, and replenishment orders are fetched together because the
+  // table needs to resolve supplier/replenishment IDs into human-readable names.
   const load = async () => {
     setLoading(true)
     try {
@@ -46,12 +77,21 @@ export default function PurchaseOrders() {
     finally { setLoading(false) }
   }
 
+  // Run load() once when the component first mounts (empty dependency array).
   useEffect(() => { load() }, [])
 
+  // ── Helpers ────────────────────────────────────────────────────────────────
+  // Generic form-field updater: set('fieldName') returns an onChange handler.
   const set = k => e => setForm(f => ({ ...f, [k]: e.target.value }))
+  // Look up the full supplier object by its numeric ID (used in table cells).
   const getSupplier = id => suppliers.find(s => s.supplierId === id)
+  // Look up the full replenishment order object by its ID.
   const getReplen   = id => replenishments.find(r => r.replenishmentOrderId === id)
 
+  // ── Event handlers ─────────────────────────────────────────────────────────
+  // Validates the Create-PO form, then calls the API if all fields pass.
+  // IDs come from <select> elements as strings, so they are coerced to Number
+  // before sending to the backend.
   const handleSave = async () => {
     const errors = {}
     if (!form.replenishmentOrderId) errors.replenishmentOrderId = 'Please select a replenishment order.'
@@ -59,6 +99,7 @@ export default function PurchaseOrders() {
     if (!form.expectedDeliveryDate) {
       errors.expectedDeliveryDate = 'Expected delivery date is required.'
     } else {
+      // en-CA locale produces YYYY-MM-DD which compares correctly as a string.
       const todayStr = new Date().toLocaleDateString('en-CA')
       if (form.expectedDeliveryDate < todayStr) errors.expectedDeliveryDate = 'Delivery date must be today or in the future.'
     }
@@ -73,11 +114,16 @@ export default function PurchaseOrders() {
     finally { setSaving(false) }
   }
 
+  // Updates the status of an existing PO (typically Pending → Delivered).
+  // After success, re-fetches the list and refreshes sidebar badge counts.
   const handleStatusUpdate = async (row, status) => {
     try { await updatePO(row.purchaseOrderId, { ...row, status }); load(); fetchBadges(); toast('Status updated!', 'success') }
     catch (err) { toast(parseApiError(err)) }
   }
 
+  // Optimistically removes the PO from the local list immediately so the UI
+  // feels instant, then delegates the actual API delete to scheduleDelete which
+  // gives the user a few seconds to click "Undo" before the request fires.
   const handleDelete = () => {
     const row = data.find(d => d.purchaseOrderId === delId)
     setShowDel(false)
@@ -91,6 +137,11 @@ export default function PurchaseOrders() {
     })
   }
 
+  // ── GRN (Goods Received Note) printing ────────────────────────────────────
+  // Opens a new browser window, writes a self-contained HTML document into it,
+  // and triggers the browser's print dialog after a short delay (so the page
+  // has time to render before the dialog opens). The window is then closed.
+  // This approach avoids needing a PDF library on the frontend.
   const printGrn = (po, supplier, replen) => {
     const win = window.open('', '_blank', 'width=680,height=800')
     win.document.write(`<!DOCTYPE html><html><head><title>GRN ${po.grnNumber || ''}</title>
@@ -139,11 +190,16 @@ export default function PurchaseOrders() {
     setTimeout(() => { win.print(); win.close() }, 400)
   }
 
+  // ── Filtering ──────────────────────────────────────────────────────────────
+  // Filters the PO list by supplier name OR PO ID matching the search input.
   const filtered = data.filter(d =>
     getSupplier(d.supplierId)?.name?.toLowerCase().includes(search.toLowerCase()) ||
     String(d.purchaseOrderId).includes(search)
   )
 
+  // ── Table column definitions ───────────────────────────────────────────────
+  // The 'actions' column renders different buttons depending on the row's status
+  // and the current user's role. Delivered rows only show a "Print GRN" button.
   const columns = [
     { key: 'purchaseOrderId',      label: 'PO ID',    render: r => <span className="text-accent" style={{ fontWeight: 600 }}>#{r.purchaseOrderId}</span> },
     { key: 'replenishmentOrderId', label: 'Replen.',  render: r => <span>#{r.replenishmentOrderId}</span> },
@@ -210,6 +266,8 @@ export default function PurchaseOrders() {
 
       <FormModal show={showForm} onHide={() => setShowForm(false)} onSubmit={handleSave}
         title="Create Purchase Order" loading={saving}>
+        {/* Only show Approved replenishment orders that don't already have a PO,
+            so the dropdown only presents valid options to the user. */}
         <div style={{ marginBottom: 14 }}>
           <label className="form-label-custom">Replenishment Order</label>
           <select className={`form-control-custom${formErrors.replenishmentOrderId ? ' input-error' : ''}`} value={form.replenishmentOrderId} onChange={e => { set('replenishmentOrderId')(e); setFormErrors(f => ({ ...f, replenishmentOrderId: undefined })) }}>

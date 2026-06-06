@@ -1,3 +1,12 @@
+// ── InvoiceController.cs ──────────────────────────────────────────────────────
+// Handles all HTTP endpoints under the route  api/invoice.
+//
+// An Invoice is a financial document issued for an Order, detailing the amount
+// owed, taxes, and due date.  Each invoice optionally links to the Payment made
+// for its order so the response can include payment status / method.
+//
+// Authentication: every endpoint requires a valid JWT ([Authorize]).
+// ─────────────────────────────────────────────────────────────────────────────
 using instore_optima.Application.DTOs;
 using instore_optima.Domain.Entities;
 using instore_optima.Domain.Interfaces;
@@ -10,15 +19,17 @@ namespace instore_optima.Api.Controllers
 {
     [ApiController]
     [Route("api/invoice")]
-    [Authorize]
+    [Authorize] // All endpoints require a valid JWT token.
     /// <summary>
     /// API endpoints for managing invoices.
     /// </summary>
     public class InvoiceController : ControllerBase
     {
-        private readonly IInvoiceRepository _invoiceRepo;
-        private readonly IPaymentRepository _paymentRepo;
+        // ── Injected repositories ─────────────────────────────────────────────
+        private readonly IInvoiceRepository _invoiceRepo; // For invoice CRUD.
+        private readonly IPaymentRepository _paymentRepo; // For enriching responses with payment info.
 
+        // Constructor — dependencies provided via ASP.NET Core Dependency Injection.
         public InvoiceController(IInvoiceRepository invoiceRepo, IPaymentRepository paymentRepo)
         {
             _invoiceRepo = invoiceRepo;
@@ -27,18 +38,23 @@ namespace instore_optima.Api.Controllers
 
         // GET api/invoice
         /// <summary>
-        /// Gets all invoices in the system.
+        /// GET api/invoice
+        /// Returns every invoice in the system, each enriched with payment
+        /// information for the associated order (if a payment exists).
+        /// Auth: any authenticated user.
+        /// Returns: 200 OK with a list of InvoiceResponseDto objects.
         /// </summary>
-        /// <returns>A list of all invoices.</returns>
         [HttpGet]
         public async Task<ActionResult<IEnumerable<InvoiceResponseDto>>> GetAll()
         {
             var invoices = await _invoiceRepo.GetAllInvoicesAsync();
             var payments = await _paymentRepo.GetAllPaymentsAsync();
+            // Build a lookup dictionary keyed by OrderId for fast access per invoice.
             var paymentByOrder = payments.ToDictionary(p => p.OrderId);
 
             return Ok(invoices.Select(i =>
             {
+                // Attempt to find the payment for this invoice's order; may be null.
                 paymentByOrder.TryGetValue(i.OrderId, out var payment);
                 return MapToDto(i, payment);
             }));
@@ -46,16 +62,17 @@ namespace instore_optima.Api.Controllers
 
         // GET api/invoice/{id}
         /// <summary>
-        /// Gets a specific invoice by its ID.
+        /// GET api/invoice/{id}
+        /// Returns a single invoice by its primary key, enriched with payment info.
+        /// Auth: any authenticated user.
+        /// Returns: 200 OK with the invoice, or 404 if not found.
         /// </summary>
-        /// <param name="id">The ID of the invoice.</param>
-        /// <returns>The invoice details if found; otherwise, NotFound.</returns>
         [HttpGet("{id}")]
         public async Task<ActionResult<InvoiceResponseDto>> GetById(int id)
         {
             var invoice = await _invoiceRepo.GetInvoiceByIdAsync(id);
             if (invoice == null)
-                throw new ResourceNotFoundException("Invoice", id);
+                throw new ResourceNotFoundException("Invoice", id); // Global handler → 404.
 
             var payment = await _paymentRepo.GetPaymentByOrderIdAsync(invoice.OrderId);
             return Ok(MapToDto(invoice, payment));
@@ -63,30 +80,37 @@ namespace instore_optima.Api.Controllers
 
         // GET api/invoice/order/{orderId}
         /// <summary>
-        /// Gets all invoices for a specific order.
+        /// GET api/invoice/order/{orderId}
+        /// Returns all invoices that belong to a given order.
+        /// An order can theoretically have multiple invoices (e.g. partial billing).
+        /// Auth: any authenticated user.
+        /// Returns: 200 OK with a (possibly empty) list of invoices.
         /// </summary>
-        /// <param name="orderId">The ID of the order.</param>
-        /// <returns>A list of invoices for the specified order.</returns>
         [HttpGet("order/{orderId}")]
         public async Task<ActionResult<IEnumerable<InvoiceResponseDto>>> GetByOrder(int orderId)
         {
             var invoices = await _invoiceRepo.GetInvoicesByOrderIdAsync(orderId);
+            // Load the single payment for this order (there should be at most one).
             var payment = await _paymentRepo.GetPaymentByOrderIdAsync(orderId);
             return Ok(invoices.Select(i => MapToDto(i, payment)));
         }
 
         // POST api/invoice
         /// <summary>
-        /// Creates a new invoice.
+        /// POST api/invoice
+        /// Creates a new invoice for an order.
+        /// Note: IssuedDate and Status are set by the repository (not the caller).
+        /// Auth: any authenticated user.
+        /// Returns: 201 Created with the new invoice, or 400 if validation fails.
         /// </summary>
-        /// <param name="dto">The invoice creation data.</param>
-        /// <returns>The created invoice.</returns>
         [HttpPost]
         public async Task<ActionResult<InvoiceResponseDto>> Create([FromBody] CreateInvoiceDto dto)
         {
+            // Return 400 immediately if the request body fails data-annotation validation.
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
+            // Map the caller's DTO onto the domain entity.
             var invoice = new Invoice
             {
                 OrderId = dto.OrderId,
@@ -99,10 +123,18 @@ namespace instore_optima.Api.Controllers
 
             var created = await _invoiceRepo.CreateInvoiceAsync(invoice);
             var payment = await _paymentRepo.GetPaymentByOrderIdAsync(created.OrderId);
+            // 201 Created — Location header points to GET api/invoice/{id}.
             return CreatedAtAction(nameof(GetById), new { id = created.InvoiceId }, MapToDto(created, payment));
         }
 
         // PUT api/invoice/{id}
+        /// <summary>
+        /// PUT api/invoice/{id}
+        /// Updates the status (e.g. "Issued" → "Paid") of an existing invoice.
+        /// Invalid status values or a missing invoice are returned as 400 / 404.
+        /// Auth: any authenticated user.
+        /// Returns: 200 OK with the updated invoice, 404 if not found, or 400 for bad status.
+        /// </summary>
         [HttpPut("{id}")]
         public async Task<ActionResult<InvoiceResponseDto>> UpdateStatus(
             int id, [FromBody] UpdateInvoiceStatusDto dto)
@@ -115,14 +147,20 @@ namespace instore_optima.Api.Controllers
             }
             catch (KeyNotFoundException ex)
             {
+                // Repository throws this when the invoice ID does not exist.
                 return NotFound(new { message = ex.Message });
             }
             catch (ArgumentException ex)
             {
+                // Repository throws this when the supplied status string is not valid.
                 return BadRequest(new { message = ex.Message });
             }
         }
 
+        // ── Private helper ────────────────────────────────────────────────────
+
+        // Combines an Invoice entity with its optional Payment into the flat
+        // InvoiceResponseDto that the client expects.
         private static InvoiceResponseDto MapToDto(Invoice i, Payment? payment) => new()
         {
             InvoiceId = i.InvoiceId,
@@ -133,9 +171,9 @@ namespace instore_optima.Api.Controllers
             IssuedDate = i.IssuedDate,
             DueDate = i.DueDate,
             Status = i.Status,
-            PaymentId = payment?.PaymentId,
-            PaymentStatus = payment?.PaymentStatus,
-            PaymentMethod = payment?.PaymentMethod
+            PaymentId = payment?.PaymentId,         // null when no payment exists for this order
+            PaymentStatus = payment?.PaymentStatus, // null when no payment exists
+            PaymentMethod = payment?.PaymentMethod  // null when no payment exists
         };
     }
 }

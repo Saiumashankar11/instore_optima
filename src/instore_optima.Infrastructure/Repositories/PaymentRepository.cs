@@ -1,3 +1,8 @@
+// PaymentRepository — EF Core data access for the Payment entity.
+// This is the financial hub: creating or updating a payment triggers cascading writes
+// to Orders, Invoices, and Receipts. Every multi-step write is wrapped in a DB transaction
+// via ExecuteAtomicallyAsync so the database never ends up in a half-written state.
+// ILogger is injected so transaction rollbacks are captured in application logs.
 using instore_optima.Api.Repositories.Interfaces;
 using instore_optima.Domain.Entities;
 using instore_optima.Infrastructure.Data;
@@ -9,13 +14,15 @@ namespace instore_optima.Api.Repositories.Implementations
     public class PaymentRepository : IPaymentRepository
     {
         private readonly AppDbContext _context;
-        private readonly ILogger<PaymentRepository> _logger;
+        private readonly ILogger<PaymentRepository> _logger;  // used to log transaction failures
 
         public PaymentRepository(AppDbContext context, ILogger<PaymentRepository> logger)
         {
             _context = context;
             _logger  = logger;
         }
+
+        // ── Read methods — AsNoTracking for read-only performance ──
 
         public async Task<IEnumerable<Payment>> GetAllPaymentsAsync()
             => await _context.Payments.AsNoTracking().ToListAsync();
@@ -25,6 +32,8 @@ namespace instore_optima.Api.Repositories.Implementations
 
         public async Task<Payment?> GetPaymentByOrderIdAsync(int orderId)
             => await _context.Payments.AsNoTracking().FirstOrDefaultAsync(p => p.OrderId == orderId);
+
+        // ── Create — atomically creates payment + updates order status + auto-creates invoice ──
 
         public async Task<Payment> CreatePaymentAsync(Payment payment)
         {
@@ -40,7 +49,7 @@ namespace instore_optima.Api.Repositories.Implementations
             {
                 payment.PaymentDate = DateTime.UtcNow;
                 _context.Payments.Add(payment);
-                await _context.SaveChangesAsync();   // assigns PaymentId
+                await _context.SaveChangesAsync();   // assigns PaymentId (needed for invoice number below)
 
                 var order = await _context.Orders.FindAsync(payment.OrderId);
 
@@ -54,6 +63,7 @@ namespace instore_optima.Api.Repositories.Implementations
                 bool hasInvoice = await _context.Invoices.AnyAsync(i => i.OrderId == payment.OrderId);
                 if (!hasInvoice)
                 {
+                    // Invoice number format: INV-YYYY-NNNN (e.g. INV-2025-0042)
                     _context.Invoices.Add(new Invoice
                     {
                         OrderId       = payment.OrderId,
@@ -61,7 +71,7 @@ namespace instore_optima.Api.Repositories.Implementations
                         TotalAmount   = order?.TotalAmount ?? 0,
                         TaxAmount     = 0,
                         IssuedDate    = DateTime.UtcNow,
-                        DueDate       = DateTime.UtcNow.AddDays(30),
+                        DueDate       = DateTime.UtcNow.AddDays(30),  // 30-day payment terms
                         Status        = "Issued"
                     });
                 }
@@ -72,12 +82,15 @@ namespace instore_optima.Api.Repositories.Implementations
             return payment;
         }
 
+        // ── UpdateStatus — atomically updates status, auto-creates receipt, closes order/invoice ──
+
         public async Task<Payment> UpdatePaymentStatusAsync(int paymentId, string status)
         {
             var payment = await _context.Payments.FindAsync(paymentId);
             if (payment == null)
                 throw new KeyNotFoundException($"Payment with ID {paymentId} not found.");
 
+            // Whitelist check: reject unknown status values
             var validStatuses = new[] { "Pending", "Completed", "Failed", "Refunded" };
             if (!validStatuses.Contains(status))
                 throw new ArgumentException($"Invalid status: '{status}'.");
@@ -95,6 +108,7 @@ namespace instore_optima.Api.Repositories.Implementations
                     bool hasReceipt = await _context.Receipts.AnyAsync(r => r.PaymentId == paymentId);
                     if (!hasReceipt)
                     {
+                        // Receipt number format: RCP-YYYY-NNNN (e.g. RCP-2025-0042)
                         _context.Receipts.Add(new Receipt
                         {
                             PaymentId     = paymentId,
@@ -121,6 +135,8 @@ namespace instore_optima.Api.Repositories.Implementations
             return payment;
         }
 
+        // ── Delete — atomically removes receipt + invoice + payment ──
+
         public async Task<bool> DeletePaymentAsync(int paymentId)
         {
             var payment = await _context.Payments.FindAsync(paymentId);
@@ -142,6 +158,7 @@ namespace instore_optima.Api.Repositories.Implementations
             return true;
         }
 
+        // ── Transaction helper ────────────────────────────────────────────────────────
         // Runs <paramref name="work"/> inside a DB transaction on relational providers
         // (SQL Server). On non-relational providers (EF InMemory, used by unit tests)
         // it runs directly, since those don't support transactions. Failures are logged
@@ -150,6 +167,7 @@ namespace instore_optima.Api.Repositories.Implementations
         {
             if (!_context.Database.IsRelational())
             {
+                // InMemory provider used in unit tests — run without a transaction
                 await work();
                 return;
             }
@@ -158,13 +176,13 @@ namespace instore_optima.Api.Repositories.Implementations
             try
             {
                 await work();
-                await tx.CommitAsync();
+                await tx.CommitAsync();  // commit only if all steps succeeded
             }
             catch (Exception ex)
             {
-                await tx.RollbackAsync();
+                await tx.RollbackAsync();  // undo all writes if anything failed
                 _logger.LogError(ex, "Transaction rolled back during: {Operation}", operation);
-                throw;
+                throw;  // rethrow so the controller can return an appropriate error response
             }
         }
     }

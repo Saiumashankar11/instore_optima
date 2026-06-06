@@ -1,25 +1,46 @@
+// ForgotPassword.jsx
+// Implements a 3-step password-reset flow:
+//   Step 1 (EmailStep)      — user enters their email; the server sends a one-time code.
+//   Step 2 (OtpStep)        — user types the 6-digit code received by email.
+//   Step 3 (NewPasswordStep) — user sets a new password; on success they are redirected to login.
+// Each step is a self-contained sub-component. The parent (ForgotPassword) owns the step state
+// and passes data (sessionKey, maskedEmail, OTP code) between steps as props.
+
+// ── Imports ────────────────────────────────────────────────────────────────────
+// React core hooks
 import { useState, useRef, useCallback, useEffect } from 'react'
+// useNavigate: programmatic routing; Link: declarative anchor tag for React Router
 import { useNavigate, Link } from 'react-router-dom'
+// ThemeContext provides the current dark/light mode and a toggle function
 import { useTheme } from '../context/ThemeContext'
+// Auth API calls for the password-reset flow
 import { forgotPasswordApi, resetPasswordApi, resendOtpApi } from '../services/authService'
+// Validation helpers
 import { validateField, parseApiError } from '../utils/validators'
+// ZoomControl: a small zoom-in/out widget shown in the top corner of auth pages
 import ZoomControl from '../components/ZoomControl'
 
+// OTP is valid for 3 minutes; the resend button is disabled for 60 seconds after each send
 const OTP_EXPIRY_SEC  = 3 * 60
 const RESEND_COOLDOWN = 60
 
 // ── Step 1: Email ─────────────────────────────────────────────────────────────
+// Accepts the user's email and calls forgotPasswordApi.
+// On success the server returns a sessionKey (needed in later steps) and a maskedEmail
+// (e.g. j***@example.com) to display to the user. The parent is notified via onOtpSent.
 function EmailStep({ onOtpSent }) {
   const [email, setEmail]   = useState('')
   const [error, setError]   = useState('')
   const [loading, setLoading] = useState(false)
 
   const handleSubmit = async () => {
+    // Validate the email format before calling the API
     const err = validateField('email', email)
     if (err) return setError(err)
     setLoading(true)
     try {
       const res = await forgotPasswordApi({ email })
+      // Pass the sessionKey and masked email up to the parent so it can advance to step 2
       onOtpSent(res.data.sessionKey, res.data.maskedEmail, email)
     } catch (err) {
       setError(parseApiError(err))
@@ -73,23 +94,35 @@ function EmailStep({ onOtpSent }) {
 }
 
 // ── Step 2: OTP ───────────────────────────────────────────────────────────────
+// Renders 6 individual digit input boxes. Handles paste, arrow-key navigation,
+// backspace auto-focus, and two countdown timers (expiry + resend cooldown).
+// When all 6 digits are filled (or the "Continue" button is clicked) it calls onVerified.
 function OtpStep({ sessionKey: initKey, maskedEmail, onVerified, onBack }) {
+  // digits: array of 6 single-character strings, one per OTP box
   const [digits, setDigits]         = useState(['', '', '', '', '', ''])
+  // sessionKey may be replaced when the user resends — the new key must be used for subsequent calls
   const [sessionKey, setSessionKey] = useState(initKey)
   const [error, setError]           = useState('')
   const [loading, setLoading]       = useState(false)
+  // resendCd: seconds remaining on the "Resend" cooldown (counts down from RESEND_COOLDOWN)
   const [resendCd, setResendCd]     = useState(RESEND_COOLDOWN)
+  // expiry: seconds until the current OTP expires (counts down from OTP_EXPIRY_SEC)
   const [expiry, setExpiry]         = useState(OTP_EXPIRY_SEC)
+  // inputRefs lets us programmatically focus individual digit boxes
   const inputRefs = useRef([])
 
+  // Start both countdown intervals when the component mounts; clear them on unmount
   useEffect(() => {
     const cd = setInterval(() => setResendCd(s => Math.max(0, s - 1)), 1000)
     const ex = setInterval(() => setExpiry(s => Math.max(0, s - 1)), 1000)
     return () => { clearInterval(cd); clearInterval(ex) }
   }, [])
 
+  // Formats a seconds count as MM:SS (e.g. 125 -> "02:05")
   const fmt = sec => `${String(Math.floor(sec / 60)).padStart(2, '0')}:${String(sec % 60).padStart(2, '0')}`
 
+  // Called on every keystroke in a digit box.
+  // Rejects non-numeric input, advances focus to the next box, and auto-submits when the last box fills.
   const handleDigit = (i, value) => {
     if (!/^\d?$/.test(value)) return
     const next = [...digits]; next[i] = value.slice(-1)
@@ -98,12 +131,15 @@ function OtpStep({ sessionKey: initKey, maskedEmail, onVerified, onBack }) {
     if (value && i === 5 && next.join('').length === 6) handleVerify(next.join(''))
   }
 
+  // Keyboard navigation: Backspace from an empty box moves focus left; arrow keys move between boxes
   const handleKeyDown = (i, e) => {
     if (e.key === 'Backspace' && !digits[i] && i > 0) inputRefs.current[i - 1]?.focus()
     if (e.key === 'ArrowLeft'  && i > 0) inputRefs.current[i - 1]?.focus()
     if (e.key === 'ArrowRight' && i < 5) inputRefs.current[i + 1]?.focus()
   }
 
+  // Allow pasting a full 6-digit code directly into any box.
+  // Strips non-digits, fills all boxes, and auto-submits if a complete code was pasted.
   const handlePaste = e => {
     const pasted = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6)
     if (!pasted) return
@@ -125,6 +161,8 @@ function OtpStep({ sessionKey: initKey, maskedEmail, onVerified, onBack }) {
     }
   }, [digits, sessionKey, onVerified])
 
+  // Resend a fresh OTP. The server returns a new sessionKey which must replace the old one.
+  // Resets both countdowns and clears the digit boxes so the user can enter the new code.
   const handleResend = async () => {
     if (resendCd > 0) return
     try {
@@ -198,14 +236,19 @@ function OtpStep({ sessionKey: initKey, maskedEmail, onVerified, onBack }) {
 }
 
 // ── Step 3: New Password ──────────────────────────────────────────────────────
+// The user enters (and confirms) their new password.
+// The sessionKey and otp from previous steps are bundled into the reset API call.
+// On success the parent sets done=true which triggers an auto-redirect to /login.
 function NewPasswordStep({ sessionKey, otp, onSuccess, onBack }) {
   const [password, setPassword]   = useState('')
   const [confirm, setConfirm]     = useState('')
+  // showPwd: toggles password inputs between text and bullet-point display
   const [showPwd, setShowPwd]     = useState(false)
   const [error, setError]         = useState('')
   const [loading, setLoading]     = useState(false)
 
   const handleSubmit = async () => {
+    // Validate password strength and match before calling the API
     const err = validateField('password', password)
     if (err) return setError(err)
     if (password !== confirm) return setError('Passwords do not match.')
@@ -276,16 +319,24 @@ function NewPasswordStep({ sessionKey, otp, onSuccess, onBack }) {
 }
 
 // ── Main ForgotPassword page ───────────────────────────────────────────────────
+// The page shell that owns step progression. It renders the correct sub-component
+// (EmailStep, OtpStep, NewPasswordStep) based on the current step value.
 export default function ForgotPassword({ zoom = 100, setZoom = () => {} }) {
   const navigate       = useNavigate()
   const { dark, toggle } = useTheme()
 
+  // step: 'email' | 'otp' | 'password' — controls which form panel is shown
   const [step, setStep]             = useState('email')
+  // sessionKey: a server-issued token that ties the 3 steps together securely
   const [sessionKey, setSessionKey] = useState('')
+  // maskedEmail is shown in the OTP step so the user knows where the code was sent
   const [maskedEmail, setMaskedEmail] = useState('')
+  // verifiedOtp: the 6-digit code from step 2, passed to step 3 for the final API call
   const [verifiedOtp, setVerifiedOtp] = useState('')
+  // done: when true the success screen is shown and a redirect timer fires
   const [done, setDone]             = useState(false)
 
+  // Success screen — shown briefly after a successful password reset
   if (done) return (
     <div className="login-success-screen">
       <div className="login-success-inner">
@@ -314,6 +365,7 @@ export default function ForgotPassword({ zoom = 100, setZoom = () => {} }) {
         </div>
       </div>
 
+      {/* Left decorative panel with branding and feature list (not interactive) */}
       <div className="login-left">
         <div className="login-left-glow1"></div>
         <div className="login-left-glow2"></div>
@@ -339,13 +391,16 @@ export default function ForgotPassword({ zoom = 100, setZoom = () => {} }) {
         <div className="login-left-footer">© 2026 InStore Optima</div>
       </div>
 
+      {/* Right panel: contains the form card. Only one step sub-component is rendered at a time. */}
       <div className="login-right">
         <div className="login-right-grid"></div>
         <div className="login-right-glow"></div>
         <div className="login-card">
+          {/* Step 1: collect email and send OTP */}
           {step === 'email' && (
             <EmailStep onOtpSent={(sk, me) => { setSessionKey(sk); setMaskedEmail(me); setStep('otp') }} />
           )}
+          {/* Step 2: enter the 6-digit OTP received by email */}
           {step === 'otp' && (
             <OtpStep
               sessionKey={sessionKey}
@@ -354,6 +409,7 @@ export default function ForgotPassword({ zoom = 100, setZoom = () => {} }) {
               onBack={() => setStep('email')}
             />
           )}
+          {/* Step 3: set the new password; on success redirect to login after 2.2 s */}
           {step === 'password' && (
             <NewPasswordStep
               sessionKey={sessionKey}

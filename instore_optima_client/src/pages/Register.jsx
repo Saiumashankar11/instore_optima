@@ -1,29 +1,65 @@
+// =============================================================================
+// Register.jsx
+// =============================================================================
+// New-user registration page. Displays a two-panel layout (decorative left
+// panel + form card on the right) that matches the Login page visually.
+//
+// The form collects name, email, password, and role (Admin / Manager / Staff).
+// Validation runs in two modes:
+//   - On blur: validates only the field the user just left (avoids nagging
+//     before the user has finished typing).
+//   - On submit: validates all fields at once and blocks submission if any fail.
+//
+// On success the user is redirected to /login after a short delay.
+// =============================================================================
+
+// React state and effect hooks.
 import { useState, useEffect } from 'react'
+// useNavigate for programmatic redirect; Link for the "already have an account" link.
 import { useNavigate, Link } from 'react-router-dom'
+// API call that sends the registration payload to the backend.
 import { registerApi } from '../services/authService'
+// Theme context provides the current dark/light mode and a toggle function.
 import { useTheme } from '../context/ThemeContext'
+// validateField checks a single field against its rules; parseApiError extracts
+// a human-readable message from an Axios error response.
 import { validateField, parseApiError } from '../utils/validators'
+// UI components: browser zoom slider and a support contact modal.
 import ZoomControl from '../components/ZoomControl'
 import ContactSupportModal from '../components/ContactSupportModal'
 
+// zoom and setZoom are passed down from App.jsx so the zoom control on this
+// page is synchronised with the rest of the application.
 export default function Register({ zoom = 100, setZoom = () => {} }) {
+  // dark: boolean for current theme; toggle: function to switch dark/light.
   const { dark, toggle } = useTheme()
   const navigate = useNavigate()
-  const [supportOpen, setSupportOpen] = useState(false)
+
+  // ── State ──────────────────────────────────────────────────────────────────
+  const [supportOpen, setSupportOpen] = useState(false)      // controls the support modal
   const [form, setForm] = useState({ name: '', email: '', password: '', role: 'Staff' })
-  const [fieldErrors, setFieldErrors] = useState({})
-  const [error, setError] = useState('')
-  const [success, setSuccess] = useState('')
-  const [loading, setLoading] = useState(false)
-  const [showPassword, setShowPassword] = useState(false)
+  const [fieldErrors, setFieldErrors] = useState({})          // per-field error messages
+  const [error, setError] = useState('')                       // global API error banner
+  const [success, setSuccess] = useState('')                   // success banner after registration
+  const [loading, setLoading] = useState(false)               // true while the API call is in flight
+  const [showPassword, setShowPassword] = useState(false)     // toggle password visibility
+  // touched tracks which fields the user has interacted with; only touched
+  // fields show inline validation errors (avoids red highlights on first load).
   const [touched, setTouched] = useState({})
 
+  // Reset the form when the component first mounts. This guards against stale
+  // form state if the component is unmounted and remounted (e.g. navigating away
+  // and back) while React's strict-mode double-invocation is active.
   useEffect(() => {
     setForm({ name: '', email: '', password: '', role: 'Staff' })
     setError('')
     setFieldErrors({})
   }, [])
 
+  // ── Handlers ───────────────────────────────────────────────────────────────
+  // Updates the form value and — only if the field has been touched before —
+  // re-runs validation so the error clears as soon as the user fixes it.
+  // Also clears the global API error banner so it doesn't linger after typing.
   const handleChange = (field) => (e) => {
     const value = e.target.value
     setForm(f => ({ ...f, [field]: value }))
@@ -34,12 +70,18 @@ export default function Register({ zoom = 100, setZoom = () => {} }) {
     if (error) setError('')
   }
 
+  // Fires when the user leaves a field (onBlur). Marks the field as touched and
+  // runs validation so the user sees feedback as they tab through the form.
   const handleBlur = (field) => () => {
     setTouched(prev => ({ ...prev, [field]: true }))
     const err = validateField(field, form[field])
     setFieldErrors(prev => ({ ...prev, [field]: err }))
   }
 
+  // Full-form validation on submit. Marks every field as touched so all errors
+  // show at once, then returns early without calling the API if any field fails.
+  // On success, a 1.5-second delay lets the user read the success banner before
+  // being redirected to the login page.
   const handleSubmit = async () => {
     setError('')
     const nameErr = validateField('name', form.name)
@@ -64,8 +106,10 @@ export default function Register({ zoom = 100, setZoom = () => {} }) {
     }
   }
 
+  // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <div className="login-page">
+      {/* Top bar: back-to-home button on the left, zoom control + theme toggle on the right. */}
       <div className="login-top-controls">
         <button type="button" className="login-back-home" onClick={() => navigate('/')} title="Back to home">
           <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M11.5 7H2.5M6 3L2.5 7 6 11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
@@ -79,6 +123,8 @@ export default function Register({ zoom = 100, setZoom = () => {} }) {
         </div>
       </div>
 
+      {/* Left decorative panel — brand logo, headline, and feature checklist.
+          Purely visual; not shown on small screens (hidden via CSS). */}
       <div className="login-left">
         <div className="login-left-glow1"></div>
         <div className="login-left-glow2"></div>
@@ -105,6 +151,7 @@ export default function Register({ zoom = 100, setZoom = () => {} }) {
         <div className="login-left-footer">© 2026 InStore Optima</div>
       </div>
 
+      {/* Right panel — the actual registration form card. */}
       <div className="login-right">
         <div className="login-right-grid"></div>
         <div className="login-right-glow"></div>
@@ -113,11 +160,13 @@ export default function Register({ zoom = 100, setZoom = () => {} }) {
           <h1 className="login-card-title">Create account</h1>
           <p className="login-card-sub">Join InStore Optima</p>
 
+          {/* Global error banner (e.g. "email already in use" from the API). */}
           {error && (
             <div className="login-alert-error">
               <i className="bi bi-exclamation-circle"></i>{error}
             </div>
           )}
+          {/* Success banner shown briefly before redirect. */}
           {success && (
             <div className="login-alert-success">
               <i className="bi bi-check-circle"></i>{success}
@@ -164,6 +213,8 @@ export default function Register({ zoom = 100, setZoom = () => {} }) {
               </button>
             </div>
             {fieldErrors.password && <span className="field-error-text">{fieldErrors.password}</span>}
+            {/* Show a password-strength hint only while the user is typing and
+                there is no validation error — avoids showing two messages at once. */}
             {!fieldErrors.password && form.password && (
               <span className="field-hint-text">Must have uppercase, lowercase, and a number (min 6 chars).</span>
             )}
@@ -192,6 +243,8 @@ export default function Register({ zoom = 100, setZoom = () => {} }) {
         </div>
       </div>
 
+      {/* Floating "Contact Support" button anchored to the bottom-right corner
+          of the page — opens the ContactSupportModal on click. */}
       <div style={{ position: 'absolute', bottom: 16, right: 24 }}>
         <button
           type="button"
@@ -201,6 +254,7 @@ export default function Register({ zoom = 100, setZoom = () => {} }) {
         </button>
       </div>
 
+      {/* Support modal — rendered here so it can overlay the full page. */}
       <ContactSupportModal show={supportOpen} onHide={() => setSupportOpen(false)} />
     </div>
   )

@@ -1,24 +1,59 @@
+// =============================================================================
+// Dashboard.jsx
+// =============================================================================
+// The main landing page shown after login. It fetches a high-level summary of
+// the store (products, orders, stock health, replenishment pipeline, revenue)
+// and displays it in a hero section with stat cards, a bento sidebar, and a
+// "Recent Orders" table at the bottom.
+//
+// Data is refreshed automatically every 30 seconds AND whenever the browser
+// tab regains focus, so the numbers stay live without a full page reload.
+// =============================================================================
+
+// React core hooks — useCallback lets us memoize fetchAll so the useEffect
+// dependency array stays stable.
 import { useEffect, useState, useCallback } from 'react'
+// Link is used for in-app navigation without a full browser reload.
 import { Link } from 'react-router-dom'
+// Shared UI components used across multiple pages.
 import StatusBadge from '../components/shared/StatusBadge'
 import DataTable from '../components/shared/DataTable'
+// Service that calls the backend /api/dashboard/summary endpoint.
 import { getDashboardSummary } from '../services/dashboardService'
+// fmtDate formats ISO date strings into human-readable form.
 import { fmtDate } from '../utils/validators'
+// useAuth provides the current user object, their role, and permission helpers.
 import { useAuth } from '../context/AuthContext'
 
 export default function Dashboard() {
+  // Pull the current user, their role string ("Admin" / "Manager" / "Staff"),
+  // and the canManage boolean (true for Admin and Manager) from auth context.
   const { user, role, canManage } = useAuth()
+  // rp is the role-specific route prefix, e.g. "/admin" or "/staff".
+  // Used to build navigation links that are correct for the current user's role.
   const rp = `/${role?.toLowerCase() || 'staff'}`
+
+  // ── State ──────────────────────────────────────────────────────────────────
+  // All dashboard KPIs are kept in a single stats object so one setState call
+  // updates the whole set atomically.
   const [stats, setStats] = useState({
     products: 0, lowStock: 0, orders: 0, todayOrders: 0,
     suppliers: 0, pending: 0, approved: 0,
     rejected: 0, fulfilled: 0, totalReplen: 0, revenue: 0
   })
+  // The five most recent orders rendered in the bottom table.
   const [recentOrders, setRecentOrders] = useState([])
+  // While true the page shows a spinner instead of the stat cards.
   const [loading, setLoading] = useState(true)
 
+  // ── Data fetching ──────────────────────────────────────────────────────────
+  // fetchAll is wrapped in useCallback so its identity is stable across renders.
+  // This prevents the useEffect below from re-registering its event listeners
+  // on every render cycle.
   const fetchAll = useCallback(async () => {
     try {
+      // Call the backend and destructure the response payload.
+      // The ?? 0 fallback ensures we never render "undefined" or "NaN" in the UI.
       const d = (await getDashboardSummary()).data || {}
       setStats({
         products:    d.products       ?? 0,
@@ -33,11 +68,20 @@ export default function Dashboard() {
         totalReplen: d.replenTotal     ?? 0,
         revenue:     d.revenue         ?? 0,
       })
+      // recentOrders is a separate array returned inside the same response.
       setRecentOrders(d.recentOrders || [])
     } catch (e) { console.error(e) }
     finally { setLoading(false) }
   }, [])
 
+  // ── Live-refresh effect ────────────────────────────────────────────────────
+  // Registers three separate refresh triggers so the dashboard never goes stale:
+  //   1. An interval that polls every 30 seconds.
+  //   2. A 'focus' listener that fires when the user switches back to this tab.
+  //   3. A 'visibilitychange' listener that fires when the tab becomes visible
+  //      again (e.g. the user minimised and then restored the browser).
+  // The cleanup function returned here tears everything down when the component
+  // unmounts, preventing memory leaks and ghost intervals.
   useEffect(() => {
     fetchAll()                                    // initial load
     const id = setInterval(fetchAll, 30000)       // live refresh every 30s
@@ -51,6 +95,8 @@ export default function Dashboard() {
     }
   }, [fetchAll])
 
+  // ── Helpers ────────────────────────────────────────────────────────────────
+  // Returns a time-appropriate greeting based on the user's local clock hour.
   const greet = () => {
     const h = new Date().getHours()
     if (h < 12) return 'Good morning'
@@ -58,6 +104,9 @@ export default function Dashboard() {
     return 'Good evening'
   }
 
+  // Column definitions for the Recent Orders DataTable.
+  // Each object maps a data key to a label and an optional custom render function.
+  // The render functions return JSX that styles or transforms the raw value.
   const orderColumns = [
     { key: 'orderId',     label: 'Order ID',  render: r => <span className="text-accent" style={{ fontWeight: 600 }}>#{r.orderId}</span> },
     { key: 'orderDate',   label: 'Date',      render: r => fmtDate(r.orderDate) },
@@ -65,9 +114,12 @@ export default function Dashboard() {
     { key: 'status',      label: 'Status',    render: r => <StatusBadge status={r.status} /> },
   ]
 
+  // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <div>
       {/* ── HERO ── */}
+      {/* The hero section spans the full width and contains decorative background
+          elements (grid, glows) plus the main content split into left and right. */}
       <div className="dash-hero">
         <div className="dash-hero-bg">
           <div className="dash-hero-grid"></div>
@@ -78,7 +130,7 @@ export default function Dashboard() {
 
         <div className="dash-hero-inner">
 
-          {/* LEFT */}
+          {/* LEFT — headline, greeting, CTA buttons, and the 4 quick-stat tiles */}
           <div className="dash-hero-left">
             <div className="dash-eyebrow">
               <div className="dash-eyebrow-dot"></div>
@@ -100,6 +152,7 @@ export default function Dashboard() {
               </Link>
             </div>
 
+            {/* While data is loading show a spinner; once ready render the 4 stat tiles. */}
             {loading ? (
               <div className="loading-spinner" style={{ padding: 16 }}><span/><span/><span/></div>
             ) : (
@@ -133,6 +186,9 @@ export default function Dashboard() {
           {/* RIGHT — Bento A */}
           <div className="dash-hero-right">
 
+            {/* Replenishment pipeline bento card — shows a proportional bar for each
+                status (approved / rejected / pending / fulfilled) relative to the total.
+                Bar widths are calculated as percentages of totalReplen. */}
             <div className="bento-replen">
   <div className="bento-replen-top">
     <div className="bento-replen-left">
@@ -183,6 +239,7 @@ export default function Dashboard() {
   </div>
 </div>
 
+            {/* 2-col small bento cards: Revenue (total from payments) and Today's Orders count. */}
             {/* 2-col small cards */}
             <div className="bento-row">
               <div className="bento-card-a">
@@ -201,6 +258,10 @@ export default function Dashboard() {
               </div>
             </div>
 
+            {/* Quick-navigation chip grid.
+                Each chip is defined in the array below with its label, destination route,
+                Bootstrap icon class, and which roles can see it. The .filter() call removes
+                chips the current user's role is not allowed to access before rendering. */}
             {/* quick links card */}
             <div className="bento-links">
               <div className="bento-links-label">Quick Navigation</div>
@@ -228,6 +289,8 @@ export default function Dashboard() {
       </div>
 
       {/* ── RECENT ORDERS ── */}
+      {/* Bottom section: a card with a DataTable showing the last few orders.
+          "View all" links to the full Orders page for the current role. */}
       <div className="dash-lower animate-in">
         <div className="dash-lower-header">
           <div>

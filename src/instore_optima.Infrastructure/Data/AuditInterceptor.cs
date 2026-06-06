@@ -1,3 +1,17 @@
+// =============================================================================
+// AuditInterceptor.cs — Automatic audit trail via EF Core interception
+// =============================================================================
+// How it works:
+//   EF Core supports "interceptors" — hooks that fire before/after low-level
+//   database operations. This interceptor hooks into SaveChanges (both sync
+//   and async) and, before each save, scans the change tracker for any
+//   Added / Modified / Deleted entities. For each changed entity it writes
+//   an AuditLog row capturing who made the change, what changed, and when.
+//
+//   "Who" is resolved by reading the JWT claims from the current HTTP request
+//   via IHttpContextAccessor. If there is no authenticated user (e.g. during
+//   the registration flow) audit logging is skipped.
+// =============================================================================
 using instore_optima.Domain.Entities;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
@@ -17,6 +31,7 @@ namespace instore_optima.Infrastructure.Data
         private readonly IHttpContextAccessor _httpContextAccessor;
 
         // Entities that should never trigger an audit log (to avoid infinite loops)
+        // AuditLog itself is excluded — logging the log would recurse forever.
         private static readonly HashSet<Type> _excluded = new()
         {
             typeof(AuditLog),
@@ -28,6 +43,10 @@ namespace instore_optima.Infrastructure.Data
             _httpContextAccessor = httpContextAccessor;
         }
 
+        // These two overrides intercept both synchronous and asynchronous SaveChanges
+        // calls. We call WriteAuditLogs BEFORE base.SavingChanges so the AuditLog
+        // rows are included in the same database transaction as the original changes —
+        // if the save fails, neither the change nor the log entry is committed.
         public override InterceptionResult<int> SavingChanges(
             DbContextEventData eventData, InterceptionResult<int> result)
         {
@@ -61,6 +80,9 @@ namespace instore_optima.Infrastructure.Data
             // Skip audit logging when there is no authenticated user (e.g. during register/login)
             if (actorId == 0) return;
 
+            // context.ChangeTracker.Entries() lists every entity that EF currently
+            // knows about. We filter to only those with relevant state changes and
+            // exclude entity types listed in _excluded.
             var entries = context.ChangeTracker.Entries()
                 .Where(e => !_excluded.Contains(e.Entity.GetType()) &&
                             (e.State == EntityState.Added ||
@@ -82,6 +104,10 @@ namespace instore_optima.Infrastructure.Data
                 string oldValues = "—";
                 string newValues = "—";
 
+                // For Modified rows, capture only the columns that actually changed
+                // (IsModified == true) so the log stays compact and readable.
+                // OriginalValue is the value as read from the database; CurrentValue
+                // is what will be written.
                 if (entry.State == EntityState.Modified)
                 {
                     var old = entry.Properties
@@ -95,12 +121,15 @@ namespace instore_optima.Infrastructure.Data
                 }
                 else if (entry.State == EntityState.Added)
                 {
+                    // For new rows, there are no original values — just record everything
+                    // that is about to be inserted.
                     var @new = entry.Properties
                         .ToDictionary(p => p.Metadata.Name, p => p.CurrentValue?.ToString() ?? "null");
                     newValues = JsonSerializer.Serialize(@new);
                 }
                 else if (entry.State == EntityState.Deleted)
                 {
+                    // For deleted rows, capture the final state before it disappears.
                     var old = entry.Properties
                         .ToDictionary(p => p.Metadata.Name, p => p.CurrentValue?.ToString() ?? "null");
                     oldValues = JsonSerializer.Serialize(old);

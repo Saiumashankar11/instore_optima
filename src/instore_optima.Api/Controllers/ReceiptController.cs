@@ -1,3 +1,13 @@
+// ── ReceiptController.cs ──────────────────────────────────────────────────────
+// Handles all HTTP endpoints under the route  api/receipt.
+//
+// A Receipt is the proof-of-payment document issued after a successful Payment.
+// It is related to a Payment, which in turn is related to an Order and (optionally)
+// an Invoice.  The response DTOs flatten these three levels into one shape so the
+// client has everything it needs in a single call.
+//
+// Authentication: every endpoint requires a valid JWT ([Authorize]).
+// ─────────────────────────────────────────────────────────────────────────────
 using instore_optima.Api.Exceptions;
 using instore_optima.Api.Repositories.Interfaces;
 using instore_optima.Application.DTOs;
@@ -10,16 +20,18 @@ namespace instore_optima.Api.Controllers
 {
     [ApiController]
     [Route("api/receipt")]
-    [Authorize]
+    [Authorize] // All endpoints require a valid JWT token.
     /// <summary>
     /// API endpoints for managing receipts.
     /// </summary>
     public class ReceiptController : ControllerBase
     {
-        private readonly IReceiptRepository _receiptRepo;
-        private readonly IPaymentRepository _paymentRepo;
-        private readonly IInvoiceRepository _invoiceRepo;
+        // ── Injected repositories ─────────────────────────────────────────────
+        private readonly IReceiptRepository _receiptRepo;   // Receipt persistence.
+        private readonly IPaymentRepository _paymentRepo;   // Used to look up the payment a receipt belongs to.
+        private readonly IInvoiceRepository _invoiceRepo;   // Used to look up the invoice for the order.
 
+        // Constructor — all dependencies are provided by ASP.NET Core's DI container.
         public ReceiptController(
             IReceiptRepository receiptRepo,
             IPaymentRepository paymentRepo,
@@ -30,24 +42,31 @@ namespace instore_optima.Api.Controllers
             _invoiceRepo = invoiceRepo;
         }
 
+        // ── GET api/receipt ───────────────────────────────────────────────────
         /// <summary>
-        /// Gets all receipts in the system.
+        /// GET api/receipt
+        /// Returns every receipt in the system, each enriched with its linked
+        /// payment (for the order ID) and the first invoice for that order.
+        /// Auth: any authenticated user.
+        /// Returns: 200 OK with a list of ReceiptResponseDto objects.
         /// </summary>
-        /// <returns>A list of all receipts.</returns>
         [HttpGet]
         public async Task<ActionResult<IEnumerable<ReceiptResponseDto>>> GetAll()
         {
             var receipts = await _receiptRepo.GetAllReceiptsAsync();
             var payments = await _paymentRepo.GetAllPaymentsAsync();
+            // Build a dictionary keyed by PaymentId for O(1) lookup per receipt.
             var paymentById = payments.ToDictionary(p => p.PaymentId);
 
             var result = new List<ReceiptResponseDto>();
             foreach (var r in receipts)
             {
+                // Try to match this receipt to its payment.
                 paymentById.TryGetValue(r.PaymentId, out var payment);
                 Invoice? invoice = null;
                 if (payment != null)
                 {
+                    // The invoice is found via the order that the payment belongs to.
                     var invoices = await _invoiceRepo.GetInvoicesByOrderIdAsync(payment.OrderId);
                     invoice = invoices.FirstOrDefault();
                 }
@@ -56,17 +75,20 @@ namespace instore_optima.Api.Controllers
             return Ok(result);
         }
 
+        // ── GET api/receipt/{id} ──────────────────────────────────────────────
         /// <summary>
-        /// Gets a specific receipt by its ID.
+        /// GET api/receipt/{id}
+        /// Returns a single receipt by its primary key, enriched with payment
+        /// and invoice data.
+        /// Auth: any authenticated user.
+        /// Returns: 200 OK with the receipt, or 404 if not found.
         /// </summary>
-        /// <param name="id">The ID of the receipt.</param>
-        /// <returns>The receipt details if found; otherwise, NotFound.</returns>
         [HttpGet("{id}")]
         public async Task<ActionResult<ReceiptResponseDto>> GetById(int id)
         {
             var receipt = await _receiptRepo.GetReceiptByIdAsync(id);
             if (receipt == null)
-                throw new ResourceNotFoundException("Receipt", id);
+                throw new ResourceNotFoundException("Receipt", id); // Global handler converts this to a 404.
 
             var payment = await _paymentRepo.GetPaymentByIdAsync(receipt.PaymentId);
             Invoice? invoice = null;
@@ -78,19 +100,24 @@ namespace instore_optima.Api.Controllers
             return Ok(MapToDto(receipt, payment, invoice));
         }
 
+        // ── POST api/receipt ──────────────────────────────────────────────────
         /// <summary>
-        /// Creates a new receipt.
+        /// POST api/receipt
+        /// Creates a new receipt linked to an existing payment.
+        /// Note: GeneratedAt is set by the repository, not the caller.
+        /// Auth: any authenticated user.
+        /// Returns: 201 Created with the new receipt, or 422 if validation fails.
         /// </summary>
-        /// <param name="dto">The receipt creation data.</param>
-        /// <returns>The created receipt.</returns>
         [HttpPost]
         public async Task<ActionResult<ReceiptResponseDto>> Create([FromBody] CreateReceiptDto dto)
         {
+            // Validate data-annotation rules (e.g. [Required]) before persisting.
             if (!ModelState.IsValid)
                 throw new ValidationException(ModelState.ToDictionary(
                     kvp => kvp.Key,
                     kvp => kvp.Value.Errors.Select(e => e.ErrorMessage).ToArray()));
 
+            // Map the DTO to the domain entity.
             var receipt = new Receipt
             {
                 PaymentId = dto.PaymentId,
@@ -101,6 +128,7 @@ namespace instore_optima.Api.Controllers
             };
 
             var created = await _receiptRepo.CreateReceiptAsync(receipt);
+            // Enrich the response with linked payment and invoice data.
             var payment = await _paymentRepo.GetPaymentByIdAsync(created.PaymentId);
             Invoice? invoice = null;
             if (payment != null)
@@ -108,18 +136,28 @@ namespace instore_optima.Api.Controllers
                 var invoices = await _invoiceRepo.GetInvoicesByOrderIdAsync(payment.OrderId);
                 invoice = invoices.FirstOrDefault();
             }
+            // 201 Created — Location header points to GET api/receipt/{id}.
             return CreatedAtAction(nameof(GetById), new { id = created.ReceiptId }, MapToDto(created, payment, invoice));
         }
 
         // PUT api/receipt/{id}
+        /// <summary>
+        /// PUT api/receipt/{id}
+        /// Replaces the editable fields (ReceiptNumber, AmountPaid, PaymentDate)
+        /// of an existing receipt.
+        /// Auth: any authenticated user.
+        /// Returns: 200 OK with the updated receipt, or 404 if not found.
+        /// </summary>
         [HttpPut("{id}")]
         public async Task<ActionResult<ReceiptResponseDto>> Update(
             int id, [FromBody] UpdateReceiptDto dto)
         {
+            // Check the receipt exists before attempting to update.
             var existing = await _receiptRepo.GetReceiptByIdAsync(id);
             if (existing == null)
                 throw new ResourceNotFoundException("Receipt", id);
 
+            // Apply the new values directly to the tracked entity.
             existing.ReceiptNumber = dto.ReceiptNumber;
             existing.AmountPaid = dto.AmountPaid;
             existing.PaymentDate = dto.PaymentDate;
@@ -135,6 +173,10 @@ namespace instore_optima.Api.Controllers
             return Ok(MapToDto(updated, payment, invoice));
         }
 
+        // ── Private helper ────────────────────────────────────────────────────
+
+        // Combines a Receipt with its optional Payment and Invoice into the flat
+        // ReceiptResponseDto shape the client expects.
         private static ReceiptResponseDto MapToDto(Receipt r, Payment? payment, Invoice? invoice) => new()
         {
             ReceiptId = r.ReceiptId,
@@ -143,8 +185,8 @@ namespace instore_optima.Api.Controllers
             AmountPaid = r.AmountPaid,
             PaymentDate = r.PaymentDate,
             GeneratedAt = r.GeneratedAt,
-            OrderId = payment?.OrderId,
-            InvoiceNumber = invoice?.InvoiceNumber
+            OrderId = payment?.OrderId,              // null when no payment is linked
+            InvoiceNumber = invoice?.InvoiceNumber   // null when no invoice is linked
         };
     }
 }

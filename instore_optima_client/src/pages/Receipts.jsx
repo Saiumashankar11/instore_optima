@@ -1,29 +1,45 @@
+// Receipts.jsx
+// Read-only list of all payment receipts.
+// Receipts are created automatically by the backend when a payment is marked as Completed.
+// Each receipt can be printed directly from this page via a browser print dialog.
+
 import { useEffect, useState } from 'react'
+// Shared UI components
 import PageHeader from '../components/shared/PageHeader'
 import DataTable from '../components/shared/DataTable'
 import SearchBar from '../components/shared/SearchBar'
+// API function for fetching all receipts
 import { getAllReceipts } from '../services/receiptService'
+// Date/datetime formatting helpers
 import { fmtDate, fmtDateTime } from '../utils/validators'
 
+// Kept as a reference for the shape of a receipt object (not actively used in this page)
 const EMPTY = { paymentId: '', receiptNumber: '', amountPaid: '' }
 
 export default function Receipts() {
-  const [data, setData]         = useState([])
-  const [loading, setLoading]   = useState(true)
-  const [error, setError]       = useState('')
-  const [search, setSearch]     = useState('')
+  // --- Component State ---
+  const [data, setData]         = useState([]) // All receipt records from the API
+  const [loading, setLoading]   = useState(true) // True while the fetch is running
+  const [error, setError]       = useState('')    // Error message if the fetch fails
+  const [search, setSearch]     = useState('')    // Current search-box text
 
+  // Loads all receipts from the API
   const load = async () => {
     setLoading(true)
     try {
+      // Wrapped in Promise.all for consistency; easily extended if more endpoints are needed
       const [r] = await Promise.all([getAllReceipts()])
       setData(r.data || [])
     } catch { setError('Failed to load receipts.') }
     finally { setLoading(false) }
   }
 
+  // Fetch data once when the component mounts
   useEffect(() => { load() }, [])
 
+  // --- Print handler ---
+  // Opens a new browser tab, writes a minimal styled HTML receipt into it, and triggers print.
+  // No server round-trip is needed — all the data is already in the `row` object.
   const handlePrint = row => {
     const win = window.open('', '_blank')
     win.document.write(`
@@ -60,11 +76,13 @@ export default function Receipts() {
     win.print()
   }
 
+  // Filter receipts by receipt number or ID as the user types in the search box
   const filtered = data.filter(d =>
     d.receiptNumber?.toLowerCase().includes(search.toLowerCase()) ||
     String(d.receiptId).includes(search)
   )
 
+  // --- Table column definitions ---
   const columns = [
     { key: 'receiptId',     label: 'ID',           render: r => <span className="text-accent" style={{ fontWeight: 600 }}>#{r.receiptId}</span> },
     { key: 'receiptNumber', label: 'Receipt No.',  render: r => <span style={{ fontWeight: 500, color: 'var(--text-200)' }}>{r.receiptNumber || '—'}</span> },
@@ -79,8 +97,10 @@ export default function Receipts() {
     )}
   ]
 
+  // --- Render ---
   return (
     <div className="animate-in">
+      {/* Subtitle reminds users that receipts are auto-generated, not created manually */}
       <PageHeader
         title="Receipts"
         subtitle="Receipts are automatically generated when a payment is marked as Completed"

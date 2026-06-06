@@ -2,15 +2,18 @@ using System;
 
 namespace instore_optima.Domain.Entities
 {
+    // DB Entity — represents a single message sent between two users inside the system.
+    // Modelled after a basic email inbox: supports replies, CC/BCC, drafts, scheduling,
+    // starred/trash states per side, and file attachments stored as JSON.
     public class InternalMessage
     {
         public int MessageId { get; set; }
-        public int SenderId { get; set; }
-        public int ReceiverId { get; set; }
+        public int SenderId { get; set; }   // FK → User who wrote the message
+        public int ReceiverId { get; set; } // FK → User who receives the message
         public string Subject { get; set; } = string.Empty;
         public string Body { get; set; } = string.Empty;
         public bool IsRead { get; set; } = false;
-        public int? ParentMessageId { get; set; }
+        public int? ParentMessageId { get; set; } // FK → MessageId of the original message when this is a reply/forward; null for top-level messages
 
         // "Request", "Reply", "Forward"
         public string MessageType { get; set; } = "Request";

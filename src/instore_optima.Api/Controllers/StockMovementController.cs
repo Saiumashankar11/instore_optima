@@ -1,3 +1,14 @@
+// ── StockMovementController.cs ────────────────────────────────────────────────
+// Handles all HTTP endpoints under the route  api/stockmovement
+// (the [controller] token resolves to "StockMovement").
+//
+// A Stock Movement records any change to the on-hand quantity of a product —
+// for example a delivery ("IN"), a sale ("OUT"), or an adjustment ("ADJUSTMENT").
+// Each movement is linked to a product and the user who performed it.
+//
+// Authentication: no controller-level [Authorize] is applied; the Delete endpoint
+// is individually locked to the Admin role.
+// ─────────────────────────────────────────────────────────────────────────────
 using instore_optima.Api.Exceptions;
 using instore_optima.Domain.Entities;
 using instore_optima.Application.DTOs;
@@ -13,29 +24,38 @@ namespace instore_optima.Api.Controllers
     /// </summary>
     public class StockMovementController : ControllerBase
     {
-        private readonly IStockMovementRepository _repo;
+        // ── Injected repository ───────────────────────────────────────────────
+        private readonly IStockMovementRepository _repo; // All database operations for StockMovement.
 
+        // Constructor — the repository is injected by ASP.NET Core's DI container.
         public StockMovementController(IStockMovementRepository repo)
         {
             _repo = repo;
         }
 
+        // ── GET api/stockmovement ─────────────────────────────────────────────
         /// <summary>
-        /// Gets all stock movements in the system.
+        /// GET api/stockmovement
+        /// Returns every stock movement in the system across all products.
+        /// Auth: none (open endpoint).
+        /// Returns: 200 OK with a list of StockMovementResponseDTO objects.
         /// </summary>
-        /// <returns>A list of all stock movements.</returns>
         [HttpGet]
         public async Task<IActionResult> GetAll()
         {
             var movements = await _repo.GetAllAsync();
+            // Project each domain entity to a DTO before returning.
             return Ok(movements.Select(MapToResponse));
         }
 
+        // ── GET api/stockmovement/product/{productId} ─────────────────────────
         /// <summary>
-        /// Gets all stock movements for a specific product.
+        /// GET api/stockmovement/product/{productId}
+        /// Returns all stock movements for a specific product, useful for
+        /// auditing the history of stock changes for that item.
+        /// Auth: none (open endpoint).
+        /// Returns: 200 OK with a (possibly empty) list of movements.
         /// </summary>
-        /// <param name="productId">The ID of the product.</param>
-        /// <returns>A list of stock movements for the specified product.</returns>
         [HttpGet("product/{productId}")]
         public async Task<IActionResult> GetByProduct(int productId)
         {
@@ -43,52 +63,68 @@ namespace instore_optima.Api.Controllers
             return Ok(movements.Select(MapToResponse));
         }
 
+        // ── GET api/stockmovement/{id} ────────────────────────────────────────
         /// <summary>
-        /// Gets a specific stock movement by its ID.
+        /// GET api/stockmovement/{id}
+        /// Returns a single stock movement by its primary key.
+        /// Auth: none (open endpoint).
+        /// Returns: 200 OK with the movement, or 404 if not found.
         /// </summary>
-        /// <param name="id">The ID of the stock movement.</param>
-        /// <returns>The stock movement details if found; otherwise, NotFound.</returns>
         [HttpGet("{id}")]
         public async Task<IActionResult> GetById(int id)
         {
             var movement = await _repo.GetByIdAsync(id);
             if (movement == null)
-                throw new ResourceNotFoundException("StockMovement", id);
+                throw new ResourceNotFoundException("StockMovement", id); // Global handler → 404.
 
             return Ok(MapToResponse(movement));
         }
 
+        // ── POST api/stockmovement ────────────────────────────────────────────
         /// <summary>
-        /// Creates a new stock movement.
+        /// POST api/stockmovement
+        /// Records a new stock movement for a product.
+        /// MovementType is normalised to uppercase (e.g. "in" → "IN").
+        /// Auth: none (open endpoint).
+        /// Returns: 201 Created with the new movement, or 422 if validation fails.
         /// </summary>
-        /// <param name="dto">The stock movement creation data.</param>
-        /// <returns>The created stock movement.</returns>
         [HttpPost]
         public async Task<IActionResult> Create(StockMovementCreateDTO dto)
         {
+            // Validate required foreign keys before touching the database.
             if (dto.ProductId <= 0)
                 throw new ValidationException(new Dictionary<string, string[]> { { "ProductId", new[] { "ProductId is required." } } });
 
             if (dto.PerformedBy <= 0)
                 throw new ValidationException(new Dictionary<string, string[]> { { "PerformedBy", new[] { "PerformedBy (UserId) is required." } } });
 
+            // Map the DTO to the domain entity; MovementType is uppercased for consistency.
             var entity = new StockMovement
             {
                 ProductId = dto.ProductId,
                 Quantity = dto.Quantity,
-                MovementType = dto.MovementType.ToUpper(),
+                MovementType = dto.MovementType.ToUpper(), // Normalise to "IN", "OUT", etc.
                 PerformedBy = dto.PerformedBy,
                 Reason = dto.Reason
             };
 
             var created = await _repo.CreateAsync(entity);
+            // 201 Created — Location header points to GET api/stockmovement/{id}.
             return CreatedAtAction(nameof(GetById), new { id = created.MovementId }, MapToResponse(created));
         }
 
         // PATCH api/stockmovement/{id}
+        /// <summary>
+        /// PATCH api/stockmovement/{id}
+        /// Updates only the Reason field of an existing stock movement.
+        /// (A partial update — hence PATCH rather than PUT.)
+        /// Auth: none (open endpoint).
+        /// Returns: 200 OK with the updated movement, or 404 if not found.
+        /// </summary>
         [HttpPatch("{id}")]
         public async Task<IActionResult> UpdateReason(int id, StockMovementUpdateDTO dto)
         {
+            // Pass a partially-populated entity; the repository will only update Reason.
             var updated = await _repo.UpdateAsync(id, new StockMovement
             {
                 Reason = dto.Reason
@@ -100,8 +136,14 @@ namespace instore_optima.Api.Controllers
         }
 
         // DELETE api/stockmovement/{id} — Admin only
+        /// <summary>
+        /// DELETE api/stockmovement/{id}
+        /// Permanently removes a stock movement record.
+        /// Auth: Admin role only — stock history should rarely be deleted.
+        /// Returns: 200 OK on success, or 404 if the movement is not found.
+        /// </summary>
         [HttpDelete("{id}")]
-        [Microsoft.AspNetCore.Authorization.Authorize(Roles = "Admin")]
+        [Microsoft.AspNetCore.Authorization.Authorize(Roles = "Admin")] // Only Admins may delete movement records.
         public async Task<IActionResult> Delete(int id)
         {
             var result = await _repo.DeleteAsync(id);
@@ -111,6 +153,7 @@ namespace instore_optima.Api.Controllers
         }
 
         // ── Mapping ──────────────────────────────────────────────────
+        // Converts the StockMovement domain entity to the DTO returned by all endpoints.
         private static StockMovementResponseDTO MapToResponse(StockMovement m) => new()
         {
             MovementId = m.MovementId,

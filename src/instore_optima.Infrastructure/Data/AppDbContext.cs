@@ -1,3 +1,14 @@
+// =============================================================================
+// AppDbContext.cs — Entity Framework Core database context
+// =============================================================================
+// AppDbContext is the main gateway between the application and the SQL Server
+// database. It:
+//   • Declares a DbSet<T> property for every table — EF uses these to generate
+//     SQL queries and track in-memory changes.
+//   • Overrides OnModelCreating() to define primary keys, decimal precision,
+//     unique indexes, and foreign-key relationships using the Fluent API
+//     (instead of data annotations on the entity classes).
+// =============================================================================
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -9,6 +20,10 @@ using instore_optima.Domain.Entities;
 
 namespace instore_optima.Infrastructure.Data
 {
+    /// <summary>
+    /// EF Core DbContext for InStore Optima. Pass a <see cref="DbContextOptions{AppDbContext}"/>
+    /// (configured in Program.cs) so the context knows which database to target.
+    /// </summary>
     public class AppDbContext : DbContext
     {
         public AppDbContext(DbContextOptions<AppDbContext> options) : base(options)
@@ -16,6 +31,8 @@ namespace instore_optima.Infrastructure.Data
         }
 
         // ?? DbSets (Tables)
+        // Each DbSet<T> represents one database table. EF Core uses these to
+        // translate LINQ queries (e.g. ctx.Users.Where(...)) into SQL statements.
 
         public DbSet<User> Users { get; set; }
         public DbSet<Supplier> Suppliers { get; set; }
@@ -38,12 +55,20 @@ namespace instore_optima.Infrastructure.Data
         public DbSet<UserOtp> UserOtps { get; set; }
 
         // ?? RELATIONSHIP CONFIGURATION
+        // OnModelCreating is called once when EF Core first creates the model.
+        // We use the Fluent API here (rather than attributes on entity classes)
+        // to keep domain entities free of infrastructure concerns.
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
+            // Always call the base implementation first so EF Core can apply
+            // its own default conventions before we override specific things.
             base.OnModelCreating(modelBuilder);
 
             // ?? PRIMARY KEYS
+            // Explicitly declare the primary key column for each table.
+            // This is optional when the property is named "Id" or "<Entity>Id",
+            // but being explicit makes the intent clear and prevents surprises.
             modelBuilder.Entity<User>().HasKey(u => u.UserId);
             modelBuilder.Entity<Supplier>().HasKey(s => s.SupplierId);
             modelBuilder.Entity<Products>().HasKey(p => p.ProductId);
@@ -63,6 +88,9 @@ namespace instore_optima.Infrastructure.Data
             modelBuilder.Entity<TaskItem>().HasKey(t => t.TaskItemId);
 
             // ?? DECIMAL PRECISION (for currency/financial fields)
+            // SQL Server's default decimal mapping may lose precision. We pin every
+            // money column to (18, 2): up to 18 digits total, 2 after the decimal
+            // point — the standard for currency values.
             modelBuilder.Entity<Products>()
                 .Property(p => p.Price)
                 .HasPrecision(18, 2);
@@ -88,6 +116,8 @@ namespace instore_optima.Infrastructure.Data
                 .HasPrecision(18, 2);
 
             // ?? AUDIT LOG - Store change history
+            // OldValues/NewValues hold JSON snapshots of changed properties and can
+            // be very long, so we use nvarchar(max) instead of a fixed-length column.
             modelBuilder.Entity<AuditLog>()
                 .Property(a => a.OldValues)
                 .HasColumnType("nvarchar(max)");
@@ -97,12 +127,22 @@ namespace instore_optima.Infrastructure.Data
                 .HasColumnType("nvarchar(max)");
 
             // ?? USER
+            // Enforce email uniqueness at the database level so duplicate accounts
+            // are rejected even if the application layer somehow misses the check.
             modelBuilder.Entity<User>()
                 .HasIndex(u => u.Email)
                 .IsUnique();
 
             // ?? FOREIGN KEY CONFIGURATIONS - Navigation properties removed from entities
             // Database relationships maintained via FK columns in the tables
+            //
+            // Each block below declares a relationship with three pieces of info:
+            //   HasOne / HasMany   — "this entity has one/many of that entity"
+            //   WithMany / WithOne — "the other side has many/one back"
+            //   HasForeignKey      — "this column in the table is the FK"
+            //   OnDelete           — what happens to child rows when the parent is deleted:
+            //      Restrict = block the delete (prevents accidental data loss)
+            //      Cascade  = delete children automatically
 
             // Products.SupplierId ? Suppliers.SupplierId
             modelBuilder.Entity<Products>()
@@ -243,7 +283,9 @@ namespace instore_optima.Infrastructure.Data
                 .HasForeignKey(t => t.AssignedTo)
                 .OnDelete(DeleteBehavior.Restrict);
 
-            // UserOtp
+            // UserOtp — used for multi-factor authentication (TOTP / email OTP).
+            // SessionKey must be unique so each OTP session can be looked up quickly.
+            // Cascade delete means OTPs are cleaned up automatically if the user is removed.
             modelBuilder.Entity<UserOtp>().HasKey(o => o.Id);
             modelBuilder.Entity<UserOtp>()
                 .HasIndex(o => o.SessionKey)
@@ -254,7 +296,9 @@ namespace instore_optima.Infrastructure.Data
                 .HasForeignKey(o => o.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
 
-            // InternalMessage
+            // InternalMessage — in-app messaging between users.
+            // Both SenderId and ReceiverId are FKs to the Users table. Restrict
+            // prevents deleting a user who still has messages in the system.
             modelBuilder.Entity<InternalMessage>().HasKey(m => m.MessageId);
 
             modelBuilder.Entity<InternalMessage>()

@@ -1,19 +1,46 @@
+// =============================================================================
+// AuditLogs.jsx
+// =============================================================================
+// Read-only compliance page that surfaces every action recorded by the backend
+// audit trail (logins, creates, updates, deletes across all entities).
+//
+// Features:
+//   - Filter by action type (Added, Modified, Deleted, Login, etc.)
+//   - Free-text search across user name, entity type, ID, and description
+//   - Expandable rows that show the "Before" and "After" field values for
+//     any change event
+//   - One-click CSV export of the currently visible rows
+//
+// No create / edit / delete actions are available here — the log is immutable.
+// =============================================================================
+
+// React hooks for state management and running side-effects.
 import { useEffect, useState } from 'react'
+// Shared UI building blocks.
 import PageHeader from '../components/shared/PageHeader'
 import DataTable from '../components/shared/DataTable'
 import SearchBar from '../components/shared/SearchBar'
+// API helpers: getAllAuditLogs fetches the full log; getAllUsers is used to
+// resolve numeric userId values into human-readable names and roles.
 import { getAllAuditLogs, getAllUsers } from '../services/userService'
+// fmtDateTime formats ISO timestamp strings into a locale-aware date+time string.
 import { fmtDateTime } from '../utils/validators'
 
 export default function AuditLogs() {
-  const [data, setData]       = useState([])
-  const [users, setUsers]     = useState([])
+  // ── State ──────────────────────────────────────────────────────────────────
+  const [data, setData]       = useState([])          // raw audit log entries from API
+  const [users, setUsers]     = useState([])          // user list for resolving userId → name
   const [loading, setLoading] = useState(true)
   const [error, setError]     = useState('')
-  const [search, setSearch]   = useState('')
-  const [actionFilter, setActionFilter] = useState('All')
+  const [search, setSearch]   = useState('')           // free-text search input
+  const [actionFilter, setActionFilter] = useState('All')  // dropdown: filter by action type
+  // expanded holds the auditLogId of the currently open detail row (or null).
+  // Only one row can be expanded at a time; clicking again collapses it.
   const [expanded, setExpanded] = useState(null)
 
+  // ── Data fetching ──────────────────────────────────────────────────────────
+  // Fetch audit logs and the full user list in parallel on mount.
+  // The user list is needed to display names instead of raw user IDs.
   useEffect(() => {
     Promise.all([getAllAuditLogs(), getAllUsers()])
       .then(([logs, u]) => {
@@ -24,8 +51,12 @@ export default function AuditLogs() {
       .finally(() => setLoading(false))
   }, [])
 
+  // Helper: look up a user object by their numeric ID (returns undefined if not found).
   const getUser = id => users.find(u => u.userId === id)
 
+  // ── Action styling map ─────────────────────────────────────────────────────
+  // Maps each action keyword to a background colour, text colour, and Bootstrap
+  // icon class. These are used to render coloured badge chips in the Action column.
   const ACTION_STYLE = {
     Added:    { bg: 'rgba(16,185,129,.12)', color: '#34d399', icon: 'bi-plus-circle' },
     Modified: { bg: 'rgba(8,145,178,.12)',  color: '#22d3ee', icon: 'bi-pencil' },
@@ -37,6 +68,9 @@ export default function AuditLogs() {
     Register: { bg: 'rgba(245,158,11,.12)', color: '#fbbf24', icon: 'bi-person-plus' },
   }
 
+  // ── Filtering ──────────────────────────────────────────────────────────────
+  // Two-pass filter: first narrow by the selected action type, then apply the
+  // free-text search across multiple fields including the resolved user name.
   const filtered = data
     .filter(d => actionFilter === 'All' || d.action === actionFilter)
     .filter(d =>
@@ -49,6 +83,11 @@ export default function AuditLogs() {
       d.description?.toLowerCase().includes(search.toLowerCase())
     )
 
+  // ── formatValues ───────────────────────────────────────────────────────────
+  // The oldValues / newValues fields from the API are JSON strings.
+  // This helper tries to parse them and render each key-value pair on its own
+  // line. If parsing fails (e.g. the field is plain text), it falls back to
+  // rendering the raw string as-is.
   const formatValues = (raw) => {
     if (!raw || raw === '—' || raw === 'N/A') return null
     try {
@@ -64,8 +103,14 @@ export default function AuditLogs() {
     }
   }
 
+  // Build the action-type dropdown options from the actual data so the list
+  // always reflects what is in the log rather than a hard-coded enum.
   const uniqueActions = ['All', ...new Set(data.map(d => d.action).filter(Boolean))]
 
+  // ── CSV export ─────────────────────────────────────────────────────────────
+  // Builds a CSV string from the currently filtered rows (respecting both the
+  // action filter and the search input), creates an in-memory Blob, and
+  // triggers a browser download without hitting the server.
   const exportCsv = () => {
     const headers = ['#', 'Timestamp', 'User', 'Role', 'Action', 'Entity', 'Entity ID', 'Description']
     const rows = filtered.map(r => {
@@ -91,6 +136,10 @@ export default function AuditLogs() {
     URL.revokeObjectURL(url)
   }
 
+  // ── Table column definitions ───────────────────────────────────────────────
+  // The custom table below uses these definitions to render headers and cells.
+  // The 'details' column conditionally shows a toggle button only when the
+  // row has actual before/after data recorded.
   const columns = [
     { key: 'auditLogId', label: '#', render: r => (
       <span style={{ fontWeight: 600, color: 'var(--text-muted)', fontSize: 11 }}>#{r.auditLogId}</span>
@@ -193,6 +242,9 @@ export default function AuditLogs() {
                       <td key={c.key} style={{ padding: '10px 12px' }}>{c.render(row)}</td>
                     ))}
                   </tr>
+                  {/* Expandable detail row: appears directly below the parent row when
+                      the user clicks the chevron button. Shows old (Before) and new
+                      (After) field values side-by-side in a two-column grid. */}
                   {expanded === row.auditLogId && (
                     <tr key={`exp-${row.auditLogId}`}
                       style={{ background: 'rgba(8,145,178,.04)', borderBottom: '1px solid var(--border)' }}>

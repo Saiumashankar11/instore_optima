@@ -5,9 +5,12 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
+// DTOs — request/response shapes for all authentication, user-management, and support flows.
+// These DTOs are used by the /api/auth/* and /api/support/* endpoints.
 namespace instore_optima.Application.DTOs
 {
     //---Login/Request---
+    // Request body for POST /api/auth/login — supplies credentials; may trigger an OTP challenge.
     public class LoginDto
     {
         [Required(ErrorMessage = "Email is required.")]
@@ -21,6 +24,7 @@ namespace instore_optima.Application.DTOs
     }
 
     //---Register/Update---
+    // Request body for POST /api/auth/register — creates a new user account.
     public class RegisterDto
     {
         [Required(ErrorMessage = "Name is required.")]
@@ -44,17 +48,18 @@ namespace instore_optima.Application.DTOs
         [RegularExpression(
             @"^(Admin|Manager|Staff)$",
             ErrorMessage = "Role must be one of: Admin, Manager, Staff.")]
-        public string Role { get; set; } = string.Empty;
+        public string Role { get; set; } = string.Empty; // access level: "Admin", "Manager", or "Staff"
     }
 
     //---Response---
+    // Response body on successful login (no OTP required) or after OTP verification succeeds.
     public class AuthResponseDto
     {
         public int UserId { get; set; }
         public string Name { get; set; } = string.Empty;
         public string Email { get; set; } = string.Empty;
         public string Role { get; set; } = string.Empty;
-        public string Token { get; set; } = string.Empty;
+        public string Token { get; set; } = string.Empty;  // JWT bearer token — include in Authorization header for subsequent requests
         public DateTime? CreatedAt { get; set; }
     }
 
@@ -62,9 +67,9 @@ namespace instore_optima.Application.DTOs
     public class OtpChallengeDto
     {
         public bool RequiresOtp      { get; set; } = true;
-        public bool IsTotpChallenge  { get; set; } = false;  // true when user has TOTP app enabled
-        public string SessionKey     { get; set; } = string.Empty;
-        public string MaskedEmail    { get; set; } = string.Empty;
+        public bool IsTotpChallenge  { get; set; } = false;  // true when user has TOTP app enabled — client should show authenticator-app prompt instead of email OTP input
+        public string SessionKey     { get; set; } = string.Empty; // GUID that ties this challenge to the user's browser session; must be echoed back in VerifyOtpDto
+        public string MaskedEmail    { get; set; } = string.Empty; // partially hidden email shown to user so they know where the code was sent, e.g. "j***@example.com"
     }
 
     // Sent by client to POST /api/auth/verify-otp
@@ -145,25 +150,25 @@ namespace instore_optima.Application.DTOs
         public string Password { get; set; } = string.Empty;
     }
 
-    // Response from GET /api/auth/totp/setup
+    // Response from GET /api/auth/totp/setup — gives the client everything needed to configure an authenticator app.
     public class TotpSetupResponseDto
     {
-        public string Secret    { get; set; } = string.Empty;
-        public string QrCodeUri { get; set; } = string.Empty;
-        public string ManualKey { get; set; } = string.Empty;
+        public string Secret    { get; set; } = string.Empty;    // base-32 TOTP secret key — stored by the authenticator app
+        public string QrCodeUri { get; set; } = string.Empty;   // otpauth:// URI encoded as a QR code image (data URL) for scanning
+        public string ManualKey { get; set; } = string.Empty;   // human-readable version of Secret for users who cannot scan a QR code
     }
 
-    // Response from GET /api/auth/profile
+    // Response from GET /api/auth/profile — returns the currently authenticated user's details.
     public class UserProfileDto
     {
         public int UserId          { get; set; }
         public string Name         { get; set; } = string.Empty;
         public string Email        { get; set; } = string.Empty;
-        public string Role         { get; set; } = string.Empty;
+        public string Role         { get; set; } = string.Empty; // "Admin", "Manager", or "Staff"
         public DateTime? CreatedAt { get; set; }
-        public bool TotpEnabled    { get; set; }
-        public string? PhoneNumber { get; set; }
-        public string? Address     { get; set; }
+        public bool TotpEnabled    { get; set; }                 // whether the user has an authenticator app configured
+        public string? PhoneNumber { get; set; }                 // optional; null if not set
+        public string? Address     { get; set; }                 // optional; null if not set
     }
 
     // PUT /api/auth/profile [Authorize]
@@ -180,7 +185,7 @@ namespace instore_optima.Application.DTOs
         public string? Address { get; set; }
     }
 
-    // POST /api/support/contact
+    // POST /api/support/contact — sends a help/feedback message from a user (or visitor) to the support team.
     public class ContactSupportDto
     {
         [Required(ErrorMessage = "Name is required.")]

@@ -1,3 +1,12 @@
+// ErrorBoundary.jsx
+// A class-based React Error Boundary wrapping the entire application.
+// React requires a class component for error boundaries because the two
+// lifecycle methods involved (getDerivedStateFromError, componentDidCatch)
+// are not yet available as hooks.
+// When any child component throws a runtime error, this boundary catches it,
+// logs it, and renders a styled fallback screen instead of a blank white page.
+
+// Component is the base class needed to create a React class component.
 import { Component } from 'react'
 
 /**
@@ -7,9 +16,12 @@ import { Component } from 'react'
 export default class ErrorBoundary extends Component {
   constructor(props) {
     super(props)
+    // hasError flips to true when a child throws; error holds the exception object.
     this.state = { hasError: false, error: null }
   }
 
+  // getDerivedStateFromError is called by React when a child throws.
+  // Returning new state here triggers a re-render that shows the fallback UI.
   static getDerivedStateFromError(error) {
     return { hasError: true, error }
   }
@@ -19,12 +31,15 @@ export default class ErrorBoundary extends Component {
     console.error('[ErrorBoundary] Caught error:', error, errorInfo)
   }
 
+  // handleReset clears the error state so the user can try again without
+  // doing a full page refresh.
   handleReset = () => {
     this.setState({ hasError: false, error: null })
   }
 
   render() {
     if (this.state.hasError) {
+      // Fallback UI — shown instead of the crashed component tree.
       return (
         <div style={{
           display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -44,6 +59,7 @@ export default class ErrorBoundary extends Component {
               Please try again or contact support if the issue persists.
             </p>
             <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
+              {/* "Try Again" resets the error state and lets React re-render the tree */}
               <button
                 onClick={this.handleReset}
                 style={{
@@ -53,6 +69,7 @@ export default class ErrorBoundary extends Component {
               >
                 Try Again
               </button>
+              {/* "Go to Home" does a hard redirect to the root if the error is unrecoverable */}
               <button
                 onClick={() => { window.location.href = '/' }}
                 style={{
@@ -69,6 +86,7 @@ export default class ErrorBoundary extends Component {
       )
     }
 
+    // No error — render children normally.
     return this.props.children
   }
 }

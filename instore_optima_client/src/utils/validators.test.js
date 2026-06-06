@@ -1,6 +1,12 @@
+// validators.test.js
+// Unit tests for the shared validation utilities in validators.js.
+// Run with: npm test  (or  npx vitest)
+// These tests cover validateField, the exported regexes, and parseApiError.
+
 import { describe, it, expect } from 'vitest'
 import { validateField, parseApiError, emailRegex, passwordRegex } from './validators'
 
+// ── validateField ──────────────────────────────────────────────────────────────
 describe('validateField', () => {
   it('requires a name and rejects too-short / invalid names', () => {
     expect(validateField('name', '')).toMatch(/required/i)
@@ -23,6 +29,7 @@ describe('validateField', () => {
   })
 })
 
+// ── Regex constants ────────────────────────────────────────────────────────────
 describe('regexes', () => {
   it('emailRegex accepts valid and rejects invalid', () => {
     expect(emailRegex.test('a.b+c@x.co')).toBe(true)
@@ -34,6 +41,7 @@ describe('regexes', () => {
   })
 })
 
+// ── parseApiError ──────────────────────────────────────────────────────────────
 describe('parseApiError', () => {
   it('returns a friendly network message for ERR_NETWORK', () => {
     expect(parseApiError({ code: 'ERR_NETWORK' })).toMatch(/backend is not live/i)

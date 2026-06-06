@@ -1,21 +1,35 @@
+// Orders.jsx
+// This page lets users create, view, edit, and delete orders.
+// Clicking an order row opens a side panel showing the items within that order.
+// Orders progress through a status lifecycle: Pending -> Processing -> Completed (or Cancelled).
+// Only Pending orders can be manually edited; once a payment is recorded the order is "locked".
+
+// ── Imports ────────────────────────────────────────────────────────────────────
+// React core hooks for state, lifecycle, and memoised callbacks
 import { useEffect, useState, useCallback } from 'react'
+// Router hook used to navigate programmatically (e.g. redirect to Payments page)
 import { useNavigate } from 'react-router-dom'
+// Shared UI components used across multiple pages
 import PageHeader from '../components/shared/PageHeader'
 import SearchBar from '../components/shared/SearchBar'
 import StatusFilter from '../components/shared/StatusFilter'
 import FormModal from '../components/shared/FormModal'
 import ConfirmModal from '../components/shared/ConfirmModal'
 import StatusBadge from '../components/shared/StatusBadge'
+// API service functions for orders, order items, products, and stock
 import { getAllOrders, createOrder, updateOrder, deleteOrder } from '../services/ordersService'
 import { getItemsByOrderId, createOrderItem, updateOrderItem, deleteOrderItem } from '../services/orderItemsService'
 import { getAllProducts } from '../services/productsService'
 import { getAllStock } from '../services/stockService'
+// App-wide context hooks: user/role info, sidebar badge counts, undo-delete, and toast notifications
 import { useAuth } from '../context/AuthContext'
 import { useAlertBadges } from '../context/AlertBadgesContext'
 import { useUndoDelete } from '../hooks/useUndoDelete'
 import { useToast } from '../hooks/useToast'
+// Utility helpers: parseApiError extracts a readable message from API errors; fmtDate formats timestamps
 import { parseApiError, fmtDate } from '../utils/validators'
 
+// All possible order status values — used to populate the status filter dropdown
 const ORDER_STATUSES = ['Pending', 'Processing', 'Completed', 'Cancelled']
 
 // Manual transitions allowed from a Pending order: keep it Pending or Cancel it.
@@ -31,37 +45,52 @@ const getValidNextStatuses = (current) => {
 const isLocked = (status) => status !== 'Pending'
 
 export default function Orders() {
+  // ── Context & hooks ──────────────────────────────────────────────────────────
+  // user: logged-in user object; role: 'Admin' | 'Manager' | 'Staff'
   const { user, role } = useAuth()
+  // fetchBadges refreshes the alert counters shown in the sidebar navigation
   const { fetchBadges } = useAlertBadges()
+  // scheduleDelete gives the user a brief window to undo a deletion before it hits the API
   const { scheduleDelete, UndoToast } = useUndoDelete()
+  // toast shows brief notification messages (success, warning, error) at the bottom of the screen
   const { show: toast, ToastContainer } = useToast()
   const navigate = useNavigate()
 
+  // ── State: orders list & UI ──────────────────────────────────────────────────
   const [orders, setOrders]           = useState([])
   const [loading, setLoading]         = useState(true)
   const [error, setError]             = useState('')
   const [search, setSearch]           = useState('')
   const [statusFilter, setStatusFilter] = useState('')
+  // selectedOrder: the order whose items are shown in the right-hand panel (null = panel closed)
   const [selectedOrder, setSelected]  = useState(null)
   const [items, setItems]             = useState([])
   const [itemsLoading, setItemsLoading] = useState(false)
+  // products & stock are loaded once and used when adding a new item (price lookup, stock check)
   const [products, setProducts]       = useState([])
   const [stock, setStock]             = useState([])
 
+  // ── State: order form modal ──────────────────────────────────────────────────
   const [showOrderForm, setShowOrderForm] = useState(false)
+  // editOrder holds the order being edited (null means "create new")
   const [editOrder, setEditOrder]     = useState(null)
   const [orderForm, setOrderForm]     = useState({ status: 'Pending' })
   const [savingOrder, setSavingOrder] = useState(false)
   const [showDelOrder, setShowDelOrder] = useState(false)
   const [delOrderId, setDelOrderId]   = useState(null)
 
+  // ── State: item form modal ───────────────────────────────────────────────────
   const [showItemForm, setShowItemForm] = useState(false)
+  // editItem holds the item being edited (null means "add new item")
   const [editItem, setEditItem]       = useState(null)
   const [itemForm, setItemForm]       = useState({ productId: '', quantity: '' })
   const [savingItem, setSavingItem]   = useState(false)
   const [showDelItem, setShowDelItem] = useState(false)
   const [delItemId, setDelItemId]     = useState(null)
 
+  // ── Data loaders ─────────────────────────────────────────────────────────────
+  // loadOrders re-fetches the orders list. Pass the current selectedOrder as keepSelected
+  // so the right-hand items panel refreshes its header (e.g. updated total amount) instead of closing.
   const loadOrders = useCallback(async (keepSelected) => {
     try {
       const list = (await getAllOrders()).data || []
@@ -73,6 +102,8 @@ export default function Orders() {
     } catch { setError('Failed to load orders.') }
   }, [])
 
+  // loadItems fetches the line-items for a specific order.
+  // If orderId is falsy (no order selected) it clears the items list immediately.
   const loadItems = useCallback(async (orderId) => {
     if (!orderId) return setItems([])
     setItemsLoading(true)
@@ -81,6 +112,9 @@ export default function Orders() {
     finally { setItemsLoading(false) }
   }, [])
 
+  // ── Side effects ─────────────────────────────────────────────────────────────
+  // On first render, load orders, products, and stock in parallel for performance.
+  // Products and stock are used later when the user opens the "Add Item" dialog.
   useEffect(() => {
     setLoading(true)
     Promise.all([getAllOrders(), getAllProducts(), getAllStock()]).then(([o, p, s]) => {
@@ -90,6 +124,8 @@ export default function Orders() {
     }).catch(() => setError('Failed to load.')).finally(() => setLoading(false))
   }, [])
 
+  // Whenever the selected order changes, reload its items.
+  // The dependency is on orderId specifically so a full object reference change doesn't cause extra fetches.
   useEffect(() => {
     if (selectedOrder) loadItems(selectedOrder.orderId)
     else setItems([])
@@ -100,6 +136,9 @@ export default function Orders() {
   const openEditOrder = (o, e) => { e.stopPropagation(); setEditOrder(o); setOrderForm({ status: o.status }); setShowOrderForm(true) }
   const openDelOrder  = (id, e) => { e.stopPropagation(); setDelOrderId(id); setShowDelOrder(true) }
 
+  // Save an order: if editOrder is set we update the existing order's status,
+  // otherwise we create a brand-new order assigned to the current user.
+  // After saving, the orders list and sidebar badges are refreshed.
   const handleSaveOrder = async () => {
     setSavingOrder(true)
     try {
@@ -112,9 +151,13 @@ export default function Orders() {
     finally { setSavingOrder(false) }
   }
 
+  // Delete an order with an undo window.
+  // We optimistically remove the order from the UI immediately for a snappy feel,
+  // then call the API after a short delay. If the user clicks "Undo" the row is restored.
   const handleDeleteOrder = () => {
     const id = delOrderId
     setShowDelOrder(false)
+    // Close the items panel if the deleted order was open
     if (selectedOrder?.orderId === id) setSelected(null)
     setOrders(prev => prev.filter(o => o.orderId !== id))
     scheduleDelete({
@@ -131,6 +174,9 @@ export default function Orders() {
   const openEditItem = (item) => { setEditItem(item); setItemForm({ productId: item.productId, quantity: String(item.quantity) }); setShowItemForm(true) }
   const openDelItem  = (id) => { setDelItemId(id); setShowDelItem(true) }
 
+  // Save an order item (add or edit).
+  // Client-side validation runs first (quantity, product selection, stock availability)
+  // to avoid a round-trip to the API for obvious errors.
   const handleSaveItem = async () => {
     if (!itemForm.quantity || Number(itemForm.quantity) < 1) return toast('Enter a valid quantity (≥ 1).', 'warning')
     if (!editItem && !itemForm.productId) return toast('Please select a product.', 'warning')
@@ -157,6 +203,9 @@ export default function Orders() {
     finally { setSavingItem(false) }
   }
 
+  // Remove an item from the selected order. Same optimistic-UI pattern as order deletion —
+  // the row disappears immediately and can be undone within the undo window.
+  // After the delete commits, both the items list and the order total are refreshed.
   const handleDeleteItem = () => {
     const id = delItemId
     const orderId = selectedOrder.orderId
@@ -171,11 +220,15 @@ export default function Orders() {
     })
   }
 
+  // Navigate to the Payments page and pre-open the payment dialog for this order.
+  // e.stopPropagation() prevents the row's onClick (which selects the order) from also firing.
   const goToPayment = (o, e) => {
     e.stopPropagation()
     navigate(`/${role.toLowerCase()}/payments`, { state: { openPaymentForOrder: o.orderId } })
   }
 
+  // ── Derived data ─────────────────────────────────────────────────────────────
+  // filtered applies both the text search and the status dropdown filter in sequence.
   const filtered = orders
     .filter(o =>
       String(o.orderId).includes(search) ||
@@ -183,9 +236,11 @@ export default function Orders() {
     )
     .filter(o => !statusFilter || o.status === statusFilter)
 
+  // Helpers to look up a product's display name and unit price from the cached products array
   const getProductName  = id => products.find(p => p.productId === id)?.name || `#${id}`
   const getProductPrice = id => products.find(p => p.productId === id)?.price
 
+  // TH is a tiny inline component that applies consistent header-cell styling to every <th>
   const TH = ({ children }) => (
     <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: 11, fontWeight: 600,
       color: 'var(--text-header)', textTransform: 'uppercase', letterSpacing: '.04em' }}>{children}</th>
@@ -193,12 +248,14 @@ export default function Orders() {
 
   return (
     <div className="animate-in">
+      {/* Page heading with title, subtitle, and the "New Order" button */}
       <PageHeader
         title="Orders"
         subtitle="Manage orders — click a row to view & manage its items"
         action={<button className="btn-primary-custom" onClick={openAddOrder}><i className="bi bi-plus-lg"></i> New Order</button>}
       />
 
+      {/* Grid layout: single column when no order is selected; two columns when items panel is open */}
       <div style={{ display: 'grid', gridTemplateColumns: selectedOrder ? '1fr 1fr' : '1fr', gap: 16, alignItems: 'start' }}>
 
         {/* ── Orders table ── */}
@@ -221,7 +278,9 @@ export default function Orders() {
                 <TH>Order</TH><TH>Date</TH><TH>Items</TH><TH>Total</TH><TH>Status</TH><TH></TH>
               </tr></thead>
               <tbody>
+                {/* Render one table row per order. Clicking a row toggles the items panel. */}
                 {filtered.map(o => {
+                  // active: this row is the currently selected order (highlighted in teal)
                   const active = selectedOrder?.orderId === o.orderId
                   return (
                     <tr key={o.orderId} onClick={() => setSelected(active ? null : o)}
@@ -258,6 +317,7 @@ export default function Orders() {
                     </tr>
                   )
                 })}
+                {/* Empty state: shown when the search/filter combination matches nothing */}
                 {filtered.length === 0 && (
                   <tr><td colSpan={6} style={{ padding: 32, textAlign: 'center', color: 'var(--text-muted)', fontStyle: 'italic' }}>No orders found.</td></tr>
                 )}
@@ -330,6 +390,7 @@ export default function Orders() {
                   ))}
                 </tbody>
                 <tfoot>
+                  {/* Footer row sums up price × quantity across all items using reduce */}
                   <tr style={{ borderTop: '2px solid var(--border)' }}>
                     <td colSpan={3} style={{ padding: '10px 14px', textAlign: 'right', fontWeight: 600, color: 'var(--text-muted)', fontSize: 12 }}>Order Total</td>
                     <td style={{ padding: '10px 14px', fontWeight: 700, color: 'var(--cyan)', fontSize: 14 }}>
@@ -345,6 +406,7 @@ export default function Orders() {
       </div>
 
       {/* ── Order modals ── */}
+      {/* FormModal for creating or editing an order — rendered outside the grid so it overlays the whole page */}
       <FormModal show={showOrderForm} onHide={() => setShowOrderForm(false)} onSubmit={handleSaveOrder}
         title={editOrder ? `Edit Order #${editOrder.orderId}` : 'New Order'} loading={savingOrder}>
         {editOrder && (
@@ -367,6 +429,7 @@ export default function Orders() {
         title="Delete Order" message="⚠️ This will permanently delete the order and all its items. If payments or invoices are linked, deletion will be blocked. Continue?" confirmLabel="Delete Anyway" loading={savingOrder} />
 
       {/* ── Item modals ── */}
+      {/* FormModal for adding or editing an item within the selected order */}
       <FormModal show={showItemForm} onHide={() => setShowItemForm(false)} onSubmit={handleSaveItem}
         title={editItem ? 'Edit Item Quantity' : `Add Item to Order #${selectedOrder?.orderId}`} loading={savingItem}>
         {!editItem ? (
@@ -407,7 +470,9 @@ export default function Orders() {
       <ConfirmModal show={showDelItem} onHide={() => setShowDelItem(false)} onConfirm={handleDeleteItem}
         title="Remove Item" message="Remove this item? Stock will be restored automatically." confirmLabel="Remove" loading={savingItem} />
 
+      {/* UndoToast renders the "Undo deletion" snack-bar at the bottom of the page */}
       {UndoToast}
+      {/* ToastContainer renders brief success/warning/error notifications */}
       {ToastContainer}
     </div>
   )

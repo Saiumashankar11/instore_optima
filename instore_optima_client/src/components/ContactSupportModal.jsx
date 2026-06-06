@@ -1,22 +1,46 @@
+// ContactSupportModal.jsx
+// A modal dialog that lets any logged-in user send a message to the support
+// team.  It is opened from the TopNavbar profile dropdown.
+// The form is rendered via a React Portal directly into <body> so it always
+// appears on top of other elements regardless of CSS stacking contexts.
+// On successful submission the API sends an email to the support address
+// configured on the server; the user sees a brief success banner before the
+// modal auto-closes.
+
 import { useState } from 'react'
+// createPortal allows us to render the overlay directly in document.body,
+// preventing the modal from being clipped by the navbar's overflow/z-index.
 import { createPortal } from 'react-dom'
+// contactSupportApi posts the support message to the backend REST endpoint.
 import { contactSupportApi } from '../services/supportService'
+// parseApiError extracts a human-readable string from various error shapes.
 import { parseApiError } from '../utils/validators'
 
+// Props:
+//   show         – controls whether the modal is visible.
+//   onHide       – callback to close the modal (called on backdrop click or Cancel).
+//   prefillName  – initial value for the Name field, typically the logged-in user's name.
+//   prefillEmail – initial value for the Email field, typically the logged-in user's email.
 export default function ContactSupportModal({ show, onHide, prefillName = '', prefillEmail = '' }) {
+  // Single form state object so all three fields update through one pattern.
   const [form, setForm]     = useState({ name: prefillName, email: prefillEmail, message: '' })
-  const [error, setError]   = useState('')
-  const [success, setSuccess] = useState('')
-  const [loading, setLoading] = useState(false)
+  const [error, setError]   = useState('')   // validation or API error message
+  const [success, setSuccess] = useState('') // success confirmation message
+  const [loading, setLoading] = useState(false) // true while the API call is in-flight
 
+  // Don't render anything when the modal is hidden — keeps the DOM clean.
   if (!show) return null
 
+  // handleChange returns a per-field event handler that merges the new value
+  // into the form state and clears any existing error when the user starts typing.
   const handleChange = field => e => {
     setForm(f => ({ ...f, [field]: e.target.value }))
     if (error) setError('')
   }
 
+  // handleSubmit validates the form, calls the API, and manages state transitions.
   const handleSubmit = async () => {
+    // Client-side validation — bail early with a descriptive message.
     if (!form.name.trim())    return setError('Please enter your name.')
     if (!form.email.trim())   return setError('Please enter your email.')
     if (!form.message.trim()) return setError('Please enter a message.')
@@ -27,7 +51,8 @@ export default function ContactSupportModal({ show, onHide, prefillName = '', pr
     try {
       await contactSupportApi(form)
       setSuccess('Message sent! We\'ll get back to you soon.')
-      setForm(f => ({ ...f, message: '' }))
+      setForm(f => ({ ...f, message: '' })) // clear the message field after success
+      // Auto-close the modal 2 s after a successful send.
       setTimeout(() => { setSuccess(''); onHide() }, 2000)
     } catch (err) {
       setError(parseApiError(err))
@@ -36,6 +61,7 @@ export default function ContactSupportModal({ show, onHide, prefillName = '', pr
     }
   }
 
+  // Close the modal when the user clicks on the dark backdrop behind it.
   const handleBackdrop = e => { if (e.target === e.currentTarget) onHide() }
 
   return createPortal(

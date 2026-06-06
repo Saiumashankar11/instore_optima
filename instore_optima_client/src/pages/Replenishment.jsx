@@ -1,50 +1,74 @@
+// Replenishment.jsx
+// This page manages stock replenishment orders — requests to restock products that are running low.
+// Staff can create a replenishment order; Managers/Admins (canManage) can approve or reject it.
+// When an order is approved the user is offered the option to immediately create a Purchase Order (PO)
+// linked to a specific supplier and expected delivery date.
+
+// ── Imports ────────────────────────────────────────────────────────────────────
+// React lifecycle and state hooks
 import { useEffect, useState } from 'react'
+// Shared UI components used across pages
 import PageHeader from '../components/shared/PageHeader'
 import DataTable from '../components/shared/DataTable'
 import SearchBar from '../components/shared/SearchBar'
 import FormModal from '../components/shared/FormModal'
 import ConfirmModal from '../components/shared/ConfirmModal'
 import StatusBadge from '../components/shared/StatusBadge'
+// API service functions for replenishment orders, products, suppliers, and purchase orders
 import { getAllReplenishments, createReplenishment, updateReplenishment, deleteReplenishment } from '../services/replenishmentService'
 import { getAllProducts } from '../services/productsService'
 import { getAllSuppliers } from '../services/supplierService'
 import { createPO } from '../services/purchaseOrderService'
+// App-wide hooks
 import { useAuth } from '../context/AuthContext'
 import { useAlertBadges } from '../context/AlertBadgesContext'
 import { useUndoDelete } from '../hooks/useUndoDelete'
 import { useToast } from '../hooks/useToast'
+// Utility helpers
 import { parseApiError } from '../utils/validators'
 import { fmtDate } from '../utils/validators'
 
+// Default empty form objects used when opening a blank create modal
 const EMPTY = { productId: '', quantityRequested: '' }
 const EMPTY_PO = { supplierId: '', expectedDeliveryDate: '' }
 
 export default function Replenishment() {
+  // ── Context & hooks ──────────────────────────────────────────────────────────
+  // canManage: true for Admin and Manager roles — gates the Approve/Reject buttons
   const { user, canManage } = useAuth()
   const { fetchBadges } = useAlertBadges()
   const { scheduleDelete, UndoToast } = useUndoDelete()
   const { show: toast, ToastContainer } = useToast()
+
+  // ── State: list data ─────────────────────────────────────────────────────────
   const [data, setData]               = useState([])
   const [products, setProducts]       = useState([])
   const [suppliers, setSuppliers]     = useState([])
   const [loading, setLoading]         = useState(true)
   const [error, setError]             = useState('')
   const [search, setSearch]           = useState('')
+
+  // ── State: replenishment form ────────────────────────────────────────────────
   const [showForm, setShowForm]       = useState(false)
   const [showConfirm, setShowConfirm] = useState(false)
+  // confirmAction stores { row, action } so the confirm modal knows which record and action to apply
   const [confirmAction, setConfirmAction] = useState(null)
   const [form, setForm]               = useState(EMPTY)
   const [saving, setSaving]           = useState(false)
   const [formErrors, setFormErrors]   = useState({})
 
   // PO creation popup state
+  // After an approval the user is asked if they want to create a PO; these states drive that flow
   const [showPoPrompt, setShowPoPrompt]   = useState(false)
   const [showPoForm, setShowPoForm]       = useState(false)
+  // pendingReplId: the replenishment order ID that the new PO will be linked to
   const [pendingReplId, setPendingReplId] = useState(null)
   const [poForm, setPoForm]               = useState(EMPTY_PO)
   const [poFormErrors, setPoFormErrors]   = useState({})
   const [poSaving, setPoSaving]           = useState(false)
 
+  // ── Data loader ──────────────────────────────────────────────────────────────
+  // Fetches replenishments, products (for name lookup), and suppliers (for PO creation) in parallel
   const load = async () => {
     setLoading(true)
     try {
@@ -56,10 +80,14 @@ export default function Replenishment() {
     finally { setLoading(false) }
   }
 
+  // Load data on first render
   useEffect(() => { load() }, [])
 
+  // set is a curried helper: set('productId') returns an onChange handler that updates form.productId
   const set = k => e => setForm(f => ({ ...f, [k]: e.target.value }))
 
+  // ── Handlers ─────────────────────────────────────────────────────────────────
+  // Validate the new-order form, then POST to the API. Reloads the list on success.
   const handleSave = async () => {
     const errors = {}
     if (!form.productId) errors.productId = 'Please select a product.'
@@ -75,16 +103,20 @@ export default function Replenishment() {
     finally { setSaving(false) }
   }
 
+  // User clicked "Yes, Create PO" on the prompt — open the PO detail form
   const handlePoYes = () => {
     setShowPoPrompt(false)
     setShowPoForm(true)
   }
 
+  // User clicked "No" on the PO prompt — just dismiss and clear the pending replenishment ID
   const handlePoNo = () => {
     setShowPoPrompt(false)
     setPendingReplId(null)
   }
 
+  // Submit the Purchase Order form after validating supplier and delivery date.
+  // issuedAt is set to right now; expectedDeliveryDate must not be in the past.
   const handlePoSave = async () => {
     const errors = {}
     if (!poForm.supplierId) errors.supplierId = 'Please select a supplier.'
@@ -109,8 +141,11 @@ export default function Replenishment() {
     finally { setPoSaving(false) }
   }
 
+  // triggerAction stores the row and action name, then opens the confirmation modal
   const triggerAction = (row, action) => { setConfirmAction({ row, action }); setShowConfirm(true) }
 
+  // Executes the confirmed action: Delete (with undo), Approved, or Rejected.
+  // After Approved, the PO prompt is shown so the user can optionally create a PO.
   const handleConfirm = async () => {
     setSaving(true)
     try {
@@ -146,8 +181,11 @@ export default function Replenishment() {
     finally { setSaving(false) }
   }
 
+  // ── Derived data ─────────────────────────────────────────────────────────────
+  // Look up a product object by its ID from the cached products array
   const getProduct = id => products.find(p => p.productId === id)
 
+  // Enrich each row with a human-readable product name, then apply the text search filter
   const filtered = data
     .map(row => ({ ...row, _productName: getProduct(row.productId)?.name || `Product #${row.productId}` }))
     .filter(d =>
@@ -155,6 +193,7 @@ export default function Replenishment() {
       d._productName.toLowerCase().includes(search.toLowerCase())
     )
 
+  // columns defines the structure of the DataTable — each entry maps to one column header and cell renderer
   const columns = [
     { key: 'replenishmentOrderId', label: 'ID',       render: r => <span className="text-accent" style={{ fontWeight: 600 }}>#{r.replenishmentOrderId}</span> },
     { key: '_productName',         label: 'Product',  render: r => <span style={{ fontWeight: 500, color: 'var(--text-200)' }}>{r._productName}</span> },
@@ -239,7 +278,7 @@ export default function Replenishment() {
         variant={confirmAction?.action === 'Rejected' || confirmAction?.action === 'Delete' ? 'danger' : 'success'}
         loading={saving} />
 
-      {/* PO Prompt Popup */}
+      {/* PO Prompt Popup — appears after an order is approved, asking if a Purchase Order should be created */}
       <ConfirmModal
         show={showPoPrompt}
         onHide={handlePoNo}
@@ -250,7 +289,7 @@ export default function Replenishment() {
         variant="primary"
       />
 
-      {/* PO Form Modal */}
+      {/* PO Form Modal — collects supplier and delivery date before creating the Purchase Order */}
       <FormModal show={showPoForm} onHide={() => { setShowPoForm(false); setPendingReplId(null) }} onSubmit={handlePoSave}
         title="Create Purchase Order" loading={poSaving}>
         <p style={{ color: 'var(--text-400)', fontSize: 13, marginBottom: 16 }}>

@@ -1,4 +1,9 @@
-﻿using instore_optima.Domain.Entities;
+﻿// UserRepository — EF Core data access for the User entity via AppDbContext.
+// Handles post-registration user management: list, get, update, and soft-delete.
+// Registration and login are handled separately by AuthRepository.
+// Soft-delete: "deleting" a user sets their Role to "Inactive" rather than removing
+// the database row, so audit log entries and historical order data remain valid.
+using instore_optima.Domain.Entities;
 using instore_optima.Domain.Interfaces;
 using instore_optima.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
@@ -15,7 +20,7 @@ namespace instore_optima.Infrastructure.Repositories
             _context = context;
         }
 
-        // GET all users
+        // GET all users — includes inactive accounts (Role = "Inactive")
         public async Task<IEnumerable<User>> GetAllUsersAsync()
         {
             return await _context.Users.ToListAsync();
@@ -28,7 +33,7 @@ namespace instore_optima.Infrastructure.Repositories
                 .FirstOrDefaultAsync(u => u.UserId == userId);
         }
 
-        // UPDATE user details
+        // UPDATE user details — EF Update marks all columns modified; caller provides all fields
         public async Task<User> UpdateUserAsync(User user)
         {
             _context.Users.Update(user);
@@ -37,12 +42,13 @@ namespace instore_optima.Infrastructure.Repositories
         }
 
         // SOFT-DELETE — sets Role to Inactive instead of removing row
+        // This preserves foreign-key references in AuditLogs and Orders
         public async Task DeleteUserAsync(int userId)
         {
             var user = await _context.Users.FindAsync(userId);
             if (user != null)
             {
-                user.Role = "Inactive";
+                user.Role = "Inactive";  // the user can no longer log in; their data remains intact
                 await _context.SaveChangesAsync();
             }
         }

@@ -1,4 +1,10 @@
-﻿using instore_optima.Api.Repositories.Interfaces;
+﻿// OrderItemRepository — EF Core data access for the Order_Items entity.
+// This is the most logic-heavy repository: adding, updating, or removing an item
+// cascades into stock adjustments, stock movement audit records, order total recalculation,
+// and auto-replenishment checks — all within the same database round-trip.
+// Read queries eager-load the Product navigation property so the caller always gets
+// a fully populated item without needing a separate product query.
+using instore_optima.Api.Repositories.Interfaces;
 using instore_optima.Domain.Entities;
 using instore_optima.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
@@ -14,10 +20,12 @@ namespace instore_optima.Api.Repositories.Implementations
             _context = context;
         }
 
+        // ── Read methods — AsNoTracking for performance (no updates needed) ──
+
         public async Task<IEnumerable<Order_Items>> GetAllOrderItemsAsync()
         {
             return await _context.OrderItems.AsNoTracking()
-                .Include(oi => oi.Product)
+                .Include(oi => oi.Product)  // load product details in one SQL join
                 .ToListAsync();
         }
 
@@ -34,6 +42,8 @@ namespace instore_optima.Api.Repositories.Implementations
                 .Include(oi => oi.Product)
                 .FirstOrDefaultAsync(oi => oi.OrderItemId == orderItemId);
         }
+
+        // ── Create — validates stock, sets price, adjusts stock, recalculates total ──
 
         public async Task<Order_Items> CreateOrderItemAsync(Order_Items item)
         {
@@ -89,6 +99,8 @@ namespace instore_optima.Api.Repositories.Implementations
             return item;
         }
 
+        // ── Update — adjusts stock by the quantity delta, keeps movement record in sync ──
+
         public async Task<Order_Items> UpdateOrderItemAsync(Order_Items item)
         {
             var existing = await _context.OrderItems
@@ -97,6 +109,7 @@ namespace instore_optima.Api.Repositories.Implementations
             if (existing == null)
                 throw new KeyNotFoundException($"OrderItem with ID {item.OrderItemId} not found.");
 
+            // quantityDelta = how many extra units are being requested (negative = fewer units)
             int quantityDelta = item.Quantity - existing.Quantity;
             var order = await _context.Orders.FindAsync(existing.OrderId);
 
@@ -109,7 +122,7 @@ namespace instore_optima.Api.Repositories.Implementations
                     if (quantityDelta > 0 && stock.CurrentStock < quantityDelta)
                         throw new InvalidOperationException(
                             $"Insufficient stock. Available: {stock.CurrentStock}, Additional requested: {quantityDelta}.");
-                    stock.CurrentStock -= quantityDelta;
+                    stock.CurrentStock -= quantityDelta;  // positive delta reduces stock; negative delta restores it
                     stock.LastUpdated = DateTime.UtcNow;
                 }
 
@@ -150,7 +163,7 @@ namespace instore_optima.Api.Repositories.Implementations
 
             await _context.SaveChangesAsync();
 
-            // Recalculate order total
+            // Recalculate order total after the quantity change
             var allItems = await _context.OrderItems.Where(oi => oi.OrderId == existing.OrderId).ToListAsync();
             if (order != null)
             {
@@ -160,6 +173,8 @@ namespace instore_optima.Api.Repositories.Implementations
 
             return existing;
         }
+
+        // ── Delete — restores stock, records movement IN, recalculates order total ──
 
         public async Task DeleteOrderItemAsync(int orderItemId)
         {
@@ -185,7 +200,7 @@ namespace instore_optima.Api.Repositories.Implementations
                 _context.Stocks.Add(stock);
                 await _context.SaveChangesAsync();
             }
-            stock.CurrentStock += qty;
+            stock.CurrentStock += qty;  // put the quantity back into stock
             stock.LastUpdated = DateTime.UtcNow;
 
             var order = await _context.Orders.FindAsync(orderId);
@@ -205,7 +220,7 @@ namespace instore_optima.Api.Repositories.Implementations
             });
             await _context.SaveChangesAsync();
 
-            // Recalculate order total
+            // Recalculate order total after removing the item
             var allItems = await _context.OrderItems.Where(oi => oi.OrderId == orderId).ToListAsync();
             if (order != null)
             {
@@ -215,12 +230,13 @@ namespace instore_optima.Api.Repositories.Implementations
         }
 
         // ── Auto-replenishment trigger ────────────────────────────────
+        // Called after any stock decrease to check whether a replenishment order should be raised.
         private async Task TriggerReplenishmentIfNeededAsync(int productId, int currentStock)
         {
             // Check if there's already a pending replenishment order for this product
             bool alreadyPending = await _context.ReplenishmentOrders
                 .AnyAsync(o => o.ProductId == productId && o.Status == "Pending");
-            if (alreadyPending) return;
+            if (alreadyPending) return;  // don't create a duplicate order
 
             // Try rule-based replenishment first
             var rule = await _context.ReplenishmentRules
@@ -228,8 +244,9 @@ namespace instore_optima.Api.Repositories.Implementations
 
             if (rule != null)
             {
-                if (currentStock > rule.ReorderPoint) return;
+                if (currentStock > rule.ReorderPoint) return;  // stock still above threshold — do nothing
 
+                // Stock has hit or dropped below the reorder point: request enough to reach MaxLevel
                 _context.ReplenishmentOrders.Add(new ReplenishmentOrder
                 {
                     ProductId = productId,
@@ -242,6 +259,7 @@ namespace instore_optima.Api.Repositories.Implementations
             }
 
             // Fallback: use product MinStock as reorder point (midpoint trigger)
+            // (used when no explicit replenishment rule exists for this product)
             var product = await _context.Products.FirstOrDefaultAsync(p => p.ProductId == productId);
             if (product == null || product.MinStock <= 0) return;
 
@@ -249,7 +267,7 @@ namespace instore_optima.Api.Repositories.Implementations
             if (currentStock > reorderPoint) return;
 
             int quantityToOrder = product.MaxStock - currentStock;
-            if (quantityToOrder <= 0) quantityToOrder = product.MinStock * 2;
+            if (quantityToOrder <= 0) quantityToOrder = product.MinStock * 2;  // safety fallback
 
             _context.ReplenishmentOrders.Add(new ReplenishmentOrder
             {

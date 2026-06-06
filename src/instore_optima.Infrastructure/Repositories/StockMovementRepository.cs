@@ -1,3 +1,9 @@
+// StockMovementRepository — EF Core data access for the StockMovement entity via AppDbContext.
+// StockMovement is the audit log of all stock quantity changes. CreateAsync is the main entry
+// point: it records the event AND updates the live CurrentStock in the Stocks table atomically.
+// RecordOnlyAsync is a lightweight alternative when another operation (e.g. OrderItemRepository)
+// has already adjusted CurrentStock directly. Only the Reason field is editable after creation
+// to preserve the integrity of the historical audit trail.
 using instore_optima.Infrastructure.Data;
 using instore_optima.Domain.Entities;
 using instore_optima.Infrastructure.Interfaces;
@@ -18,9 +24,10 @@ namespace instore_optima.Infrastructure.Repositories
         // so all .Include() calls removed
         public async Task<IEnumerable<StockMovement>> GetAllAsync()
             => await _context.StockMovements
-                .OrderByDescending(m => m.PerformedAt)
+                .OrderByDescending(m => m.PerformedAt)  // most recent events first
                 .ToListAsync();
 
+        // Returns movement history for a specific product — useful for the product detail page
         public async Task<IEnumerable<StockMovement>> GetByProductIdAsync(int productId)
             => await _context.StockMovements
                 .Where(m => m.ProductId == productId)
@@ -31,6 +38,7 @@ namespace instore_optima.Infrastructure.Repositories
             => await _context.StockMovements
                 .FirstOrDefaultAsync(m => m.MovementId == movementId);
 
+        // ── CreateAsync — records event AND adjusts live stock ──
         public async Task<StockMovement> CreateAsync(StockMovement movement)
         {
             movement.PerformedAt = DateTime.UtcNow;
@@ -52,13 +60,15 @@ namespace instore_optima.Infrastructure.Repositories
                 await _context.SaveChangesAsync();
             }
 
+            // Apply the stock change based on movement type:
+            // IN/ADJUSTMENT add quantity; OUT/WRITE_OFF subtract (floored at 0 to avoid negatives)
             stock.CurrentStock = movement.MovementType.ToUpper() switch
             {
                 "IN"         => stock.CurrentStock + movement.Quantity,
                 "OUT"        => Math.Max(0, stock.CurrentStock - movement.Quantity),
                 "WRITE_OFF"  => Math.Max(0, stock.CurrentStock - movement.Quantity),
-                "ADJUSTMENT" => stock.CurrentStock + movement.Quantity,
-                _            => stock.CurrentStock
+                "ADJUSTMENT" => stock.CurrentStock + movement.Quantity,  // can be negative to correct overstatements
+                _            => stock.CurrentStock  // unknown type — leave stock unchanged
             };
             stock.LastUpdated = DateTime.UtcNow;
 
@@ -67,6 +77,8 @@ namespace instore_optima.Infrastructure.Repositories
             return movement;
         }
 
+        // ── RecordOnlyAsync — records the event WITHOUT touching CurrentStock ──
+        // Use this when the stock adjustment has already been made by another operation
         public async Task<StockMovement> RecordOnlyAsync(StockMovement movement)
         {
             movement.PerformedAt = DateTime.UtcNow;
@@ -75,6 +87,7 @@ namespace instore_optima.Infrastructure.Repositories
             return movement;
         }
 
+        // Only the Reason field is editable — quantity and type are immutable to preserve the audit trail
         public async Task<StockMovement?> UpdateAsync(int movementId, StockMovement updated)
         {
             var movement = await _context.StockMovements

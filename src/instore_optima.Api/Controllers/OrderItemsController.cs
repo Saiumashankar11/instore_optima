@@ -1,3 +1,10 @@
+// ── OrderItemsController ──────────────────────────────────────────────────────
+// Manages individual line items within orders under /api/orderitems.
+// Each order item links an order to a product with a quantity and price.
+// All endpoints require a valid JWT (controller-level [Authorize]).
+// ─────────────────────────────────────────────────────────────────────────────
+
+// DTOs, exception helpers, repository interfaces, and domain entities
 using instore_optima.Api.DTOs;
 using instore_optima.Api.Exceptions;
 using instore_optima.Api.Repositories.Interfaces;
@@ -9,12 +16,14 @@ namespace instore_optima.Api.Controllers
 {
     [ApiController]
     [Route("api/orderitems")]
-    [Authorize]
+    [Authorize] // all endpoints require a valid JWT
     /// <summary>
     /// API endpoints for managing order items.
     /// </summary>
     public class OrderItemsController : ControllerBase
     {
+        // _orderItemRepository — CRUD for individual order line items
+        // _orderRepository     — used to verify the parent order exists before adding items
         private readonly IOrderItemRepository _orderItemRepository;
         private readonly IOrderRepository _orderRepository;
 
@@ -30,10 +39,14 @@ namespace instore_optima.Api.Controllers
         /// Gets all order items.
         /// </summary>
         /// <returns>A list of all order items.</returns>
+        // GET /api/orderitems
+        // Returns every order item across all orders. Useful for reporting.
+        // The ProductName is resolved via the navigation property (Product?.Name).
         [HttpGet]
         public async Task<IActionResult> GetAllOrderItems()
         {
             var items = await _orderItemRepository.GetAllOrderItemsAsync();
+            // Project to response DTO; use empty string if Product navigation is null
             var response = items.Select(oi => new OrderItemResponseDto
             {
                 OrderItemId = oi.OrderItemId,
@@ -51,6 +64,9 @@ namespace instore_optima.Api.Controllers
         /// </summary>
         /// <param name="orderId">The ID of the order to retrieve items for.</param>
         /// <returns>A list of order items for the specified order.</returns>
+        // GET /api/orderitems/order/{orderId}
+        // Returns all line items belonging to a single order.
+        // Useful for rendering the order detail view.
         [HttpGet("order/{orderId}")]
         public async Task<IActionResult> GetItemsByOrder(int orderId)
         {
@@ -72,12 +88,14 @@ namespace instore_optima.Api.Controllers
         /// </summary>
         /// <param name="id">The ID of the order item.</param>
         /// <returns>The order item details if found; otherwise, NotFound.</returns>
+        // GET /api/orderitems/{id}
+        // Returns a single order item. Throws ResourceNotFoundException (→ 404) if missing.
         [HttpGet("{id}")]
         public async Task<IActionResult> GetOrderItemById(int id)
         {
             var orderItem = await _orderItemRepository.GetOrderItemByIdAsync(id);
             if (orderItem == null)
-                throw new ResourceNotFoundException("OrderItem", id);
+                throw new ResourceNotFoundException("OrderItem", id); // global handler returns 404
 
             return Ok(new OrderItemResponseDto
             {
@@ -95,9 +113,15 @@ namespace instore_optima.Api.Controllers
         /// </summary>
         /// <param name="dto">The order item creation data.</param>
         /// <returns>The created order item.</returns>
+        // POST /api/orderitems
+        // Adds a new line item to an existing order.
+        // Validates the parent order exists before creating the item.
+        // Price is not taken from the DTO — the repository fetches it from the product.
         [HttpPost]
         public async Task<IActionResult> CreateOrderItem([FromBody] CreateOrderItemDto dto)
         {
+            // Manual model validation; throws ValidationException so the global handler
+            // can return a structured 400 response with field-level error messages.
             if (!ModelState.IsValid)
                 throw new ValidationException(ModelState.Values
                 .SelectMany(v => v.Errors)
@@ -105,6 +129,7 @@ namespace instore_optima.Api.Controllers
                     e => "orderItem",
                     e => new[] { e.ErrorMessage }));
 
+            // Ensure the parent order exists before creating a line item for it
             var parentOrder = await _orderRepository.GetOrderByIdAsync(dto.OrderId);
             if (parentOrder == null)
                 throw new ResourceNotFoundException("Order", dto.OrderId);
@@ -117,6 +142,7 @@ namespace instore_optima.Api.Controllers
                 // Price fetched from product in repository
             };
             var created = await _orderItemRepository.CreateOrderItemAsync(item);
+            // 201 Created with a Location header pointing to GetOrderItemById
             return CreatedAtAction(nameof(GetOrderItemById), new { id = created.OrderItemId },
                 new OrderItemResponseDto
                 {
@@ -135,6 +161,9 @@ namespace instore_optima.Api.Controllers
         /// <param name="id">The ID of the order item to update.</param>
         /// <param name="dto">The updated order item data.</param>
         /// <returns>The updated order item if successful; otherwise, NotFound.</returns>
+        // PUT /api/orderitems/{id}
+        // Updates the quantity on an existing order item.
+        // Price remains controlled by the product record (managed in the repository).
         [HttpPut("{id}")]
         public async Task<IActionResult> UpdateOrderItem(int id, [FromBody] UpdateOrderItemDto dto)
         {
@@ -165,6 +194,8 @@ namespace instore_optima.Api.Controllers
             }
             catch (KeyNotFoundException)
             {
+                // Repository throws KeyNotFoundException when the item ID does not exist;
+                // re-wrap as ResourceNotFoundException so the global handler returns 404.
                 throw new ResourceNotFoundException("OrderItem", id);
             }
         }
@@ -174,17 +205,19 @@ namespace instore_optima.Api.Controllers
         /// </summary>
         /// <param name="id">The ID of the order item to delete.</param>
         /// <returns>No content if successful; otherwise, NotFound.</returns>
+        // DELETE /api/orderitems/{id}
+        // Removes a line item from its order. Returns 204 No Content on success.
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteOrderItem(int id)
         {
             try
             {
                 await _orderItemRepository.DeleteOrderItemAsync(id);
-                return NoContent();
+                return NoContent(); // 204 — successful deletion, no body
             }
             catch (KeyNotFoundException)
             {
-                throw new ResourceNotFoundException("OrderItem", id);
+                throw new ResourceNotFoundException("OrderItem", id); // → 404
             }
         }
     }

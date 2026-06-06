@@ -1,9 +1,32 @@
+// =============================================================================
+// LandingPage.jsx
+// =============================================================================
+// The public-facing marketing page visitors see before they sign in.
+// It contains:
+//   - An animated particle-canvas hero section with a live terminal widget.
+//   - A scrolling ticker bar showing real-time system events.
+//   - A stats row with animated counters.
+//   - A feature cards grid (six modules).
+//   - A call-to-action section and a footer.
+//
+// Most data displayed is fetched from /api/live/snapshot (no auth required).
+// If that endpoint is unreachable the page falls back to static sample data.
+// =============================================================================
+
+// React hooks used throughout this file.
 import { useEffect, useRef, useState } from "react";
+// useNavigate lets us send the user to /login or /register on button click.
 import { useNavigate } from "react-router-dom";
+// ThemeContext provides the current dark/light flag and a toggle function.
 import { useTheme } from "../context/ThemeContext";
+// Shared UI components.
 import ZoomControl from "../components/ZoomControl";
 import ContactSupportModal from "../components/ContactSupportModal";
 
+// Custom hook — returns [ref, isVisible].
+// Attaches an IntersectionObserver to the element. Once the element scrolls
+// into the viewport it sets visible = true and then disconnects (fires once).
+// Used to trigger CSS entrance animations when a section comes into view.
 function useVisible(threshold = 0.15) {
   const ref = useRef(null);
   const [visible, setVisible] = useState(false);
@@ -18,6 +41,10 @@ function useVisible(threshold = 0.15) {
   return [ref, visible];
 }
 
+// Custom hook — animates a number from 0 up to `target` over `duration` ms.
+// `start` must be set to true before the animation begins (so we can wait
+// until the stat section is visible). Uses a cubic ease-out curve so the
+// count decelerates near the end rather than stopping abruptly.
 function useCounter(target, duration = 2000, start = false) {
   const [val, setVal] = useState(0);
   useEffect(() => {
@@ -25,7 +52,9 @@ function useCounter(target, duration = 2000, start = false) {
     let st = null;
     const step = (ts) => {
       if (!st) st = ts;
+      // p is the animation progress from 0.0 to 1.0.
       const p = Math.min((ts - st) / duration, 1);
+      // Apply a cubic ease-out so the number slows down as it approaches target.
       setVal(Math.floor((1 - Math.pow(1 - p, 3)) * target));
       if (p < 1) requestAnimationFrame(step);
     };
@@ -34,6 +63,9 @@ function useCounter(target, duration = 2000, start = false) {
   return val;
 }
 
+// Renders a single animated stat box (big number + label).
+// `started` is passed from the parent once the stats section is on-screen.
+// When target === 100 a "%" suffix is appended automatically.
 function StatBox({ id, target, label, duration = 1800, started }) {
   const val = useCounter(target, duration, started);
   return (
@@ -46,6 +78,9 @@ function StatBox({ id, target, label, duration = 1800, started }) {
   );
 }
 
+// Renders one feature card in the six-module grid.
+// The card fades and slides up when it enters the viewport (via useVisible).
+// `delay` staggers the animation so cards appear one after another.
 function FeatureCard({ num, title, desc, delay }) {
   const [ref, visible] = useVisible();
   return (
@@ -57,7 +92,12 @@ function FeatureCard({ num, title, desc, delay }) {
   );
 }
 
+// Converts the live /api/live/snapshot data into the array of "terminal lines"
+// that the Terminal component types out character-by-character.
+// Each entry is either a { type: "cmd" } command line or a { type: "out" }
+// group of status lines, mimicking a real CLI output session.
 function buildTerminalLines(d) {
+  // fmt formats a number as Indian-locale currency (e.g. ₹1,23,456).
   const fmt = n => `₹${Number(n).toLocaleString('en-IN')}`;
   const low = d.lowStockItems || [];
   const orders = d.todayOrders || [];
@@ -132,13 +172,22 @@ function buildTickerItems(d) {
   return items;
 }
 
+// Renders the animated "live monitor" terminal in the hero section.
+// The terminal types out command output line-by-line once it scrolls into view.
+// Live data is fetched first; if unavailable, static sample output is used.
 function Terminal() {
+  // tbodyRef points to the scrollable div where output lines are appended.
   const tbodyRef = useRef(null);
+  // termVisible becomes true once the terminal div enters the viewport.
   const [termRef, termVisible] = useVisible(0.2);
+  // startedRef prevents the typewriter animation from running more than once.
   const startedRef = useRef(false);
   const [liveData, setLiveData] = useState(null);
+  // fetchDone gates the animation so we always wait for the API call to
+  // resolve (success or failure) before choosing real vs. sample data.
   const [fetchDone, setFetchDone] = useState(false);
 
+  // Fetch live snapshot data once on mount.
   useEffect(() => {
     fetch("/api/live/snapshot")
       .then(r => r.ok ? r.json() : null)
@@ -146,6 +195,8 @@ function Terminal() {
       .then(data => { setLiveData(data); setFetchDone(true); });
   }, []);
 
+  // Start the typewriter animation once both the terminal is visible AND the
+  // fetch is done. The startedRef guard ensures it runs only once.
   useEffect(() => {
     if (!termVisible || !fetchDone || startedRef.current) return;
     startedRef.current = true;
@@ -173,9 +224,15 @@ function Terminal() {
       ]},
     ];
 
+    // li tracks which line we are currently rendering.
+    // delay accumulates ms so each line appears after the previous one.
     let li = 0, delay = 700;
+    // typeLines() is a recursive function that renders one entry per call.
+    // It uses setTimeout to spread lines out over time, creating the
+    // illusion that a terminal is printing output in real time.
     function typeLines() {
       if (li >= LINES.length) {
+        // All lines printed — append the blinking cursor at the very end.
         const cur = document.createElement("span");
         cur.className = "lp-t-cursor";
         tbody.lastElementChild?.appendChild(cur);
@@ -183,6 +240,7 @@ function Terminal() {
       }
       const line = LINES[li++];
       if (line.type === "cmd") {
+        // Command lines (e.g. "$ instore status") appear as a single block.
         setTimeout(() => {
           const d = document.createElement("div");
           d.className = "lp-t-line";
@@ -191,12 +249,14 @@ function Terminal() {
           delay = 260; typeLines();
         }, delay);
       } else {
+        // Output lines appear item-by-item with a short stagger between each.
         line.items.forEach((item, i) => {
           setTimeout(() => {
             const d = document.createElement("div");
             d.className = "lp-t-out";
             d.innerHTML = `<span class="lp-t-${item.cls}">${item.label}</span>${item.msg}`;
             tbody.appendChild(d);
+            // After the last item in this group, move on to the next line.
             if (i === line.items.length - 1) { delay = 350; typeLines(); }
           }, delay + i * 155);
         });
@@ -220,6 +280,8 @@ function Terminal() {
   );
 }
 
+// Fallback ticker items shown when the live API is unreachable.
+// Each entry is [icon, text]. The live version is built by buildTickerItems().
 const TICKER_ITEMS = [
   ["↑", "Tata Salt 1kg — replenished 200 units"],
   ["✓", "Order #551 completed"],
@@ -231,6 +293,8 @@ const TICKER_ITEMS = [
   ["✓", "Supplier FreshFoods — PO sent"],
 ];
 
+// Static array of feature cards shown in the "Six Modules" section.
+// Each entry maps to a FeatureCard component instance.
 const FEATURES = [
   { num: "01 / REPLENISHMENT", title: "Smart replenishment",   desc: "Stock drops below threshold? Auto-generates a replenishment order instantly. Zero manual monitoring required." },
   { num: "02 / INVENTORY",     title: "Real-time tracking",    desc: "Every IN, OUT, and ADJUSTMENT tracked live. Full movement history always available to your team." },
@@ -240,17 +304,28 @@ const FEATURES = [
   { num: "06 / COMPLIANCE",    title: "Audit trail",           desc: "Every action logged with who, what, and when. Immutable. Always available for compliance review." },
 ];
 
+// Main page component — assembles all sections and handles page-level state.
 export default function LandingPage({ zoom = 100, setZoom = () => {} }) {
   const navigate = useNavigate();
+  // canvasRef points to the <canvas> element used for the animated particle grid.
   const canvasRef = useRef(null);
+  // heroIn becomes true shortly after mount, triggering CSS entrance animations
+  // on the hero headline and CTA buttons.
   const [heroIn, setHeroIn] = useState(false);
+  // statsRef / statsVisible trigger the animated stat counters when the stats
+  // section scrolls into view.
   const [statsRef, statsVisible] = useVisible(0.3);
   const { dark, toggle: toggleTheme } = useTheme();
+  // themeRef shadows the dark value so the canvas draw loop (which runs inside
+  // a closure) can always read the current theme without re-initialising.
   const themeRef = useRef(dark);
   const [supportOpen, setSupportOpen] = useState(false);
+  // tickerItems holds the live feed data; null until the first fetch resolves.
   const [tickerItems, setTickerItems] = useState(null);
 
   // Live ticker feed — pulled from the public snapshot endpoint
+  // Fetches immediately on mount, then refreshes every 30 seconds so the
+  // ticker stays current without requiring a page reload.
   useEffect(() => {
     let cancelled = false;
     const fetchTicker = () => {
@@ -261,34 +336,49 @@ export default function LandingPage({ zoom = 100, setZoom = () => {} }) {
     };
     fetchTicker();
     const id = setInterval(fetchTicker, 30000); // refresh every 30s
+    // cancelled flag prevents a state update on an unmounted component.
     return () => { cancelled = true; clearInterval(id); };
   }, []);
 
+  // Keep themeRef in sync with the context value so the canvas loop can
+  // read it via closure without capturing a stale dark value.
   useEffect(() => {
     themeRef.current = dark;
   }, [dark]);
+  // Small delay before setting heroIn so the initial CSS transition plays.
   useEffect(() => { setTimeout(() => setHeroIn(true), 80); }, []);
 
+  // Animated particle-grid canvas effect for the hero background.
+  // A grid of points (COLS × ROWS) is laid out evenly across the canvas.
+  // Each point drifts on a sine/cosine wave with a unique phase and speed.
+  // Nearby points are connected with semi-transparent lines — the closer
+  // two points are, the more opaque the connecting line.
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
     let animId, W, H, pts;
     const COLS = 18, ROWS = 9;
+    // init() sizes the canvas to fill its container and creates the point grid.
     function init() {
       W = canvas.width = canvas.offsetWidth;
       H = canvas.height = canvas.offsetHeight;
       pts = [];
       for (let c = 0; c < COLS; c++)
         for (let r = 0; r < ROWS; r++)
+          // ox/oy are the resting positions; ph, sp, am control drift behaviour.
           pts.push({ ox: (c / (COLS - 1)) * W, oy: (r / (ROWS - 1)) * H, x: 0, y: 0,
             ph: Math.random() * Math.PI * 2, sp: .25 + Math.random() * .45, am: 5 + Math.random() * 15 });
     }
     let t = 0;
+    // draw() is called every animation frame. It advances time (t), updates
+    // each point's position, draws connecting lines, then draws dots.
     function draw() {
       ctx.clearRect(0, 0, W, H); t += .004;
+      // light mode uses orange accents instead of cyan.
       const light = !themeRef.current;
       pts.forEach(p => { p.x = p.ox + Math.sin(t * p.sp + p.ph) * p.am; p.y = p.oy + Math.cos(t * p.sp * .7 + p.ph) * p.am * .6; });
+      // thr is the maximum distance at which two points are connected.
       const thr = (W / COLS) * 1.8;
       for (let i = 0; i < pts.length; i++)
         for (let j = i + 1; j < pts.length; j++) {
@@ -299,12 +389,17 @@ export default function LandingPage({ zoom = 100, setZoom = () => {} }) {
       animId = requestAnimationFrame(draw);
     }
     init(); draw();
+    // ResizeObserver re-initialises the grid whenever the canvas is resized
+    // (e.g. browser window resize or zoom change).
     const ro = new ResizeObserver(init); ro.observe(canvas);
+    // Clean up the animation loop and observer when the component unmounts.
     return () => { cancelAnimationFrame(animId); ro.disconnect(); };
   }, []);
 
   // Use live data when available; fall back to the static sample otherwise
   const baseItems = tickerItems || TICKER_ITEMS;
+  // Duplicate the list so the CSS marquee scrolls seamlessly in a loop
+  // (the second copy fills the gap when the first copy exits the viewport).
   const allItems = [...baseItems, ...baseItems];
 
   return (

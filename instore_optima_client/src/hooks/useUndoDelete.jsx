@@ -1,3 +1,8 @@
+// useUndoDelete.jsx
+// Custom hook that wraps every destructive delete action with a 6-second grace period.
+// During that window the user sees a bottom-center toast with "Undo" and "Delete Now" buttons.
+// If the user does nothing, the real API delete fires automatically after DELAY ms.
+
 import { useRef, useState, useCallback, useMemo } from 'react'
 import { createPortal } from 'react-dom'
 
@@ -22,11 +27,16 @@ const DELAY = 6000 // ms before real delete fires
  *   <UndoToast />
  */
 export function useUndoDelete() {
+  // pending — when non-null, the undo toast is visible; contains label + live countdown
   const [pending, setPending] = useState(null)   // { label, countdown }
+  // timerRef — the setTimeout that fires the real delete after DELAY
   const timerRef    = useRef(null)
+  // countRef — the setInterval that ticks the countdown display every 250 ms
   const countRef    = useRef(null)
+  // callbackRef — stores the delete callback object so it can be called from any closure
   const callbackRef = useRef(null)
 
+  // clear — cancel both the countdown interval and the fire timer
   const clear = useCallback(() => {
     clearTimeout(timerRef.current)
     clearInterval(countRef.current)
@@ -34,6 +44,7 @@ export function useUndoDelete() {
     countRef.current  = null
   }, [])
 
+  // fireNow — immediately execute the real delete API call (used by "Delete Now" button and auto-fire)
   const fireNow = useCallback(async () => {
     clear()
     const cb = callbackRef.current
@@ -43,6 +54,7 @@ export function useUndoDelete() {
         await cb.deleteFn()
         cb.onDeleted?.()
       } catch (e) {
+        // If the API call fails, treat it like an undo so the item reappears
         cb.onError?.(e)
         cb.onUndo?.()
       }
@@ -50,6 +62,7 @@ export function useUndoDelete() {
     setPending(null)
   }, [clear])
 
+  // scheduleDelete — begin the grace period for a delete action
   const scheduleDelete = useCallback(({ id, label, deleteFn, onDeleted, onUndo, onError }) => {
     // Cancel any existing pending delete first (fire it immediately)
     if (callbackRef.current) {
@@ -61,17 +74,21 @@ export function useUndoDelete() {
     callbackRef.current = { id, deleteFn, onDeleted, onUndo, onError }
 
     const start = Date.now()
+    // Show the toast immediately with the full countdown
     setPending({ label, countdown: DELAY / 1000 })
 
+    // Tick the countdown number in the toast every 250 ms
     countRef.current = setInterval(() => {
       const remaining = Math.ceil((DELAY - (Date.now() - start)) / 1000)
       if (remaining <= 0) { clearInterval(countRef.current); return }
       setPending(p => p ? { ...p, countdown: remaining } : null)
     }, 250)
 
+    // Fire the real delete after the grace period
     timerRef.current = setTimeout(fireNow, DELAY)
   }, [clear])
 
+  // undoDelete — cancel the scheduled delete and call the onUndo callback
   const undoDelete = useCallback(() => {
     clear()
     const cb = callbackRef.current
@@ -87,6 +104,9 @@ export function useUndoDelete() {
   const undoDeleteRef = useRef(undoDelete)
   undoDeleteRef.current = undoDelete
 
+  // UndoToast — a portal-rendered JSX element (not a component) rendered at the bottom-center.
+  // Using useMemo + a JSX element (rather than a component) means React updates it in-place
+  // on countdown ticks without unmounting and remounting the DOM node.
   // Return a JSX element (not a component) — so React updates in-place, no remount
   const UndoToast = useMemo(() => {
     if (!pending) return null
@@ -101,9 +121,11 @@ export function useUndoDelete() {
         minWidth: 320, maxWidth: '90vw',
       }}>
         <i className="bi bi-trash" style={{ color: '#f87171', fontSize: 16 }}></i>
+        {/* Live countdown text — updates every 250 ms via the setInterval above */}
         <span style={{ flex: 1, fontSize: 13, color: '#e2e8f0' }}>
           <strong style={{ color: '#f87171' }}>{pending.label}</strong> will be deleted in {pending.countdown}s
         </span>
+        {/* Undo button — cancels the scheduled delete and restores the item */}
         <button
           onClick={undoDelete}
           style={{
@@ -114,6 +136,7 @@ export function useUndoDelete() {
         >
           <i className="bi bi-arrow-counterclockwise" style={{ marginRight: 5 }}></i>Undo
         </button>
+        {/* Delete Now button — skips the remaining grace period and fires immediately */}
         <button
           onClick={fireNow}
           style={{
@@ -129,5 +152,6 @@ export function useUndoDelete() {
     )
   }, [pending, undoDelete, fireNow])
 
+  // Expose everything the calling component needs
   return { pendingDelete: pending, scheduleDelete, undoDelete, fireNow, UndoToast }
 }

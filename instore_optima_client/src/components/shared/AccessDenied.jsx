@@ -1,4 +1,16 @@
+// AccessDenied.jsx
+// A full-page placeholder shown when a user tries to access a route or feature
+// that their role doesn't permit.  The message is tailored to whether the
+// blocked user is a Staff member or a Manager so the feedback is specific and
+// helpful rather than generic.
+
+// Props:
+//   role         – the current user's role string ('Staff' or 'Manager').
+//   requiredRole – the minimum role needed to access the restricted section
+//                  (used to build the Staff error message).
 export default function AccessDenied({ role, requiredRole }) {
+  // Look up role-specific title and subtitle text.  Falls back to a generic
+  // message for any role not explicitly listed.
   const messages = {
     Staff:   { title: 'Access Restricted', sub: `This section requires ${requiredRole || 'Manager'} access or higher. Your current role is Staff.` },
     Manager: { title: 'Admin Only',        sub: 'This section is restricted to Administrators only. Your current role is Manager.' },
@@ -10,6 +22,7 @@ export default function AccessDenied({ role, requiredRole }) {
       display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
       minHeight: 360, padding: 40, textAlign: 'center',
     }}>
+      {/* Red circle with a lock icon — visually signals "no entry" */}
       <div style={{
         width: 72, height: 72, borderRadius: '50%',
         background: 'rgba(239,68,68,.1)', border: '2px solid rgba(239,68,68,.25)',
@@ -18,9 +31,11 @@ export default function AccessDenied({ role, requiredRole }) {
       }}>
         <i className="bi bi-lock-fill"></i>
       </div>
+      {/* Role-specific heading */}
       <h2 style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-primary, #f1f5f9)', margin: '0 0 8px', letterSpacing: '-.02em' }}>
         {title}
       </h2>
+      {/* Explanation text — uses CSS variables so it works in both light and dark themes */}
       <p style={{ fontSize: 13, color: 'var(--text-secondary, #94a3b8)', maxWidth: 340, lineHeight: 1.6, margin: 0 }}>
         {sub}
       </p>

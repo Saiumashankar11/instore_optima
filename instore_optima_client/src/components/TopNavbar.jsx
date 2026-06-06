@@ -1,23 +1,53 @@
+// TopNavbar.jsx
+// The horizontal navigation bar rendered at the top of every page.
+// Responsibilities:
+//   • Brand logo on the left.
+//   • Section pill links (Dashboard, Inventory, Procurement, Finance, Admin) in the centre.
+//   • Theme toggle, unread message bell, system-live indicator, and a user
+//     profile dropdown (with zoom controls, profile link, contact support, and
+//     sign out) on the right.
+//   • A toast notification that appears when the browser's own zoom is detected.
+
+// NavLink — like <a> but adds 'active' class when the route matches.
+// useNavigate — lets us redirect programmatically (e.g. after logout).
+// useLocation — gives us the current URL path.
 import { NavLink, useNavigate, useLocation } from 'react-router-dom'
+// AuthContext supplies the logged-in user object, logout function, role, and
+// the canManage flag (true for Admin and Manager, false for Staff).
 import { useAuth } from '../context/AuthContext'
+// ThemeContext provides the current dark/light mode state and a toggle.
 import { useTheme } from '../context/ThemeContext'
+// MessagesContext exposes the count of unread internal messages.
 import { useMessages } from '../context/MessagesContext'
+// AlertBadgesContext tracks pending-action counts across sections.
 import { useAlertBadges } from '../context/AlertBadgesContext'
 import { useState, useCallback, useRef, useEffect } from 'react'
+// createPortal renders JSX directly into document.body, escaping the navbar's
+// CSS stacking context so toasts and modals always appear on top.
 import { createPortal } from 'react-dom'
 import ContactSupportModal from './ContactSupportModal'
 
+// Props:
+//   zoom              – current app-level zoom percentage.
+//   setZoom           – function to update the zoom value.
+//   browserZoomDetected – passed in from the root when browser zoom is detected.
 export default function TopNavbar({ zoom = 100, setZoom = () => {}, browserZoomDetected = false }) {
+  // Destructure what we need from each context.
   const { user, logout, canManage, role } = useAuth()
   const { dark, toggle } = useTheme()
   const { unreadCount } = useMessages()
+  // muteSection clears the glowing animation for a section when the user visits it.
   const { inventory, procurement, finance, glowing, muteSection } = useAlertBadges()
   const navigate = useNavigate()
   const { pathname } = useLocation()
-  const [toast, setToast] = useState(null)
-  const [profileOpen, setProfileOpen] = useState(false)
-  const [supportOpen, setSupportOpen] = useState(false)
+
+  // --- Local state ---
+  const [toast, setToast] = useState(null)         // text of the temporary toast message, or null
+  const [profileOpen, setProfileOpen] = useState(false) // controls profile dropdown visibility
+  const [supportOpen, setSupportOpen] = useState(false) // controls ContactSupportModal visibility
+  // profileRef lets us detect clicks outside the dropdown to close it.
   const profileRef = useRef(null)
+  // Build the URL prefix for the current user's role (e.g. '/admin', '/staff').
   const rolePrefix = `/${role?.toLowerCase()}`
 
   // Show browser zoom detected toast
@@ -38,13 +68,22 @@ export default function TopNavbar({ zoom = 100, setZoom = () => {}, browserZoomD
     return () => document.removeEventListener('mousedown', handler)
   }, [])
 
+  // --- Zoom helpers ---
+  // applyZoom clamps the value to the allowed range (70–150) before storing it.
   const applyZoom = z => {
     const clamped = Math.min(150, Math.max(70, z))
     setZoom(clamped)
   }
+  // changeZoom adjusts zoom by a relative amount (e.g. +10 or -10).
   const changeZoom = delta => applyZoom(zoom + delta)
   const resetZoom  = () => applyZoom(100)
 
+  // SECTIONS drives the centre pill navigation.  Each entry includes:
+  //   pages     – URL segments that belong to this section (used to compute active state).
+  //   badge     – numeric count shown on the pill (0 hides it).
+  //   glow      – whether the pill should animate to signal pending alerts.
+  //   glowKey   – the key passed to muteSection() when the user clicks this pill.
+  //   adminOnly – if true, Staff users see a lock icon and the click is blocked.
   const SECTIONS = [
     { label: 'Dashboard',   to: `${rolePrefix}/dashboard`,       pages: ['dashboard'],                                                    badge: 0,           glow: false,                   glowKey: null },
     { label: 'Inventory',   to: `${rolePrefix}/products`,        pages: ['products', 'stock', 'stock-movement'],                          badge: inventory,   glow: glowing.inventory,       glowKey: 'inventory' },
@@ -53,20 +92,26 @@ export default function TopNavbar({ zoom = 100, setZoom = () => {}, browserZoomD
     { label: 'Admin',       to: `${rolePrefix}/users`,           pages: ['users', 'audit-logs'], adminOnly: true,                        badge: 0,           glow: false,                   glowKey: null },
   ]
 
+  // Derive the user's two-letter avatar initials from their full name.
   const initials = user?.name
     ? user.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
     : 'U'
 
+  // handleLogout clears the auth session and redirects to the login page.
   const handleLogout = () => { logout(); navigate('/login') }
 
+  // isActive checks whether the current URL belongs to a given nav section.
   const currentPage = pathname.split('/').pop()
   const isActive = s => s.pages.includes(currentPage)
 
+  // showToast displays a brief notification message and auto-hides after 3 s.
   const showToast = useCallback((msg) => {
     setToast(msg)
     setTimeout(() => setToast(null), 3000)
   }, [])
 
+  // handleNavClick blocks Staff from navigating to admin-only sections and
+  // instead shows a toast explaining why access is restricted.
   const handleNavClick = (e, section) => {
     if (section.adminOnly && !canManage) {
       e.preventDefault()

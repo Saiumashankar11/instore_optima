@@ -1,3 +1,15 @@
+// =============================================================================
+// SmtpEmailService.cs — SMTP email delivery using MailKit
+// =============================================================================
+// This is the "always available" email transport. It uses MailKit to connect
+// to an SMTP server (e.g. Gmail's smtp.gmail.com on port 587 with STARTTLS)
+// and send HTML emails. It is used in two ways:
+//   1. Directly, when no Brevo API key is configured (registered as IEmailService).
+//   2. As a fallback, injected into BrevoEmailService for resilience.
+//
+// If SMTP credentials are missing/placeholder, methods log a warning and
+// return without throwing — this allows development without a real mail server.
+// =============================================================================
 using instore_optima.Domain.Interfaces;
 using MailKit.Net.Smtp;
 using MailKit.Security;
@@ -7,6 +19,10 @@ using MimeKit;
 
 namespace instore_optima.Infrastructure.Services
 {
+    /// <summary>
+    /// Sends transactional emails over SMTP using MailKit and MimeKit.
+    /// Configuration is read from the "Smtp" section in appsettings.json.
+    /// </summary>
     public class SmtpEmailService : IEmailService
     {
         private readonly IConfiguration _config;
@@ -19,6 +35,10 @@ namespace instore_optima.Infrastructure.Services
         }
 
         // ── Public API ──────────────────────────────────────────────────────────
+        // Each public method delegates to the private SendOrLog() helper,
+        // providing the recipient details, the pre-built email content from
+        // EmailTemplates, and a developer-friendly fallback log message for
+        // when SMTP is not configured.
 
         public Task SendOtpEmailAsync(string toEmail, string toName, string otp)
             => SendOrLog(toName, toEmail, EmailTemplates.LoginOtp(toName, otp), $"Login OTP for {toEmail} is: {otp}");
@@ -46,6 +66,9 @@ namespace instore_optima.Infrastructure.Services
 
         // ── Internals ───────────────────────────────────────────────────────────
 
+        // Builds a MimeMessage from the EmailContent and sends it. If SMTP is not
+        // configured, logs the OTP/message to the console instead so developers
+        // can still test the flow locally without a real email server.
         private async Task SendOrLog(string toName, string toEmail, EmailContent content, string devLog,
             string? replyToName = null, string? replyToEmail = null)
         {
@@ -67,6 +90,9 @@ namespace instore_optima.Infrastructure.Services
             _logger.LogInformation("Email dispatched via SMTP → {Email}", toEmail);
         }
 
+        // Checks that real (non-placeholder) SMTP credentials exist in configuration.
+        // Also outputs the config section, username, and password via out parameters
+        // so the caller doesn't have to read config again.
         private bool IsConfigured(out string username, out string password, out IConfigurationSection smtp)
         {
             smtp     = _config.GetSection("Smtp");
@@ -108,6 +134,8 @@ namespace instore_optima.Infrastructure.Services
             }
         }
 
+        // Builds the "From" address shown to email recipients. Uses the friendly
+        // display name from config, defaulting to "InStore Optima" if not set.
         private MailboxAddress FromAddress(IConfigurationSection smtp, string username)
             => new(smtp["FromName"] ?? "InStore Optima", smtp["FromEmail"] ?? username);
     }

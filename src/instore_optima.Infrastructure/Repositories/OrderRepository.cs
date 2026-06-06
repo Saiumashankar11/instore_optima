@@ -1,4 +1,9 @@
-﻿using instore_optima.Api.Repositories.Interfaces;
+﻿// OrderRepository — EF Core data access for the Orders entity via AppDbContext.
+// Read queries eager-load OrderItems → Product in one SQL query using Include/ThenInclude
+// so callers get a fully hydrated order graph without extra round-trips.
+// Deleting an order is guarded: payments/invoices must be removed first, and stock
+// is restored for every line item with a corresponding StockMovement IN audit record.
+using instore_optima.Api.Repositories.Interfaces;
 using instore_optima.Domain.Entities;
 using instore_optima.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
@@ -14,11 +19,12 @@ namespace instore_optima.Api.Repositories.Implementations
             _context = context;
         }
 
+        // Returns all orders with their line items and products — AsNoTracking for read-only performance
         public async Task<IEnumerable<Orders>> GetAllOrdersAsync()
         {
             return await _context.Orders.AsNoTracking()
-                .Include(o => o.OrderItems)
-                    .ThenInclude(oi => oi.Product)
+                .Include(o => o.OrderItems)            // load the order's line items
+                    .ThenInclude(oi => oi.Product)     // and each item's product details
                 .ToListAsync();
         }
 
@@ -42,6 +48,7 @@ namespace instore_optima.Api.Repositories.Implementations
 
         public async Task<Orders> UpdateOrderAsync(Orders order)
         {
+            // FindAsync uses the primary key cache; only updates Status and TotalAmount
             var existing = await _context.Orders.FindAsync(order.OrderId);
             if (existing == null)
                 throw new KeyNotFoundException($"Order with ID {order.OrderId} not found.");
@@ -49,7 +56,7 @@ namespace instore_optima.Api.Repositories.Implementations
             existing.TotalAmount = order.TotalAmount;
             await _context.SaveChangesAsync();
 
-            // Reload with OrderItems and Products
+            // Reload with OrderItems and Products so the caller gets the full graph back
             return await _context.Orders.AsNoTracking()
                 .Include(o => o.OrderItems)
                     .ThenInclude(oi => oi.Product)
@@ -62,6 +69,7 @@ namespace instore_optima.Api.Repositories.Implementations
             if (order == null)
                 throw new KeyNotFoundException($"Order with ID {orderId} not found.");
 
+            // Guard: orders with financial records cannot be deleted to preserve accounting data
             bool hasPayments = await _context.Payments.AnyAsync(p => p.OrderId == orderId);
             bool hasInvoices = await _context.Invoices.AnyAsync(i => i.OrderId == orderId);
             if (hasPayments || hasInvoices)
@@ -85,9 +93,10 @@ namespace instore_optima.Api.Repositories.Implementations
                     _context.Stocks.Add(stock);
                     await _context.SaveChangesAsync();
                 }
-                stock.CurrentStock += item.Quantity;
+                stock.CurrentStock += item.Quantity;  // put the item's quantity back into available stock
                 stock.LastUpdated = DateTime.UtcNow;
 
+                // Write an audit record so the stock history stays accurate
                 _context.StockMovements.Add(new StockMovement
                 {
                     ProductId    = item.ProductId,
@@ -99,6 +108,7 @@ namespace instore_optima.Api.Repositories.Implementations
                 });
             }
 
+            // Remove all line items first, then the order header
             _context.OrderItems.RemoveRange(items);
             _context.Orders.Remove(order);
             await _context.SaveChangesAsync();

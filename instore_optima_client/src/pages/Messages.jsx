@@ -1,14 +1,42 @@
-﻿import { useEffect, useState, useCallback } from 'react'
+﻿// =============================================================================
+// Messages.jsx
+// =============================================================================
+// The internal messaging (mail) feature of InStore Optima.
+// Users can send requests to colleagues, reply, forward, star, trash, and
+// permanently delete messages. Draft saving and scheduled sending are also
+// supported.
+//
+// The page is split into three sub-components rendered inside this file:
+//   - Messages       (default export) — page shell, sidebar, state machine
+//   - ComposePane    — new message / reply / forward form
+//   - MessageList    — scrollable list of messages for the selected folder
+//   - MessageDetail  — full message view with action buttons
+//
+// All mail API calls go through internalMessageService; the PO delivery
+// action hits purchaseOrderService when an actionable message is opened.
+// =============================================================================
+
+// React hooks.
+import { useEffect, useState, useCallback } from 'react'
+// AuthContext provides the currently logged-in user (id, role, name).
 import { useAuth } from '../context/AuthContext'
+// MessagesContext tracks the global unread count shown in the sidebar badge.
 import { useMessages } from '../context/MessagesContext'
+// Service functions — each wraps a single Axios call to the messages API.
 import {
   getInbox, getSent, getDrafts, getStarred, getTrash,
   getRecipients, sendMessage, markAsRead, toggleStar,
   moveToTrash, restoreFromTrash, deleteMessage
 } from '../services/internalMessageService'
+// Used when the user taps "Mark as Delivered" on a PO notification message.
 import { updatePO } from '../services/purchaseOrderService'
+// AlertBadgesContext manages the counts shown on sidebar alert icons.
 import { useAlertBadges } from '../context/AlertBadgesContext'
 
+// Formats a timestamp string (from the backend) as a human-readable date/time
+// in Indian Standard Time (IST), e.g. "05 Jun 2026, 14:32".
+// The backend sometimes omits the 'Z' suffix on UTC strings, so we append it
+// ourselves when no timezone indicator is present.
 const fmtDate = d => {
   if (!d) return '—'
   // Backend sends UTC (often without a 'Z'); treat it as UTC, then render in IST.
@@ -21,8 +49,11 @@ const fmtDate = d => {
   })
 }
 
+// Maps each role to a colour used for avatars and role badges throughout the UI.
 const ROLE_COLOR = { Admin: '#a78bfa', Manager: '#22d3ee', Staff: '#34d399' }
 
+// The blank state that the compose form resets to after sending or discarding.
+// Spreading this object over the form state clears all fields at once.
 const EMPTY_FORM = {
   receiverId: '', cc: '', bcc: '', subject: '', body: '',
   messageType: 'Request', parentMessageId: null,
@@ -31,17 +62,25 @@ const EMPTY_FORM = {
 }
 
 export default function Messages() {
+  // user contains the currently logged-in user's id, name, and role.
   const { user } = useAuth()
+  // setUnreadCount updates the global badge; fetchUnread re-queries the count.
   const { setUnreadCount, fetchUnread } = useMessages()
   const { fetchBadges } = useAlertBadges()
 
+  // tab controls which folder is active in the sidebar.
   const [tab, setTab]               = useState('inbox')
+  // Each folder's messages are stored in a separate state array so switching
+  // tabs is instant (no re-fetch needed).
   const [inbox, setInbox]           = useState([])
   const [sent, setSent]             = useState([])
   const [drafts, setDrafts]         = useState([])
   const [starred, setStarred]       = useState([])
   const [trash, setTrash]           = useState([])
+  // recipients is the list of users the current user is allowed to message.
   const [recipients, setRecipients] = useState([])
+  // selected holds the message that is currently open in the detail view.
+  // null means the list view is shown instead.
   const [selected, setSelected]     = useState(null)
   const [loading, setLoading]       = useState(true)
   const [error, setError]           = useState('')
@@ -49,16 +88,24 @@ export default function Messages() {
   const [inboxFilter, setInboxFilter] = useState('all') // 'all' | 'unread' | 'starred'
 
   // Compose state
+  // form mirrors the fields of the compose form; reset to EMPTY_FORM on discard.
   const [form, setForm]         = useState({ ...EMPTY_FORM })
+  // sending is true while the API call is in-flight to disable the Send button.
   const [sending, setSending]   = useState(false)
   const [sendError, setSendError] = useState('')
+  // sendOk shows a brief success message after sending/saving a draft.
   const [sendOk, setSendOk]     = useState('')
+  // showCcBcc and showSchedule toggle optional compose fields.
   const [showCcBcc, setShowCcBcc] = useState(false)
   const [showSchedule, setShowSchedule] = useState(false)
 
+  // load() fetches all six mail buckets and the recipient list in parallel.
+  // useCallback ensures a stable reference so the useEffect below doesn't
+  // re-run infinitely (load is listed as a dependency).
   const load = useCallback(async () => {
     setLoading(true); setError('')
     try {
+      // Fire all requests simultaneously — much faster than sequential fetches.
       const [inbRes, snRes, drRes, stRes, trRes, recRes] = await Promise.all([
         getInbox(), getSent(), getDrafts(), getStarred(), getTrash(), getRecipients()
       ])
@@ -72,9 +119,14 @@ export default function Messages() {
     finally { setLoading(false) }
   }, [])
 
+  // Run load() once when the component mounts (and if load ever changes).
   useEffect(() => { load() }, [load])
 
+  // Opens a message in the detail view. If it is an unread inbox message the
+  // read flag is updated optimistically in local state (no reload needed) and
+  // the global unread badge is decremented by 1.
   const openMessage = async (msg, srcTab) => {
+    // _tab tells MessageDetail whether to show reply/trash or restore/delete.
     setSelected({ ...msg, _tab: srcTab })
     if (srcTab === 'inbox' && !msg.isRead) {
       await markAsRead(msg.messageId).catch(() => {})
@@ -83,6 +135,8 @@ export default function Messages() {
     }
   }
 
+  // Toggles the star flag on a message. Also updates the open detail view if
+  // the same message is currently selected (so the star icon flips immediately).
   const handleStar = async (msg, e) => {
     e?.stopPropagation()
     await toggleStar(msg.messageId).catch(() => {})
@@ -90,6 +144,7 @@ export default function Messages() {
     if (selected?.messageId === msg.messageId) setSelected(s => ({ ...s, isStarred: !s.isStarred }))
   }
 
+  // Moves a message to the Trash folder and closes the detail view if it was open.
   const handleTrash = async (msg, e) => {
     e?.stopPropagation()
     await moveToTrash(msg.messageId).catch(() => {})
@@ -97,21 +152,30 @@ export default function Messages() {
     if (selected?.messageId === msg.messageId) setSelected(null)
   }
 
+  // Moves a trashed message back to its original folder.
   const handleRestore = async (msg) => {
     await restoreFromTrash(msg.messageId).catch(() => {})
     load()
     if (selected?.messageId === msg.messageId) setSelected(null)
   }
 
+  // Permanently deletes a message. The second argument tells the API whether
+  // the current user is the original sender (which may affect hard-delete rules).
   const handlePermDelete = async (msg) => {
     await deleteMessage(msg.messageId, msg.senderId === user?.userId).catch(() => {})
     load()
     if (selected?.messageId === msg.messageId) setSelected(null)
   }
 
+  // poActionState tracks the delivery-confirmation state per message so each
+  // actionable message can independently show loading / done / error.
   const [poActionState, setPoActionState] = useState({}) // { [messageId]: 'loading' | 'done' | 'error' }
 
+  // Called when the user clicks "Mark PO as Delivered" inside a PO notification
+  // message. Updates the purchase order status via the PO service, then
+  // refreshes the global alert badges (the PO badge count may change).
   const handleMarkDelivered = async (msg) => {
+    // actionPayload contains the PO id as a string.
     const poId = parseInt(msg.actionPayload, 10)
     if (!poId) return
     setPoActionState(s => ({ ...s, [msg.messageId]: 'loading' }))
@@ -120,13 +184,17 @@ export default function Messages() {
       setPoActionState(s => ({ ...s, [msg.messageId]: 'done' }))
       fetchBadges()
     } catch (err) {
+      // 409 Conflict means the PO was already marked delivered by someone else.
       const status = err?.response?.status
       setPoActionState(s => ({ ...s, [msg.messageId]: status === 409 ? 'already' : 'error' }))
     }
   }
 
+  // Opens the compose pane, optionally pre-filling the form (e.g. for reply/
+  // forward). Any fields not provided in `preset` fall back to EMPTY_FORM.
   const startCompose = (preset = {}) => {
     setForm({ ...EMPTY_FORM, ...preset })
+    // Show the CC/BCC fields automatically if the preset already has values.
     setShowCcBcc(!!(preset.cc || preset.bcc))
     setShowSchedule(false)
     setSendError(''); setSendOk('')
@@ -134,8 +202,11 @@ export default function Messages() {
     setSelected(null)
   }
 
+  // Pre-fills the compose form for a reply: sets the recipient to the original
+  // sender and prepends a quoted copy of the original message body.
   const handleReply = (msg) => startCompose({
     receiverId: String(msg.senderId),
+    // Avoid stacking "Re: Re: Re:…" prefixes.
     subject: msg.subject.startsWith('Re:') ? msg.subject : `Re: ${msg.subject}`,
     body: `\n\n--- Original from ${msg.senderName} (${fmtDate(msg.createdAt)}) ---\n${msg.body}`,
     messageType: 'Reply',
@@ -143,6 +214,8 @@ export default function Messages() {
     replyToMessage: msg
   })
 
+  // Pre-fills the compose form for a forward (no recipient pre-set — the user
+  // picks who to send to).
   const handleForward = (msg) => startCompose({
     receiverId: '',
     subject: msg.subject.startsWith('Fwd:') ? msg.subject : `Fwd: ${msg.subject}`,
@@ -152,9 +225,12 @@ export default function Messages() {
     forwardMessage: msg
   })
 
+  // Handles both "Send" (asDraft = false) and "Save Draft" (asDraft = true).
+  // Validates required fields before making the API call.
   const handleSend = async (e, asDraft = false) => {
     e?.preventDefault()
     setSendError(''); setSendOk('')
+    // Recipient is required for real sends but optional for drafts.
     if (!form.receiverId && !asDraft) { setSendError('Please select a recipient.'); return }
     if (!form.subject.trim()) { setSendError('Subject is required.'); return }
     if (!form.body.trim())    { setSendError('Message body is required.'); return }
@@ -170,28 +246,35 @@ export default function Messages() {
         messageType:     form.messageType,
         parentMessageId: form.parentMessageId || null,
         isDraft:         asDraft,
+        // Convert the local datetime-local value to a UTC ISO string for the API.
         scheduledAt:     form.scheduledAt ? new Date(form.scheduledAt).toISOString() : null,
         attachmentsJson: form.attachmentsJson || null
       })
       setSendOk(asDraft ? 'Draft saved!' : 'Message sent!')
       setForm({ ...EMPTY_FORM })
+      // Reload mail folders and update the unread badge.
       load(); fetchUnread()
+      // After a short success flash navigate to the relevant folder.
       setTimeout(() => { setSendOk(''); setTab(asDraft ? 'drafts' : 'sent') }, 1400)
     } catch (err) {
       setSendError(err.response?.data?.message || 'Failed to send.')
     } finally { setSending(false) }
   }
 
+  // Discards the compose form and returns the user to the Inbox list.
   const handleDiscard = () => { setForm({ ...EMPTY_FORM }); setTab('inbox') }
 
   // Determine list data for current tab
+  // Pick the correct folder array for the active sidebar tab.
   const listData = {
     inbox: inbox, sent: sent, drafts: drafts,
     starred: starred, trash: trash
   }[tab] || []
 
+  // In the Sent tab the "other party" is the receiver; elsewhere it is the sender.
   const isSentTab = tab === 'sent'
 
+  // Apply search text and the inbox quick-filter (all / unread / starred).
   const filteredList = listData.filter(m => {
     const other = isSentTab ? m.receiverName : m.senderName
     const matchesSearch =
@@ -206,6 +289,7 @@ export default function Messages() {
     return true
   })
 
+  // Count of unread messages shown as the Inbox sidebar badge.
   const unreadInbox = inbox.filter(m => !m.isRead).length
 
   return (
@@ -303,11 +387,16 @@ export default function Messages() {
 }
 
 // -- Compose Pane ---------------------------------------------
+// Renders the message creation form. Handles new requests, replies, and
+// forwards. CC/BCC and scheduled-send fields are hidden by default and
+// expand on demand to keep the form uncluttered.
 function ComposePane({ form, setForm, recipients, inbox, sending, sendError, sendOk,
   showCcBcc, setShowCcBcc, showSchedule, setShowSchedule, onSend, onDiscard }) {
 
+  // Shorthand updater — merges a single field change into the form state.
   const f = (field, val) => setForm(p => ({ ...p, [field]: val }))
 
+  // Derived flags used to conditionally render reply/forward-specific UI.
   const isReply   = form.messageType === 'Reply'
   const isForward = form.messageType === 'Forward'
 
@@ -472,6 +561,9 @@ function ComposePane({ form, setForm, recipients, inbox, sending, sendError, sen
         {/* Attachments */}
         <div className="msgs-field">
           <label>Attachments <span className="msgs-field-hint">(max 5 files, 5 MB each)</span></label>
+          {/* Each selected file is read as a base64 Data URL via FileReader
+              and stored as JSON in form.attachmentsJson so it can be sent
+              to the backend as a plain string field. */}
           <input
             type="file" multiple accept="*/*"
             onChange={e => {
@@ -545,9 +637,13 @@ function ComposePane({ form, setForm, recipients, inbox, sending, sendError, sen
 }
 
 // -- Message List ---------------------------------------------
+// Renders the folder header (title, search box, filter pills) followed by the
+// scrollable list of message rows. Each row shows sender/receiver, subject
+// snippet, date, and inline action buttons (star, trash, restore).
 function MessageList({ tab, loading, error, messages, search, setSearch, inboxFilter, setInboxFilter,
   isSentTab, onOpen, onStar, onTrash, onRestore, onPermDelete, isTrash, onMarkRead }) {
 
+  // Human-readable labels and Bootstrap icons for each tab/folder.
   const TAB_LABELS = { inbox: 'Inbox', sent: 'Sent', drafts: 'Drafts', starred: 'Starred', trash: 'Trash' }
   const TAB_ICONS  = { inbox: 'bi-inbox', sent: 'bi-send', drafts: 'bi-file-earmark', starred: 'bi-star', trash: 'bi-trash3' }
 
@@ -587,6 +683,7 @@ function MessageList({ tab, loading, error, messages, search, setSearch, inboxFi
 
       <div className="msgs-list">
         {messages.map(msg => {
+          // In sent/drafts the "other party" is the receiver; otherwise the sender.
           const other = isSentTab || tab === 'drafts'
             ? { name: msg.receiverName, role: msg.receiverRole }
             : { name: msg.senderName,   role: msg.senderRole }
@@ -652,9 +749,15 @@ function MessageList({ tab, loading, error, messages, search, setSearch, inboxFi
 }
 
 // -- Message Detail --------------------------------------------
+// Renders the full content of a single message, including metadata (from/to/
+// cc/bcc/scheduled), the body, optional PO action bar, and footer action
+// buttons (reply, forward, star, trash, restore, permanent delete).
 function MessageDetail({ msg, onBack, onReply, onForward, onStar, onTrash, onRestore, onPermDelete, isTrash, onMarkDelivered, poActionState }) {
+  // Maps the message type to the appropriate Bootstrap icon class.
   const TYPE_ICON  = { Request: 'bi-question-circle', Reply: 'bi-reply', Forward: 'bi-forward' }
+  // CSS classes for the coloured type badge.
   const TYPE_CLASS = { request: 'msgs-type-request', reply: 'msgs-type-reply', forward: 'msgs-type-forward' }
+  // isSent hides the Reply button — you cannot reply to your own sent message.
   const isSent = msg._tab === 'sent'
 
   return (
@@ -722,6 +825,8 @@ function MessageDetail({ msg, onBack, onReply, onForward, onStar, onTrash, onRes
           )}
         </div>
 
+        {/* Render the message body line-by-line so that quoted sections
+            (lines starting with "---") get a distinct divider style. */}
         <div className="msgs-detail-body">
           {msg.body.split('\n').map((line, i) => (
             line.startsWith('---')

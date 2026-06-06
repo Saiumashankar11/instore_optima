@@ -1,5 +1,15 @@
+// validators.js
+// Shared validation and formatting utilities used across the whole frontend.
+// Exports:
+//   fmtDate / fmtDateTime  — format UTC dates into human-readable IST strings
+//   emailRegex / passwordRegex — regex constants for reuse in forms
+//   validateField  — validate a single named field and return an error string ('' = valid)
+//   validateForm   — validate multiple fields at once; returns { fieldErrors, isValid }
+//   parseApiError  — turn an Axios error into a user-friendly message string
+
 // ─── Shared Validation Utilities ─────────────────────────────────────────────
 
+// Locale options for India Standard Time (UTC+5:30)
 const IST = { timeZone: 'Asia/Kolkata' }
 
 /** Ensure UTC parsing — backend may omit the Z suffix */
@@ -28,9 +38,13 @@ export const fmtDateTime = (d) => {
   })
 }
 
+// Exported so login/register forms can reuse these regexes directly
 export const emailRegex = /^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$/
+// Password must be at least 6 chars, with at least one uppercase, one lowercase, and one digit
 export const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{6,}$/
+// Only letters, spaces, apostrophes, hyphens, and dots (for names and company names)
 const lettersOnlyRegex = /^[a-zA-Z\s'\-.]+$/
+// Used to ensure a string isn't purely numeric/symbolic
 const hasLetterRegex = /[a-zA-Z]/
 
 /**
@@ -63,6 +77,7 @@ export function validateField(field, value, extra = {}) {
       if (!['Admin', 'Manager', 'Staff'].includes(v)) return 'Role must be Admin, Manager, or Staff.'
       return ''
 
+    // ── User / Auth fields ──────────────────────────────────────────────────
     // ── Products ──
     case 'productName':
       if (!v) return 'Product name is required.'

@@ -1,41 +1,73 @@
+// Stock.jsx
+// Displays and manages the current stock level for every product in the warehouse.
+// Key behaviours:
+//   • Any user can update a stock quantity (edit).
+//   • Only Admins can delete a stock record entirely.
+//   • If the new stock quantity is at or below half of the product's minStock threshold,
+//     a replenishment order is automatically created on the user's behalf.
+//   • Products that have no stock record yet can be initialised via "Create Stock".
+//   • A "Low Stock" filter badge lets users quickly spot items that need attention.
+
+// ── Imports ────────────────────────────────────────────────────────────────────
+// React lifecycle and state hooks
 import { useEffect, useState } from 'react'
+// Shared UI components
 import PageHeader from '../components/shared/PageHeader'
 import DataTable from '../components/shared/DataTable'
 import SearchBar from '../components/shared/SearchBar'
 import FormModal from '../components/shared/FormModal'
 import ConfirmModal from '../components/shared/ConfirmModal'
+// API service functions: stock CRUD, product list, and replenishment creation
 import { getAllStock, updateStock, createStock, deleteStock } from '../services/stockService'
 import { getAllProducts } from '../services/productsService'
 import { createReplenishment } from '../services/replenishmentService'
+// App-wide context and utility hooks
 import { useAuth } from '../context/AuthContext'
 import { useAlertBadges } from '../context/AlertBadgesContext'
 import { useUndoDelete } from '../hooks/useUndoDelete'
 import { useToast } from '../hooks/useToast'
+// Validation utilities: validateField checks individual field rules; parseApiError extracts API error text
 import { validateField, parseApiError } from '../utils/validators'
 import { fmtDate } from '../utils/validators'
 
 export default function Stock() {
+  // ── Context & hooks ──────────────────────────────────────────────────────────
+  // isAdmin: only Admins see the delete button on stock rows
   const { isAdmin } = useAuth()
   const { fetchBadges } = useAlertBadges()
+
+  // ── State: stock list ────────────────────────────────────────────────────────
   const [data, setData]         = useState([])
+  // products array is used to look up product names and minStock thresholds
   const [products, setProducts] = useState([])
   const [loading, setLoading]   = useState(true)
   const [error, setError]       = useState('')
   const [search, setSearch]         = useState('')
+  // statusFilter: 'All' | 'Low Stock' | 'OK'
   const [statusFilter, setStatusFilter] = useState('All')
+
+  // ── State: edit stock modal ──────────────────────────────────────────────────
   const [showForm, setShowForm] = useState(false)
+  // editing: the stock row currently being edited (null when modal is closed)
   const [editing, setEditing]   = useState(null)
   const [form, setForm]         = useState({ currentStock: '' })
   const [saving, setSaving]     = useState(false)
+
+  // ── State: create stock modal ────────────────────────────────────────────────
   const [showCreateForm, setShowCreateForm] = useState(false)
   const [createForm, setCreateForm] = useState({ productId: '', currentStock: '' })
+
+  // ── State: delete confirmation ───────────────────────────────────────────────
   const [showDel, setShowDel]   = useState(false)
   const [delId, setDelId]       = useState(null)
 
   const { scheduleDelete, UndoToast } = useUndoDelete()
   const { show: toast, ToastContainer } = useToast()
+  // formErrors: field-level validation messages displayed under their respective inputs
   const [formErrors, setFormErrors] = useState({})
 
+  // ── Data loader ──────────────────────────────────────────────────────────────
+  // Fetches stock records and product catalogue in parallel
   const load = async () => {
     setLoading(true)
     try {
@@ -46,14 +78,20 @@ export default function Stock() {
     finally { setLoading(false) }
   }
 
+  // Trigger the initial load once on mount
   useEffect(() => { load() }, [])
 
+  // ── Handlers ─────────────────────────────────────────────────────────────────
+  // Open the edit modal pre-populated with the selected row's current stock value
   const openEdit = row => {
     setEditing(row)
     setForm({ currentStock: row.currentStock })
     setShowForm(true)
   }
 
+  // Save an updated stock quantity.
+  // After persisting, checks whether the new level is critically low and, if so,
+  // automatically creates a replenishment order (quantity = 2× minStock).
   const handleSave = async () => {
     const err = validateField('currentStock', form.currentStock)
     if (err) { setFormErrors({ currentStock: err }); toast(err, 'error'); return }
@@ -82,6 +120,7 @@ export default function Stock() {
     finally { setSaving(false) }
   }
 
+  // Delete a stock record with an undo window (optimistic UI — row disappears immediately)
   const handleDelete = async () => {
     const row = data.find(d => d.stockId === delId)
     const prod = products.find(p => p.productId === row?.productId)
@@ -96,6 +135,8 @@ export default function Stock() {
     })
   }
 
+  // Create an initial stock record for a product that doesn't have one yet.
+  // Same auto-replenishment logic as handleSave applies here too.
   const handleCreateStock = async () => {
     const errors = {}
     const prodErr = validateField('productId', createForm.productId)
@@ -137,19 +178,25 @@ export default function Stock() {
     }
   }
 
+  // ── Derived data ─────────────────────────────────────────────────────────────
+  // Look up a product by ID from the cached products array
   const getProduct = id => products.find(p => p.productId === id)
 
+  // Returns only products that don't yet have a stock record (used for the "Create Stock" dropdown)
   const getProductsWithoutStock = () => {
     const stockProductIds = new Set(data.map(s => s.productId))
     return products.filter(p => !stockProductIds.has(p.productId))
   }
 
+  // enriched adds computed fields (_productName, _isLow, _rowClass) to each row for easy rendering.
+  // _isLow is true when currentStock is at or below the product's minStock threshold.
   const enriched = data.map(row => {
     const prod = getProduct(row.productId)
     const isLow = prod && row.currentStock <= (prod.minStock || 0)
     return { ...row, _productName: prod?.name || `Product #${row.productId}`, _isLow: isLow, _rowClass: isLow ? 'row-low-stock' : '' }
   })
 
+  // Apply text search and the status dropdown filter to the enriched rows
   const filtered = enriched.filter(d => {
     const matchesSearch = String(d.stockId).includes(search) || d._productName.toLowerCase().includes(search.toLowerCase())
     const matchesStatus = statusFilter === 'All'
@@ -158,8 +205,10 @@ export default function Stock() {
     return matchesSearch && matchesStatus
   })
 
+  // lowCount drives the "X items below minimum" warning badge shown in the page header
   const lowCount = enriched.filter(r => r._isLow).length
 
+  // Column definitions for DataTable — each entry describes one table column
   const columns = [
     { key: 'stockId',      label: 'ID',           render: r => <span className="text-accent" style={{ fontWeight: 600 }}>#{r.stockId}</span> },
     { key: '_productName', label: 'Product',       render: r => <span style={{ fontWeight: 500, color: 'var(--text-200)' }}>{r._productName}</span> },
@@ -194,12 +243,14 @@ export default function Stock() {
         subtitle="Monitor and update inventory stock levels"
         action={
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            {/* Warning badge — only visible when at least one product is below its minimum stock level */}
             {lowCount > 0 && (
               <div style={{ display: 'flex', alignItems: 'center', gap: 7, background: 'rgba(239,68,68,.08)', border: '1px solid rgba(239,68,68,.15)', color: '#fca5a5', padding: '6px 12px', borderRadius: 'var(--radius-md)', fontSize: 12, fontWeight: 500 }}>
                 <i className="bi bi-exclamation-triangle"></i>
                 {lowCount} item{lowCount > 1 ? 's' : ''} below minimum
               </div>
             )}
+            {/* "Create Stock" button only appears when there are products with no stock record yet */}
             {getProductsWithoutStock().length > 0 && (
               <button 
                 className="btn-primary-custom"
@@ -274,10 +325,12 @@ export default function Stock() {
         </div>
       </FormModal>
 
+      {/* Confirm deletion of a stock record — warns that the product will disappear from tracking */}
       <ConfirmModal show={showDel} onHide={() => setShowDel(false)} onConfirm={handleDelete}
         title="Delete Stock Record"
         message="⚠️ This will permanently delete the stock record for this product. The product will no longer appear in stock tracking. Delete anyway?"
         confirmLabel="Delete Anyway" loading={saving} />
+      {/* Undo snack-bar and notification toasts rendered at the bottom of the page */}
       {UndoToast}
       {ToastContainer}
     </div>

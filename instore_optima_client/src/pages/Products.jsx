@@ -1,35 +1,63 @@
+// =============================================================================
+// Products.jsx
+// =============================================================================
+// CRUD management page for the product catalog. Only Admins and Managers reach
+// this page (Staff see a read-only stock view instead).
+//
+// Responsibilities:
+//   - List all products with their price, stock thresholds, and supplier.
+//   - Filter by supplier dropdown and by free-text search (ID or name).
+//   - Create or edit a product via a modal form with field-level validation.
+//   - Delete a product with an optimistic UI update and an "Undo" toast that
+//     cancels the server-side delete if clicked within a few seconds.
+// =============================================================================
+
+// React hooks.
 import { useEffect, useState } from 'react'
+// Shared UI components.
 import PageHeader from '../components/shared/PageHeader'
 import DataTable from '../components/shared/DataTable'
 import SearchBar from '../components/shared/SearchBar'
 import FormModal from '../components/shared/FormModal'
 import ConfirmModal from '../components/shared/ConfirmModal'
+// CRUD API calls for products and suppliers.
 import { getAllProducts, createProduct, updateProduct, deleteProduct } from '../services/productsService'
 import { getAllSuppliers } from '../services/supplierService'
+// Custom hooks for undo-delete behavior and toast notifications.
 import { useUndoDelete } from '../hooks/useUndoDelete'
 import { useToast } from '../hooks/useToast'
+// Field-level validation and API error parsing utilities.
 import { validateField, parseApiError } from '../utils/validators'
 
+// Default blank form values — used when opening the "Add Product" modal.
+// Pre-filling with empty strings keeps all inputs as controlled components.
 const EMPTY = { name: '', description: '', price: '', minStock: '', maxStock: '', supplierId: '' }
 
 export default function Products() {
-  const [data, setData]           = useState([])
-  const [suppliers, setSuppliers] = useState([])
+  // ── State ──────────────────────────────────────────────────────────────────
+  const [data, setData]           = useState([])          // all products from the API
+  const [suppliers, setSuppliers] = useState([])          // used for the supplier name lookup + filter dropdown
   const [loading, setLoading]     = useState(true)
   const [error, setError]         = useState('')
-  const [search, setSearch]           = useState('')
-  const [supplierFilter, setSupplierFilter] = useState('')
-  const [showForm, setShowForm]   = useState(false)
-  const [showDel, setShowDel]     = useState(false)
+  const [search, setSearch]           = useState('')       // name / ID search input
+  const [supplierFilter, setSupplierFilter] = useState('') // '' means "all suppliers"
+  const [showForm, setShowForm]   = useState(false)        // controls Add/Edit modal visibility
+  const [showDel, setShowDel]     = useState(false)        // controls delete-confirm modal
+  // editing holds the full row object when in Edit mode, or null for Add mode.
   const [editing, setEditing]     = useState(null)
-  const [form, setForm]           = useState(EMPTY)
-  const [saving, setSaving]       = useState(false)
-  const [delId, setDelId]         = useState(null)
+  const [form, setForm]           = useState(EMPTY)        // controlled form field values
+  const [saving, setSaving]       = useState(false)        // true while save API call is in flight
+  const [delId, setDelId]         = useState(null)         // product ID queued for deletion
 
+  // scheduleDelete provides the undo-able delete pattern; UndoToast is the
+  // banner element that should be rendered at the bottom of the page.
   const { scheduleDelete, UndoToast } = useUndoDelete()
   const { show: toast, ToastContainer } = useToast()
-  const [formErrors, setFormErrors] = useState({})
+  const [formErrors, setFormErrors] = useState({})         // per-field validation messages
 
+  // ── Data fetching ──────────────────────────────────────────────────────────
+  // Loads products and suppliers in parallel. Suppliers are needed to resolve
+  // supplierId → supplier name in the table and to populate the dropdown.
   const load = async () => {
     setLoading(true)
     try {
@@ -40,13 +68,24 @@ export default function Products() {
     finally { setLoading(false) }
   }
 
+  // Fetch data once on mount (empty dependency array = run once).
   useEffect(() => { load() }, [])
 
+  // ── Helpers ────────────────────────────────────────────────────────────────
+  // Generic form-field updater: set('fieldName') returns an onChange handler.
   const set      = k => e => setForm(f => ({ ...f, [k]: e.target.value }))
+  // Opens the modal in Add mode (no pre-filled data).
   const openAdd  = () => { setEditing(null); setForm(EMPTY); setShowForm(true) }
+  // Opens the modal in Edit mode, pre-filling the form with the selected row's data.
   const openEdit = row => { setEditing(row); setForm({ ...row }); setShowForm(true) }
+  // Stores the target ID and opens the delete confirmation modal.
   const openDel  = id  => { setDelId(id); setShowDel(true) }
 
+  // ── Save handler ───────────────────────────────────────────────────────────
+  // Validates every field before calling the API. maxStock validation receives
+  // the current minStock value as context so it can enforce max > min.
+  // After validation passes, calls either createProduct or updateProduct
+  // depending on whether we are in Add or Edit mode.
   const handleSave = async () => {
     const errors = {}
     const nameErr = validateField('productName', form.name)
@@ -77,6 +116,10 @@ export default function Products() {
     finally { setSaving(false) }
   }
 
+  // ── Delete handler ─────────────────────────────────────────────────────────
+  // Closes the confirm modal, removes the row from local state immediately
+  // (optimistic update), then delegates the actual API delete to scheduleDelete
+  // which provides the "Undo" toast window.
   const handleDelete = async () => {
     const row = data.find(d => d.productId === delId)
     setShowDel(false)
@@ -91,12 +134,18 @@ export default function Products() {
     })
   }
 
+  // ── Filtering ──────────────────────────────────────────────────────────────
+  // Combines supplier dropdown filter and text search. Both must match for a
+  // row to appear. supplierFilter is a string ID so we compare with String(d.supplierId).
   const filtered = data.filter(d => {
     const matchesSearch = String(d.productId).includes(search) || d.name?.toLowerCase().includes(search.toLowerCase())
     const matchesSupplier = !supplierFilter || String(d.supplierId) === supplierFilter
     return matchesSearch && matchesSupplier
   })
 
+  // ── Table column definitions ───────────────────────────────────────────────
+  // The 'actions' column always shows Edit and Delete buttons (this page is
+  // only reachable by Admin / Manager, so no role-check is needed here).
   const columns = [
     { key: 'productId',   label: 'ID',          render: r => <span className="text-accent" style={{ fontWeight: 600 }}>#{r.productId}</span> },
     { key: 'name',        label: 'Name',         render: r => <span style={{ fontWeight: 500, color: 'var(--text-200)' }}>{r.name}</span> },
@@ -161,6 +210,8 @@ export default function Products() {
           <input className={`form-control-custom ${formErrors.price ? 'input-error' : ''}`} type="number" placeholder="0.00" value={form.price} onChange={set('price')} />
           {formErrors.price && <span className="field-error-text">{formErrors.price}</span>}
         </div>
+        {/* Min and Max Stock are shown side-by-side to save vertical space.
+            maxStock validation depends on minStock, handled in handleSave. */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
           <div>
             <label className="form-label-custom">Min Stock</label>

@@ -1,17 +1,37 @@
+// Profile.jsx
+// This page lets the logged-in user manage their account in one place:
+//   • View and edit personal info (name, phone, address)
+//   • Change their password
+//   • Enable or disable TOTP (Time-based One-Time Password) authenticator 2FA
+//   • Open a support contact form
+// All data is fetched from the API on mount and written back through the same API.
+
+// ── Imports ────────────────────────────────────────────────────────────────────
+// React hooks for component state and lifecycle
 import { useState, useEffect } from 'react'
+// AuthContext provides the currently logged-in user object
 import { useAuth } from '../context/AuthContext'
+// authService functions covering profile CRUD, password change, and TOTP setup/enable/disable
 import {
   getProfileApi, updateProfileApi,
   changePasswordApi, totpSetupApi, totpEnableApi, totpDisableApi
 } from '../services/authService'
+// parseApiError: turns an API error response into a readable string
+// validateField: field-level validation rules (e.g. password strength, required name)
 import { parseApiError, validateField } from '../utils/validators'
+// QRCodeSVG renders an SVG QR code the user scans with their authenticator app
 import { QRCodeSVG } from 'qrcode.react'
+// Shared layout and modal components
 import PageHeader from '../components/shared/PageHeader'
 import ContactSupportModal from '../components/ContactSupportModal'
 
 export default function Profile() {
+  // ── Context ──────────────────────────────────────────────────────────────────
+  // user is from AuthContext — used only to pre-fill the support modal (name/email)
   const { user } = useAuth()
 
+  // ── State: profile data & support modal ──────────────────────────────────────
+  // profile: the full profile object returned by the API (null while loading)
   const [profile, setProfile]             = useState(null)
   const [loadErr, setLoadErr]             = useState('')
   const [supportOpen, setSupportOpen]     = useState(false)
@@ -28,18 +48,26 @@ export default function Profile() {
   const [cpError, setCpError]             = useState('')
   const [cpSuccess, setCpSuccess]         = useState('')
   const [cpLoading, setCpLoading]         = useState(false)
+  // showCp toggles visibility of the password change form (collapsed by default)
   const [showCp, setShowCp]               = useState(false)
+  // showPwd toggles between text and password input type for the new password field
   const [showPwd, setShowPwd]             = useState(false)
 
   // TOTP
+  // totpSetup holds the QR code URI and manual key returned by the setup API; null = not in setup flow
   const [totpSetup, setTotpSetup]         = useState(null)
+  // totpCode is the 6-digit code the user types after scanning the QR code
   const [totpCode, setTotpCode]           = useState('')
   const [totpError, setTotpError]         = useState('')
   const [totpSuccess, setTotpSuccess]     = useState('')
   const [totpLoading, setTotpLoading]     = useState(false)
+  // disablePwd: password entered to confirm disabling TOTP
   const [disablePwd, setDisablePwd]       = useState('')
+  // showDisable: whether the "confirm disable" password input is visible
   const [showDisable, setShowDisable]     = useState(false)
 
+  // ── Side effects ─────────────────────────────────────────────────────────────
+  // Fetch the user's profile once on mount and seed the edit form with the current values
   useEffect(() => {
     getProfileApi()
       .then(r => {
@@ -49,12 +77,15 @@ export default function Profile() {
       .catch(e => setLoadErr(parseApiError(e)))
   }, [])
 
+  // refreshProfile is called after TOTP enable/disable to pick up the updated totpEnabled flag
   const refreshProfile = () =>
     getProfileApi().then(r => {
       setProfile(r.data)
       setEditForm({ name: r.data.name || '', phoneNumber: r.data.phoneNumber || '', address: r.data.address || '' })
     }).catch(() => {})
 
+  // ── Handlers ─────────────────────────────────────────────────────────────────
+  // Validate the name field first, then PATCH the profile. Clears edit mode on success.
   const handleEditSave = async () => {
     const nameErr = validateField('name', editForm.name)
     if (nameErr) return setEditErr(nameErr)
@@ -69,6 +100,8 @@ export default function Profile() {
     finally { setEditLoading(false) }
   }
 
+  // Validate all three password fields before calling the API.
+  // On success the form is hidden and a success banner is shown briefly.
   const handleChangePassword = async () => {
     const err = validateField('password', cpForm.newPassword)
     if (!cpForm.currentPassword) return setCpError('Enter your current password.')
@@ -84,6 +117,8 @@ export default function Profile() {
     finally { setCpLoading(false) }
   }
 
+  // Step 1 of TOTP setup: call the API to generate a secret, QR code URI, and manual key.
+  // The returned data is stored in totpSetup to render the QR code and manual entry box.
   const handleTotpSetup = async () => {
     setTotpLoading(true); setTotpError('')
     try { const r = await totpSetupApi(); setTotpSetup(r.data); setTotpCode('') }
@@ -91,6 +126,8 @@ export default function Profile() {
     finally { setTotpLoading(false) }
   }
 
+  // Step 2 of TOTP setup: the user scanned the QR code and typed the 6-digit code.
+  // We verify it with the server using the same secret. On success TOTP is active.
   const handleTotpEnable = async () => {
     if (totpCode.length !== 6) return setTotpError('Enter the 6-digit code from your app.')
     setTotpLoading(true); setTotpError('')
@@ -103,6 +140,8 @@ export default function Profile() {
     finally { setTotpLoading(false) }
   }
 
+  // Disable TOTP: requires the user's current password as an extra security check.
+  // After disabling, the profile is refreshed so the UI switches back to "Email OTP" mode.
   const handleTotpDisable = async () => {
     if (!disablePwd) return setTotpError('Enter your password to confirm.')
     setTotpLoading(true); setTotpError('')
@@ -115,13 +154,18 @@ export default function Profile() {
     finally { setTotpLoading(false) }
   }
 
+  // roleColors maps each user role to a set of badge colours for the avatar banner.
+  // The fallback (last line) handles any unexpected role value gracefully.
   const roleColors = {
     Admin:   { bg: 'rgba(139,92,246,.15)', color: '#a78bfa', border: 'rgba(139,92,246,.3)' },
     Manager: { bg: 'rgba(8,145,178,.15)',  color: '#22d3ee', border: 'rgba(8,145,178,.3)'  },
     Staff:   { bg: 'rgba(16,185,129,.15)', color: '#34d399', border: 'rgba(16,185,129,.3)' },
   }
+  // rc: the colour set for the current user's role (used throughout the avatar section)
   const rc = roleColors[profile?.role] || { bg: 'rgba(255,255,255,.06)', color: 'var(--text-400)', border: 'var(--border)' }
 
+  // ── Early-return guards ───────────────────────────────────────────────────────
+  // Show an error message if the initial profile fetch failed (e.g. network error)
   if (loadErr) return (
     <div className="animate-in" style={{ padding: '28px 28px 48px' }}>
       <div style={{ maxWidth: 1180, margin: '0 auto' }}>
@@ -130,6 +174,7 @@ export default function Profile() {
       </div>
     </div>
   )
+  // Show a loading placeholder while waiting for the API response
   if (!profile) return (
     <div className="animate-in" style={{ padding: '28px 28px 48px' }}>
       <div style={{ maxWidth: 1180, margin: '0 auto' }}>
@@ -139,6 +184,7 @@ export default function Profile() {
     </div>
   )
 
+  // Local date formatter: converts an ISO date string to "DD Mon YYYY" (e.g. "03 Jun 2026")
   const fmtDate = d => d ? new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'
 
   return (
@@ -271,6 +317,7 @@ export default function Profile() {
       </div>
 
       {/* ── Row 2: Change Password + Authenticator ─────────────────────────── */}
+      {/* Two side-by-side cards: left for password change, right for TOTP management */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
 
         {/* Change Password */}
@@ -461,6 +508,7 @@ export default function Profile() {
         </div>
       </div>
 
+      {/* Contact Support modal — pre-fills name and email from the auth context */}
       <ContactSupportModal
         show={supportOpen}
         onHide={() => setSupportOpen(false)}
