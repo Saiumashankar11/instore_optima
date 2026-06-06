@@ -9,9 +9,17 @@ import {
 import { updatePO } from '../services/purchaseOrderService'
 import { useAlertBadges } from '../context/AlertBadgesContext'
 
-const fmtDate = d => d ? new Date(d).toLocaleString('en-GB', {
-  day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit'
-}) : '—'
+const fmtDate = d => {
+  if (!d) return '—'
+  // Backend sends UTC (often without a 'Z'); treat it as UTC, then render in IST.
+  const s = String(d)
+  const dt = new Date(s.endsWith('Z') || s.includes('+') || s.includes('-', 10) ? s : s + 'Z')
+  if (isNaN(dt)) return '—'
+  return dt.toLocaleString('en-GB', {
+    day: '2-digit', month: 'short', year: 'numeric',
+    hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Kolkata'
+  })
+}
 
 const ROLE_COLOR = { Admin: '#a78bfa', Manager: '#22d3ee', Staff: '#34d399' }
 

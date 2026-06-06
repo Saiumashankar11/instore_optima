@@ -181,7 +181,8 @@ app.UseSerilogRequestLogging(opts =>
     opts.GetLevel = (ctx, _, _) =>
         ctx.Request.Path.StartsWithSegments("/api/auth/ping") ||
         ctx.Request.Path.StartsWithSegments("/api/messages/unread-count") ||
-        ctx.Request.Path.StartsWithSegments("/api/badges")
+        ctx.Request.Path.StartsWithSegments("/api/badges") ||
+        ctx.Request.Path.StartsWithSegments("/api/dashboard/summary")
             ? Serilog.Events.LogEventLevel.Verbose
             : Serilog.Events.LogEventLevel.Information;
 });
