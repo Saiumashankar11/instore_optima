@@ -32,11 +32,8 @@ namespace instore_optima.Api.Controllers
 
         // ── POST api/support/contact ──────────────────────────────────────────
         /// <summary>
-        /// POST api/support/contact
         /// Forwards a contact-support form submission to the support team by email.
         /// The body must contain Name, Email, and Message fields.
-        /// Auth: none (publicly accessible — no JWT needed).
-        /// Returns: 200 OK on success, 400 if the request body is invalid,
         ///          or 502 Bad Gateway if the email service is unavailable.
         /// </summary>
         [HttpPost("contact")]

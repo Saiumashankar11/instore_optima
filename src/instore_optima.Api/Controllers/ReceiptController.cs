@@ -44,11 +44,8 @@ namespace instore_optima.Api.Controllers
 
         // ── GET api/receipt ───────────────────────────────────────────────────
         /// <summary>
-        /// GET api/receipt
         /// Returns every receipt in the system, each enriched with its linked
         /// payment (for the order ID) and the first invoice for that order.
-        /// Auth: any authenticated user.
-        /// Returns: 200 OK with a list of ReceiptResponseDto objects.
         /// </summary>
         [HttpGet]
         public async Task<ActionResult<IEnumerable<ReceiptResponseDto>>> GetAll()
@@ -77,11 +74,8 @@ namespace instore_optima.Api.Controllers
 
         // ── GET api/receipt/{id} ──────────────────────────────────────────────
         /// <summary>
-        /// GET api/receipt/{id}
         /// Returns a single receipt by its primary key, enriched with payment
         /// and invoice data.
-        /// Auth: any authenticated user.
-        /// Returns: 200 OK with the receipt, or 404 if not found.
         /// </summary>
         [HttpGet("{id}")]
         public async Task<ActionResult<ReceiptResponseDto>> GetById(int id)
@@ -102,11 +96,8 @@ namespace instore_optima.Api.Controllers
 
         // ── POST api/receipt ──────────────────────────────────────────────────
         /// <summary>
-        /// POST api/receipt
         /// Creates a new receipt linked to an existing payment.
         /// Note: GeneratedAt is set by the repository, not the caller.
-        /// Auth: any authenticated user.
-        /// Returns: 201 Created with the new receipt, or 422 if validation fails.
         /// </summary>
         [HttpPost]
         public async Task<ActionResult<ReceiptResponseDto>> Create([FromBody] CreateReceiptDto dto)
@@ -142,11 +133,8 @@ namespace instore_optima.Api.Controllers
 
         // PUT api/receipt/{id}
         /// <summary>
-        /// PUT api/receipt/{id}
         /// Replaces the editable fields (ReceiptNumber, AmountPaid, PaymentDate)
         /// of an existing receipt.
-        /// Auth: any authenticated user.
-        /// Returns: 200 OK with the updated receipt, or 404 if not found.
         /// </summary>
         [HttpPut("{id}")]
         public async Task<ActionResult<ReceiptResponseDto>> Update(

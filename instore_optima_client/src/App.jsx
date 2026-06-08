@@ -92,16 +92,21 @@ export default function App() {
   // Set briefly to true when the browser's own zoom level changes, so a banner can be shown.
   const [browserZoomDetected, setBrowserZoomDetected] = useState(false)
 
-  // Apply zoom only to content wrapper, not navbar
+  // Apply zoom via the CSS `zoom` property (NOT `transform: scale`).
+  // A transform on an ancestor breaks `position: sticky/fixed` for its
+  // descendants — which made the sticky navbar drift down and the sidebar
+  // shift while scrolling/zooming. `zoom` rescales rendering without creating
+  // a transform containing block, so sticky/fixed keep working, and it reflows
+  // naturally (no width compensation needed).
   useEffect(() => {
     const contentWrapper = document.getElementById('app-content-wrapper')
     if (contentWrapper) {
-      const zoomRatio = zoom / 100
-      // CSS transform scales the element; adjusting width compensates for the layout space it leaves
-      contentWrapper.style.transform = `scale(${zoomRatio})`
-      contentWrapper.style.transformOrigin = 'top left'
-      contentWrapper.style.width = `${100 / zoomRatio}%`
-      contentWrapper.style.height = `auto`
+      contentWrapper.style.zoom = zoom / 100
+      // Clear any legacy transform-based styles from earlier builds.
+      contentWrapper.style.transform = ''
+      contentWrapper.style.transformOrigin = ''
+      contentWrapper.style.width = ''
+      contentWrapper.style.height = ''
     }
     // Persist the user's chosen zoom level across page refreshes
     localStorage.setItem('appZoom', zoom)

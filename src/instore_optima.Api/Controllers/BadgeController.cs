@@ -30,11 +30,8 @@ namespace instore_optima.Api.Controllers
 
         // ── GET api/badges ────────────────────────────────────────────────────
         /// <summary>
-        /// GET api/badges
         /// Returns the counts used to render sidebar notification badges in the UI.
         /// Each count is a separate COUNT(*) query against the relevant table/status.
-        /// Auth: any authenticated user.
-        /// Returns: 200 OK with a BadgeCountsDto.
         /// </summary>
         [HttpGet]
         public async Task<IActionResult> GetCounts()

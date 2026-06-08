@@ -35,10 +35,7 @@ namespace instore_optima.Api.Controllers
 
         // ── GET api/stockmovement ─────────────────────────────────────────────
         /// <summary>
-        /// GET api/stockmovement
         /// Returns every stock movement in the system across all products.
-        /// Auth: none (open endpoint).
-        /// Returns: 200 OK with a list of StockMovementResponseDTO objects.
         /// </summary>
         [HttpGet]
         public async Task<IActionResult> GetAll()
@@ -50,11 +47,8 @@ namespace instore_optima.Api.Controllers
 
         // ── GET api/stockmovement/product/{productId} ─────────────────────────
         /// <summary>
-        /// GET api/stockmovement/product/{productId}
         /// Returns all stock movements for a specific product, useful for
         /// auditing the history of stock changes for that item.
-        /// Auth: none (open endpoint).
-        /// Returns: 200 OK with a (possibly empty) list of movements.
         /// </summary>
         [HttpGet("product/{productId}")]
         public async Task<IActionResult> GetByProduct(int productId)
@@ -65,10 +59,7 @@ namespace instore_optima.Api.Controllers
 
         // ── GET api/stockmovement/{id} ────────────────────────────────────────
         /// <summary>
-        /// GET api/stockmovement/{id}
         /// Returns a single stock movement by its primary key.
-        /// Auth: none (open endpoint).
-        /// Returns: 200 OK with the movement, or 404 if not found.
         /// </summary>
         [HttpGet("{id}")]
         public async Task<IActionResult> GetById(int id)
@@ -82,11 +73,8 @@ namespace instore_optima.Api.Controllers
 
         // ── POST api/stockmovement ────────────────────────────────────────────
         /// <summary>
-        /// POST api/stockmovement
         /// Records a new stock movement for a product.
         /// MovementType is normalised to uppercase (e.g. "in" → "IN").
-        /// Auth: none (open endpoint).
-        /// Returns: 201 Created with the new movement, or 422 if validation fails.
         /// </summary>
         [HttpPost]
         public async Task<IActionResult> Create(StockMovementCreateDTO dto)
@@ -115,11 +103,8 @@ namespace instore_optima.Api.Controllers
 
         // PATCH api/stockmovement/{id}
         /// <summary>
-        /// PATCH api/stockmovement/{id}
         /// Updates only the Reason field of an existing stock movement.
         /// (A partial update — hence PATCH rather than PUT.)
-        /// Auth: none (open endpoint).
-        /// Returns: 200 OK with the updated movement, or 404 if not found.
         /// </summary>
         [HttpPatch("{id}")]
         public async Task<IActionResult> UpdateReason(int id, StockMovementUpdateDTO dto)
@@ -137,10 +122,7 @@ namespace instore_optima.Api.Controllers
 
         // DELETE api/stockmovement/{id} — Admin only
         /// <summary>
-        /// DELETE api/stockmovement/{id}
         /// Permanently removes a stock movement record.
-        /// Auth: Admin role only — stock history should rarely be deleted.
-        /// Returns: 200 OK on success, or 404 if the movement is not found.
         /// </summary>
         [HttpDelete("{id}")]
         [Microsoft.AspNetCore.Authorization.Authorize(Roles = "Admin")] // Only Admins may delete movement records.

@@ -46,11 +46,8 @@ namespace instore_optima.Api.Controllers
 
         // ── GET api/payment ───────────────────────────────────────────────────
         /// <summary>
-        /// GET api/payment
         /// Returns every payment in the system, each enriched with its linked
         /// invoice (if any) and receipt (if any).
-        /// Auth: any authenticated user.
-        /// Returns: 200 OK with a list of PaymentResponseDto objects.
         /// </summary>
         [HttpGet]
         public async Task<IActionResult> GetAllPayments()
@@ -69,10 +66,7 @@ namespace instore_optima.Api.Controllers
 
         // ── GET api/payment/{id} ──────────────────────────────────────────────
         /// <summary>
-        /// GET api/payment/{id}
         /// Returns a single payment by its primary key.
-        /// Auth: any authenticated user.
-        /// Returns: 200 OK with the payment, or 404 if not found.
         /// </summary>
         [HttpGet("{id}")]
         public async Task<IActionResult> GetPaymentById(int id)
@@ -87,10 +81,7 @@ namespace instore_optima.Api.Controllers
 
         // ── GET api/payment/order/{orderId} ───────────────────────────────────
         /// <summary>
-        /// GET api/payment/order/{orderId}
         /// Returns the payment that belongs to a specific order.
-        /// Auth: any authenticated user.
-        /// Returns: 200 OK with the payment, or 404 if no payment exists for that order.
         /// </summary>
         [HttpGet("order/{orderId}")]
         public async Task<IActionResult> GetPaymentByOrderId(int orderId)
@@ -105,11 +96,8 @@ namespace instore_optima.Api.Controllers
 
         // ── POST api/payment ──────────────────────────────────────────────────
         /// <summary>
-        /// POST api/payment
         /// Creates a new payment record linked to an existing order.
         /// The order must exist, otherwise a 404 is returned.
-        /// Auth: any authenticated user.
-        /// Returns: 201 Created with the new payment, or 422 if validation fails.
         /// </summary>
         [HttpPost]
         public async Task<IActionResult> CreatePayment([FromBody] CreatePaymentDto dto)
@@ -144,10 +132,7 @@ namespace instore_optima.Api.Controllers
 
         // ── PUT api/payment/{id} ──────────────────────────────────────────────
         /// <summary>
-        /// PUT api/payment/{id}
         /// Updates the status (e.g. Pending → Completed) of an existing payment.
-        /// Auth: any authenticated user.
-        /// Returns: 200 OK with the updated payment, or 404 if not found, or 422 on validation errors.
         /// </summary>
         [HttpPut("{id}")]
         public async Task<IActionResult> UpdatePaymentStatus(int id, [FromBody] UpdatePaymentStatusDto dto)
@@ -175,10 +160,7 @@ namespace instore_optima.Api.Controllers
 
         // ── DELETE api/payment/{id} ───────────────────────────────────────────
         /// <summary>
-        /// DELETE api/payment/{id}
         /// Permanently removes a payment and its linked invoice/receipt.
-        /// Auth: Admin role only.
-        /// Returns: 200 OK on success, or 404 if the payment is not found.
         /// </summary>
         [HttpDelete("{id}")]
         [Authorize(Roles = "Admin")] // Restricted: only Admin users may delete payments.

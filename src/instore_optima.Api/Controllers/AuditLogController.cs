@@ -40,12 +40,9 @@ namespace instore_optima.Api.Controllers
 
         // ── GET api/auditlog ──────────────────────────────────────────────────
         /// <summary>
-        /// GET api/auditlog
         /// Returns every audit log entry in the system.
         /// Throws 404 if the log table is empty (the log should never be empty in
         /// a running system, so this signals a configuration issue).
-        /// Auth: Admin or Manager roles only.
-        /// Returns: 200 OK with a list of AuditLogResponseDto objects.
         /// </summary>
         [HttpGet]
         [Authorize(Roles = "Admin,Manager")] // Narrower restriction: only Admin/Manager may list all logs.
@@ -76,11 +73,8 @@ namespace instore_optima.Api.Controllers
 
         // ── GET api/auditlog/user/{userId} ────────────────────────────────────
         /// <summary>
-        /// GET api/auditlog/user/{userId}
         /// Returns all audit log entries created by a specific user.
         /// Useful for reviewing an individual's activity history.
-        /// Auth: any authenticated user (a user can view their own logs; Admins can view any).
-        /// Returns: 200 OK with a list of logs, or 404 if the user doesn't exist.
         /// </summary>
         [HttpGet("user/{userId}")]
         public async Task<IActionResult> GetLogsByUser(int userId)

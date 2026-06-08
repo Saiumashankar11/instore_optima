@@ -37,12 +37,9 @@ namespace instore_optima.Api.Controllers
 
         // ── GET api/user ──────────────────────────────────────────────────────
         /// <summary>
-        /// GET api/user
         /// Returns a list of all registered users (without sensitive data like
         /// password hashes). The Token field in the response is intentionally
         /// left empty — JWT tokens are issued only by the auth endpoints.
-        /// Auth: Admin or Manager.
-        /// Returns: 200 OK with a list of AuthResponseDto objects.
         /// </summary>
         [HttpGet]
         public async Task<IActionResult> GetAllUsers()
@@ -65,10 +62,7 @@ namespace instore_optima.Api.Controllers
 
         // ── GET api/user/{id} ─────────────────────────────────────────────────
         /// <summary>
-        /// GET api/user/{id}
         /// Returns the profile of a single user by their primary key.
-        /// Auth: Admin or Manager.
-        /// Returns: 200 OK with the user, or 404 if not found.
         /// </summary>
         [HttpGet("{id}")]
         public async Task<IActionResult> GetUserById(int id)
@@ -89,11 +83,8 @@ namespace instore_optima.Api.Controllers
 
         // ── PUT api/user/{id} ─────────────────────────────────────────────────
         /// <summary>
-        /// PUT api/user/{id}
         /// Updates the Name, Email, and Role of an existing user.
         /// Note: passwords are changed through a separate change-password endpoint.
-        /// Auth: Admin or Manager.
-        /// Returns: 200 OK with the updated user, or 404 if not found.
         /// </summary>
         [HttpPut("{id}")]
         public async Task<IActionResult> UpdateUser(int id, [FromBody] RegisterDto dto)
@@ -120,12 +111,9 @@ namespace instore_optima.Api.Controllers
 
         // ── DELETE api/user/{id} ──────────────────────────────────────────────
         /// <summary>
-        /// DELETE api/user/{id}
         /// Permanently removes a user account and sends them a deactivation email.
         /// The email send is best-effort — if SMTP is unavailable, the delete still
         /// succeeds and the error is logged rather than surfaced to the caller.
-        /// Auth: Admin role only.
-        /// Returns: 204 No Content on success, or 404 if not found.
         /// </summary>
         [HttpDelete("{id}")]
         [Authorize(Roles = "Admin")] // Restrict deletions to Admin only (narrower than the controller-level restriction).

@@ -33,11 +33,8 @@ namespace instore_optima.Api.Controllers
         /// </summary>
         // ── GET api/live/snapshot ─────────────────────────────────────────────
         /// <summary>
-        /// GET api/live/snapshot
         /// Gathers several quick counts and recent records from the database and
         /// returns them as a single anonymous JSON object for the landing-page widget.
-        /// Auth: none (publicly accessible — no JWT needed).
-        /// Returns: 200 OK with the snapshot object.
         /// </summary>
         [HttpGet("snapshot")]
         public async Task<IActionResult> GetSnapshot()

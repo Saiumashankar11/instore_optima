@@ -34,7 +34,6 @@ namespace instore_optima.Api.Controllers
         /// </summary>
         // ── GET api/dashboard/summary ─────────────────────────────────────────
         /// <summary>
-        /// GET api/dashboard/summary
         /// Returns a DashboardSummaryDto with:
         ///   - Total product, supplier, and order counts.
         ///   - Today's order count.
@@ -42,8 +41,6 @@ namespace instore_optima.Api.Controllers
         ///   - Replenishment order counts by status (Pending / Approved / Rejected / Fulfilled).
         ///   - Total revenue from orders with a Completed payment.
         ///   - The 6 most recent orders for the "Recent Orders" table.
-        /// Auth: any authenticated user.
-        /// Returns: 200 OK with a DashboardSummaryDto.
         /// </summary>
         [HttpGet("summary")]
         public async Task<IActionResult> GetSummary()

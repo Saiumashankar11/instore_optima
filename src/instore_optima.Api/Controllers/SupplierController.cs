@@ -39,10 +39,7 @@ namespace instore_optima.Api.Controllers
 
         // ── GET api/supplier ──────────────────────────────────────────────────
         /// <summary>
-        /// GET api/supplier
         /// Returns every supplier in the system.
-        /// Auth: none (open endpoint).
-        /// Returns: 200 OK with a list of Supplier objects.
         /// </summary>
         [HttpGet]
         public async Task<IActionResult> GetAll()
@@ -54,10 +51,7 @@ namespace instore_optima.Api.Controllers
 
         // ── GET api/supplier/{id} ─────────────────────────────────────────────
         /// <summary>
-        /// GET api/supplier/{id}
         /// Returns a single supplier by its primary key.
-        /// Auth: none (open endpoint).
-        /// Returns: 200 OK with the supplier, or 404 if not found.
         /// </summary>
         [HttpGet("{id}")]
         public async Task<IActionResult> GetById(int id)
@@ -72,10 +66,7 @@ namespace instore_optima.Api.Controllers
 
         // ── POST api/supplier ─────────────────────────────────────────────────
         /// <summary>
-        /// POST api/supplier
         /// Creates a new supplier.
-        /// Auth: none (open endpoint).
-        /// Returns: 201 Created with the new supplier.
         /// </summary>
         [HttpPost]
         public async Task<IActionResult> Create(CreateSupplierDto dto)
@@ -95,10 +86,7 @@ namespace instore_optima.Api.Controllers
 
         // ── PUT api/supplier/{id} ─────────────────────────────────────────────
         /// <summary>
-        /// PUT api/supplier/{id}
         /// Replaces all editable fields of an existing supplier.
-        /// Auth: none (open endpoint).
-        /// Returns: 200 OK with the updated supplier, or 404 if not found.
         /// </summary>
         [HttpPut("{id}")]
         public async Task<IActionResult> Update(int id, UpdateSupplierDto dto)
@@ -120,12 +108,9 @@ namespace instore_optima.Api.Controllers
 
         // ── DELETE api/supplier/{id} ──────────────────────────────────────────
         /// <summary>
-        /// DELETE api/supplier/{id}
         /// Permanently removes a supplier. Fails with a 409 Conflict if the
         /// supplier is still referenced by products, purchase orders, or
         /// replenishment logs — protecting database referential integrity.
-        /// Auth: none (open endpoint).
-        /// Returns: 204 No Content on success, 404 if not found, or 409 on a FK constraint.
         /// </summary>
         [HttpDelete("{id}")]
         public async Task<IActionResult> Delete(int id)

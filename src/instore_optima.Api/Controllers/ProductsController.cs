@@ -36,10 +36,7 @@ namespace instore_optima.Api.Controllers
 
         // ── GET api/products ──────────────────────────────────────────────────
         /// <summary>
-        /// GET api/products
         /// Returns every product in the catalogue.
-        /// Auth: none (open endpoint).
-        /// Returns: 200 OK with a list of ProductResponseDTO objects.
         /// </summary>
         [HttpGet]
         public async Task<IActionResult> GetProducts()
@@ -64,10 +61,7 @@ namespace instore_optima.Api.Controllers
 
         // ── GET api/products/{id} ─────────────────────────────────────────────
         /// <summary>
-        /// GET api/products/{id}
         /// Returns a single product by its primary key.
-        /// Auth: none (open endpoint).
-        /// Returns: 200 OK with the product, or 404 if not found.
         /// </summary>
         [HttpGet("{id}")]
         public async Task<IActionResult> GetById(int id)
@@ -90,11 +84,8 @@ namespace instore_optima.Api.Controllers
 
         // ── POST api/products ─────────────────────────────────────────────────
         /// <summary>
-        /// POST api/products
         /// Creates a new product and immediately creates a matching Stock record
         /// with a CurrentStock of 0 so the product appears in the stock management page.
-        /// Auth: none (open endpoint).
-        /// Returns: 200 OK with the created product.
         /// </summary>
         [HttpPost]
         public async Task<IActionResult> CreateProduct(ProductCreateDTO dto)
@@ -136,10 +127,7 @@ namespace instore_optima.Api.Controllers
 
         // PUT api/products/{id}
         /// <summary>
-        /// PUT api/products/{id}
         /// Replaces all editable fields of an existing product.
-        /// Auth: none (open endpoint).
-        /// Returns: 200 OK with the updated product, or 404 if not found.
         /// </summary>
         [HttpPut("{id}")]
         public async Task<IActionResult> UpdateProduct(int id, ProductUpdateDTO dto)
@@ -173,12 +161,9 @@ namespace instore_optima.Api.Controllers
 
         // DELETE api/products/{id}
         /// <summary>
-        /// DELETE api/products/{id}
         /// Permanently removes a product. Fails with a 409 Conflict if the product
         /// is still referenced by stock records, orders, stock movements, or
         /// replenishment data — protecting database referential integrity.
-        /// Auth: none (open endpoint).
-        /// Returns: 200 OK on success, 404 if not found, or 409 on a FK constraint.
         /// </summary>
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteProduct(int id)

@@ -47,10 +47,7 @@ namespace instore_optima.Api.Controllers
 
         // ── GET api/purchaseorder ─────────────────────────────────────────────
         /// <summary>
-        /// GET api/purchaseorder
         /// Returns every purchase order in the system.
-        /// Auth: any authenticated user.
-        /// Returns: 200 OK with a list of PurchaseOrder objects.
         /// </summary>
         [HttpGet]
         public async Task<IActionResult> GetAll()
@@ -61,10 +58,7 @@ namespace instore_optima.Api.Controllers
 
         // ── GET api/purchaseorder/{id} ────────────────────────────────────────
         /// <summary>
-        /// GET api/purchaseorder/{id}
         /// Returns a single purchase order by its primary key.
-        /// Auth: any authenticated user.
-        /// Returns: 200 OK with the PO, or 404 if not found.
         /// </summary>
         [HttpGet("{id}")]
         public async Task<IActionResult> GetById(int id)
@@ -78,11 +72,8 @@ namespace instore_optima.Api.Controllers
 
         // ── POST api/purchaseorder ────────────────────────────────────────────
         /// <summary>
-        /// POST api/purchaseorder
         /// Creates a new purchase order with status "Pending" and notifies the
         /// creator via the PO notification service (e.g. email to the creator).
-        /// Auth: Admin or Manager role only.
-        /// Returns: 201 Created with the new PO, or 400 for missing required fields.
         /// </summary>
         [HttpPost]
         [Authorize(Roles = "Admin,Manager")] // Only Admin and Manager may raise purchase orders.
@@ -119,11 +110,8 @@ namespace instore_optima.Api.Controllers
 
         // PUT api/purchaseorder/{id}
         /// <summary>
-        /// PUT api/purchaseorder/{id}
         /// Updates the status of an existing purchase order.
         /// Allowed statuses: "Pending", "Delivered", "Cancelled".
-        /// Auth: any authenticated user.
-        /// Returns: 200 OK with the updated PO, 400 for invalid status, or 404 if not found.
         /// </summary>
         [HttpPut("{id}")]
         public async Task<IActionResult> UpdateStatus(int id, UpdatePurchaseOrderDto dto)
@@ -154,11 +142,8 @@ namespace instore_optima.Api.Controllers
 
         // DELETE api/purchaseorder/{id}
         /// <summary>
-        /// DELETE api/purchaseorder/{id}
         /// Permanently removes a purchase order. Fails with 409 Conflict if the
         /// PO cannot be deleted due to related data constraints.
-        /// Auth: Admin role only.
-        /// Returns: 200 OK on success, 404 if not found, or 409 on a conflict.
         /// </summary>
         [HttpDelete("{id}")]
         [Authorize(Roles = "Admin")] // Only Admins may delete purchase orders.

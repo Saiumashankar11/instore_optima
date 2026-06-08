@@ -38,11 +38,8 @@ namespace instore_optima.Api.Controllers
 
         // GET api/invoice
         /// <summary>
-        /// GET api/invoice
         /// Returns every invoice in the system, each enriched with payment
         /// information for the associated order (if a payment exists).
-        /// Auth: any authenticated user.
-        /// Returns: 200 OK with a list of InvoiceResponseDto objects.
         /// </summary>
         [HttpGet]
         public async Task<ActionResult<IEnumerable<InvoiceResponseDto>>> GetAll()
@@ -62,10 +59,7 @@ namespace instore_optima.Api.Controllers
 
         // GET api/invoice/{id}
         /// <summary>
-        /// GET api/invoice/{id}
         /// Returns a single invoice by its primary key, enriched with payment info.
-        /// Auth: any authenticated user.
-        /// Returns: 200 OK with the invoice, or 404 if not found.
         /// </summary>
         [HttpGet("{id}")]
         public async Task<ActionResult<InvoiceResponseDto>> GetById(int id)
@@ -80,11 +74,8 @@ namespace instore_optima.Api.Controllers
 
         // GET api/invoice/order/{orderId}
         /// <summary>
-        /// GET api/invoice/order/{orderId}
         /// Returns all invoices that belong to a given order.
         /// An order can theoretically have multiple invoices (e.g. partial billing).
-        /// Auth: any authenticated user.
-        /// Returns: 200 OK with a (possibly empty) list of invoices.
         /// </summary>
         [HttpGet("order/{orderId}")]
         public async Task<ActionResult<IEnumerable<InvoiceResponseDto>>> GetByOrder(int orderId)
@@ -97,11 +88,8 @@ namespace instore_optima.Api.Controllers
 
         // POST api/invoice
         /// <summary>
-        /// POST api/invoice
         /// Creates a new invoice for an order.
         /// Note: IssuedDate and Status are set by the repository (not the caller).
-        /// Auth: any authenticated user.
-        /// Returns: 201 Created with the new invoice, or 400 if validation fails.
         /// </summary>
         [HttpPost]
         public async Task<ActionResult<InvoiceResponseDto>> Create([FromBody] CreateInvoiceDto dto)
@@ -129,11 +117,8 @@ namespace instore_optima.Api.Controllers
 
         // PUT api/invoice/{id}
         /// <summary>
-        /// PUT api/invoice/{id}
         /// Updates the status (e.g. "Issued" → "Paid") of an existing invoice.
         /// Invalid status values or a missing invoice are returned as 400 / 404.
-        /// Auth: any authenticated user.
-        /// Returns: 200 OK with the updated invoice, 404 if not found, or 400 for bad status.
         /// </summary>
         [HttpPut("{id}")]
         public async Task<ActionResult<InvoiceResponseDto>> UpdateStatus(
