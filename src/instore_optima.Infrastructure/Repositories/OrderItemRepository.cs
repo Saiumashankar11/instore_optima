@@ -258,12 +258,14 @@ namespace instore_optima.Api.Repositories.Implementations
                 return;
             }
 
-            // Fallback: use product MinStock as reorder point (midpoint trigger)
-            // (used when no explicit replenishment rule exists for this product)
+            // Fallback (no explicit rule): trigger only when stock falls to the
+            // CRITICAL midpoint — at or below half of MinStock — matching the
+            // manual stock-edit / write-off path. e.g. MinStock 50 → fires at ≤ 25.
+            // (So an order that drops stock to 48 does NOT trigger a replenishment.)
             var product = await _context.Products.FirstOrDefaultAsync(p => p.ProductId == productId);
             if (product == null || product.MinStock <= 0) return;
 
-            int reorderPoint = product.MinStock; // trigger at or below MinStock
+            int reorderPoint = product.MinStock / 2; // integer division → floor(MinStock/2)
             if (currentStock > reorderPoint) return;
 
             int quantityToOrder = product.MaxStock - currentStock;
